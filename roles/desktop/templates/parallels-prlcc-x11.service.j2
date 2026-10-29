@@ -1,10 +1,9 @@
 [Unit]
-Description=Parallels dynamic-resolution client through XWayland
+Description=Parallels dynamic-resolution client for X11/XWayland
 ConditionFileIsExecutable=/usr/bin/prlcc
 
 [Service]
 Type=simple
-Environment=DISPLAY=:0
 Environment=XDG_SESSION_TYPE=x11
 Environment=GDK_BACKEND=x11
 UnsetEnvironment=WAYLAND_DISPLAY

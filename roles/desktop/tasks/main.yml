@@ -1,4 +1,10 @@
 ---
+- name: Validate the selected desktop session
+  ansible.builtin.assert:
+    that:
+      - desktop_session in ["hyprland", "i3-x11"]
+    fail_msg: desktop_session must be hyprland or i3-x11.
+
 - name: Install lean Hyprland desktop packages
   ansible.builtin.apt:
     name:
@@ -8,7 +14,6 @@
       - fonts-jetbrains-mono
       - fonts-noto-color-emoji
       - fuzzel
-      - ghostty
       - greetd
       - grim
       - hyprland
@@ -38,6 +43,24 @@
     state: present
     install_recommends: false
 
+- name: Install lean i3 Xorg session packages
+  ansible.builtin.apt:
+    name:
+      - dbus-x11
+      - dunst
+      - flameshot
+      - i3
+      - i3lock
+      - policykit-1-gnome
+      - rofi
+      - xclip
+      - xinit
+      - xorg
+    state: present
+    install_recommends: false
+  when: desktop_session == "i3-x11"
+  tags: [i3_x11]
+
 - name: Remove conflicting GNOME desktop components
   ansible.builtin.apt:
     name:
@@ -61,6 +84,71 @@
     state: absent
     purge: true
 
+- name: Remove superseded Ghostty terminal emulator
+  tags: [kitty]
+  ansible.builtin.apt:
+    name: ghostty
+    state: absent
+    purge: true
+
+- name: Remove project-managed Ghostty user files
+  tags: [kitty]
+  ansible.builtin.file:
+    path: "{{ workstation_home }}/{{ item }}"
+    state: absent
+  loop:
+    - .config/ghostty
+    - .local/bin/ghostty
+    - .local/share/applications/com.mitchellh.ghostty.desktop
+
+- name: Install kitty terminal emulator
+  tags: [kitty]
+  ansible.builtin.apt:
+    name: kitty
+    state: present
+    install_recommends: false
+
+- name: Validate kitty display backend
+  tags: [kitty]
+  ansible.builtin.assert:
+    that:
+      - kitty_display_server in ["wayland", "x11", "auto"]
+    fail_msg: kitty_display_server must be wayland, x11, or auto.
+
+- name: Create kitty user directories
+  tags: [kitty]
+  ansible.builtin.file:
+    path: "{{ workstation_home }}/{{ item }}"
+    state: directory
+    owner: "{{ workstation_user }}"
+    group: "{{ workstation_group }}"
+    mode: "0755"
+  loop:
+    - .config/fuzzel
+    - .config/hypr
+    - .config/kitty
+    - .local/bin
+    - .local/share/applications
+
+- name: Install kitty configuration and launcher entry
+  tags: [kitty]
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ workstation_home }}/{{ item.dest }}"
+    owner: "{{ workstation_user }}"
+    group: "{{ workstation_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - src: kitty.conf.j2
+      dest: .config/kitty/kitty.conf
+      mode: "0644"
+    - src: kitty-wrapper.sh.j2
+      dest: .local/bin/kitty
+      mode: "0755"
+    - src: kitty.desktop.j2
+      dest: .local/share/applications/kitty.desktop
+      mode: "0644"
+
 - name: Create desktop configuration directories
   tags: [onepassword]
   ansible.builtin.file:
@@ -75,10 +163,11 @@
     - .local/state/dev-ubuntu
     - .config/autostart
     - .config/fuzzel
-    - .config/ghostty
     - .config/gtk-3.0
     - .config/gtk-4.0
     - .config/hypr
+    - .config/i3
+    - .config/dunst
     - .config/mako
     - .config/systemd/user
     - .config/waybar
@@ -92,15 +181,49 @@
     group: "{{ workstation_group }}"
     mode: "0644"
   loop:
-    - {src: fuzzel.ini.j2, dest: .config/fuzzel/fuzzel.ini}
-    - {src: ghostty.desktop.j2, dest: .local/share/applications/com.mitchellh.ghostty.desktop}
-    - {src: ghostty.conf.j2, dest: .config/ghostty/config}
     - {src: gtk-settings.ini.j2, dest: .config/gtk-3.0/settings.ini}
     - {src: gtk-settings.ini.j2, dest: .config/gtk-4.0/settings.ini}
-    - {src: hyprland.conf.j2, dest: .config/hypr/hyprland.conf}
     - {src: mako.conf.j2, dest: .config/mako/config}
     - {src: waybar.jsonc.j2, dest: .config/waybar/config.jsonc}
     - {src: waybar.css.j2, dest: .config/waybar/style.css}
+
+- name: Install fuzzel configuration
+  tags: [onepassword, kitty]
+  ansible.builtin.template:
+    src: fuzzel.ini.j2
+    dest: "{{ workstation_home }}/.config/fuzzel/fuzzel.ini"
+    owner: "{{ workstation_user }}"
+    group: "{{ workstation_group }}"
+    mode: "0644"
+
+- name: Install Hyprland configuration
+  tags: [onepassword, kitty, hyprland_config]
+  ansible.builtin.template:
+    src: hyprland.conf.j2
+    dest: "{{ workstation_home }}/.config/hypr/hyprland.conf"
+    owner: "{{ workstation_user }}"
+    group: "{{ workstation_group }}"
+    mode: "0644"
+
+- name: Install i3 Xorg session configuration
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ workstation_home }}/{{ item.dest }}"
+    owner: "{{ workstation_user }}"
+    group: "{{ workstation_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - src: i3-config.j2
+      dest: .config/i3/config
+      mode: "0644"
+    - src: dunstrc.j2
+      dest: .config/dunst/dunstrc
+      mode: "0644"
+    - src: xinitrc.j2
+      dest: .xinitrc
+      mode: "0755"
+  when: desktop_session == "i3-x11"
+  tags: [i3_x11]
 
 - name: Install Parallels Hyprland user services
   ansible.builtin.template:
@@ -118,8 +241,27 @@
       dest: parallels-prlcp-wayland.service
     - src: parallels-prldnd-wayland.service.j2
       dest: parallels-prldnd-wayland.service
+  notify: Restart active Parallels clipboard bridge
   when: enable_parallels_hyprland_integration | bool
   tags: [parallels_dynamic_resolution]
+
+- name: Install Parallels i3 Xorg user services
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ workstation_home }}/.config/systemd/user/{{ item.dest }}"
+    owner: "{{ workstation_user }}"
+    group: "{{ workstation_group }}"
+    mode: "0644"
+  loop:
+    - src: parallels-prlcp-x11.service.j2
+      dest: parallels-prlcp-x11.service
+    - src: parallels-prldnd-x11.service.j2
+      dest: parallels-prldnd-x11.service
+  notify: Restart active Parallels clipboard bridge
+  when:
+    - desktop_session == "i3-x11"
+    - enable_parallels_x11_integration | bool
+  tags: [i3_x11, parallels_dynamic_resolution]
 
 - name: Disable the incompatible stock Parallels desktop autostart
   ansible.builtin.template:
@@ -128,7 +270,9 @@
     owner: "{{ workstation_user }}"
     group: "{{ workstation_group }}"
     mode: "0644"
-  when: enable_parallels_hyprland_integration | bool
+  when: >-
+    enable_parallels_hyprland_integration | bool or
+    enable_parallels_x11_integration | bool
   tags: [parallels_dynamic_resolution]
 
 - name: Install the Parallels Hyprland dynamic-resolution bridge
@@ -170,15 +314,6 @@
     - enable_parallels_hyprland_integration | bool
     - not (parallels_dynamic_resolution_enabled | bool)
   tags: [parallels_dynamic_resolution]
-
-- name: Install VM-compatible Ghostty launcher
-  tags: [ghostty]
-  ansible.builtin.template:
-    src: ghostty-wrapper.sh.j2
-    dest: "{{ workstation_home }}/.local/bin/ghostty"
-    owner: "{{ workstation_user }}"
-    group: "{{ workstation_group }}"
-    mode: "0755"
 
 - name: Configure greetd
   ansible.builtin.template:

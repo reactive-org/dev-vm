@@ -1,0 +1,21 @@
+#!/bin/sh
+
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=i3
+export XDG_SESSION_DESKTOP=i3
+export DESKTOP_SESSION=i3
+export GDK_BACKEND=x11
+export QT_QPA_PLATFORM=xcb
+export MOZ_ENABLE_WAYLAND=0
+
+systemctl --user unset-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE || true
+systemctl --user import-environment DISPLAY XAUTHORITY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_DESKTOP DESKTOP_SESSION GDK_BACKEND QT_QPA_PLATFORM || true
+systemctl --user daemon-reload
+
+{% if enable_parallels_x11_integration | bool %}
+systemctl --user stop parallels-prlcp-wayland.service parallels-prldnd-wayland.service parallels-dynamic-resolution.service || true
+systemctl --user restart parallels-prlcc-x11.service parallels-prlcp-x11.service parallels-prldnd-x11.service || true
+{% endif %}
+
+xsetroot -solid '#111111'
+exec /usr/bin/i3

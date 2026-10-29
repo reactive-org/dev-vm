@@ -1,0 +1,7 @@
+#!/bin/sh
+{% if kitty_force_software_rendering | bool %}
+# Fall back to Mesa software rendering only if Parallels' virtual GPU cannot
+# satisfy kitty's renderer.
+export LIBGL_ALWAYS_SOFTWARE=1
+{% endif %}
+exec /usr/bin/kitty --directory "$HOME" "$@"

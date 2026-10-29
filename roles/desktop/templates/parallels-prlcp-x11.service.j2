@@ -1,0 +1,14 @@
+[Unit]
+Description=Parallels shared clipboard for X11
+ConditionFileIsExecutable=/usr/bin/prlcp
+Conflicts=parallels-prlcp-wayland.service
+
+[Service]
+Type=simple
+Environment=XDG_SESSION_TYPE=x11
+Environment=GDK_BACKEND=x11
+UnsetEnvironment=WAYLAND_DISPLAY
+ExecStart=/usr/bin/prlcp
+Restart=always
+RestartSec=1
+RuntimeMaxSec={{ parallels_clipboard_restart_interval }}

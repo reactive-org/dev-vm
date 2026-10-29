@@ -1,0 +1,13 @@
+[Unit]
+Description=Parallels drag and drop for X11
+ConditionFileIsExecutable=/usr/bin/prldnd
+Conflicts=parallels-prldnd-wayland.service
+
+[Service]
+Type=simple
+Environment=XDG_SESSION_TYPE=x11
+Environment=GDK_BACKEND=x11
+UnsetEnvironment=WAYLAND_DISPLAY
+ExecStart=/usr/bin/prldnd
+Restart=on-failure
+RestartSec=1

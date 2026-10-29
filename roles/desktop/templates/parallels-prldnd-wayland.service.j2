@@ -1,6 +1,7 @@
 [Unit]
 Description=Parallels drag and drop for Wayland
 ConditionFileIsExecutable=/usr/bin/prldnd
+Conflicts=parallels-prldnd-x11.service
 
 [Service]
 Type=simple

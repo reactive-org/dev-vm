@@ -24,6 +24,96 @@
         (parallels_tools_executable.stat.executable | default(false))
       }}
 
+- name: Inspect the installed Parallels Tools version
+  ansible.builtin.command:
+    argv:
+      - cat
+      - /usr/lib/parallels-tools/version
+  register: parallels_tools_installed_version_result
+  when: parallels_tools_installed | bool
+  changed_when: false
+  failed_when: false
+
+- name: Record the installed Parallels Tools version
+  ansible.builtin.set_fact:
+    parallels_tools_installed_version: >-
+      {{
+        (parallels_tools_installed_version_result.stdout | default('') | trim)
+        if (parallels_tools_installed | bool)
+        else ''
+      }}
+
+- name: Inspect the bundled Parallels Tools ISO on the controller
+  ansible.builtin.stat:
+    path: "{{ parallels_tools_iso_path }}"
+  register: parallels_tools_iso
+  when:
+    - not (parallels_tools_installed | bool) or
+      update_parallels_tools_automatically | bool
+  delegate_to: localhost
+  become: false
+
+- name: Verify the bundled Parallels Tools ISO is available
+  ansible.builtin.assert:
+    that:
+      - parallels_tools_iso.stat.isreg | default(false)
+    fail_msg: >-
+      The ARM64 Parallels Tools ISO was not found at
+      {{ parallels_tools_iso_path }} on the Ansible controller.
+  when:
+    - not (parallels_tools_installed | bool) or
+      update_parallels_tools_automatically | bool
+  delegate_to: localhost
+  become: false
+
+- name: Read the bundled Parallels Tools version
+  ansible.builtin.command:
+    argv:
+      - "{{ parallels_bsdtar_path }}"
+      - -xOf
+      - "{{ parallels_tools_iso_path }}"
+      - version
+  register: parallels_tools_bundled_version_result
+  when:
+    - not (parallels_tools_installed | bool) or
+      update_parallels_tools_automatically | bool
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Record the bundled Parallels Tools version
+  ansible.builtin.set_fact:
+    parallels_tools_bundled_version: >-
+      {{ parallels_tools_bundled_version_result.stdout | default('') | trim }}
+  when:
+    - not (parallels_tools_installed | bool) or
+      update_parallels_tools_automatically | bool
+
+- name: Validate the bundled Parallels Tools version
+  ansible.builtin.assert:
+    that:
+      - parallels_tools_bundled_version is
+        match('^[0-9]+(?:\\.[0-9]+){3}$')
+    fail_msg: >-
+      Could not read a four-part Tools version from
+      {{ parallels_tools_iso_path }}.
+  when:
+    - not (parallels_tools_installed | bool) or
+      update_parallels_tools_automatically | bool
+
+- name: Determine whether Parallels Tools needs an update
+  ansible.builtin.set_fact:
+    parallels_tools_update_required: >-
+      {{
+        (parallels_tools_installed | bool) and
+        (update_parallels_tools_automatically | bool) and
+        (
+          parallels_tools_installed_version | length == 0 or
+          parallels_tools_installed_version is
+            version(parallels_tools_bundled_version, '<')
+        )
+      }}
+
 - name: Make Parallels Tools installation media available
   when: not parallels_tools_installed | bool
   block:
@@ -39,25 +129,6 @@
       register: parallels_tools_cd_label
       changed_when: false
       failed_when: false
-
-    - name: Inspect the bundled Parallels Tools ISO on the controller
-      ansible.builtin.stat:
-        path: "{{ parallels_tools_iso_path }}"
-      register: parallels_tools_iso
-      when: parallels_tools_cd_label.stdout != "Parallels Tools"
-      delegate_to: localhost
-      become: false
-
-    - name: Verify the bundled Parallels Tools ISO is available
-      ansible.builtin.assert:
-        that:
-          - parallels_tools_iso.stat.isreg | default(false)
-        fail_msg: >-
-          The ARM64 Parallels Tools ISO was not found at
-          {{ parallels_tools_iso_path }} on the Ansible controller.
-      when: parallels_tools_cd_label.stdout != "Parallels Tools"
-      delegate_to: localhost
-      become: false
 
     - name: Attach the bundled Parallels Tools ISO to the VM
       ansible.builtin.command:
@@ -183,3 +254,66 @@
           {{ parallels_tools_media_path }}/install; run it interactively with
           sudo, then reboot the VM.
       when: not install_parallels_tools_automatically | bool
+
+- name: Update Parallels Tools from the host bundle
+  when: parallels_tools_update_required | bool
+  block:
+    - name: Verify the Parallels VM name is configured for the update
+      ansible.builtin.assert:
+        that:
+          - parallels_vm_name != "YOUR_VM_NAME"
+          - parallels_vm_name | length > 0
+        fail_msg: >-
+          Set parallels_vm_name to the exact Parallels Desktop VM name before
+          updating Parallels Tools.
+
+    - name: Request the Parallels Tools update from the controller
+      ansible.builtin.command:
+        argv:
+          - "{{ parallels_prlctl_path }}"
+          - installtools
+          - "{{ parallels_vm_name }}"
+      delegate_to: localhost
+      become: false
+      changed_when: true
+
+    - name: Wait for the bundled Parallels Tools version in the guest
+      ansible.builtin.command:
+        argv:
+          - cat
+          - /usr/lib/parallels-tools/version
+      register: parallels_tools_updated_version_result
+      until: >-
+        parallels_tools_updated_version_result.stdout | trim ==
+        parallels_tools_bundled_version
+      retries: 60
+      delay: 5
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm the Parallels Tools update completed
+      ansible.builtin.assert:
+        that:
+          - parallels_tools_updated_version_result.rc == 0
+          - parallels_tools_updated_version_result.stdout | trim ==
+            parallels_tools_bundled_version
+        fail_msg: >-
+          Parallels Tools did not reach version
+          {{ parallels_tools_bundled_version }} within five minutes. Inspect
+          /var/log/parallels-tools-install.log in the guest.
+
+    - name: Ensure the Parallels Tools service is active
+      ansible.builtin.systemd:
+        name: prltoolsd.service
+        enabled: true
+        state: started
+
+- name: Report the installed Parallels Tools version
+  ansible.builtin.debug:
+    msg: >-
+      Parallels Tools {{ parallels_tools_installed_version }} already matches
+      or is newer than the host bundle {{ parallels_tools_bundled_version }}.
+  when:
+    - parallels_tools_installed | bool
+    - update_parallels_tools_automatically | bool
+    - not (parallels_tools_update_required | bool)

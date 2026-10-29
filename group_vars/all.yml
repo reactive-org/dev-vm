@@ -33,8 +33,12 @@ install_powerlevel10k: true
 # playbook runs; the end-to-end bootstrap overrides it to true.
 prepare_parallels_tools_media: true
 install_parallels_tools_automatically: false
+# Upgrade an existing installation when the host-bundled ISO is newer. This
+# remains idempotent and never downgrades a guest with newer Tools.
+update_parallels_tools_automatically: true
 parallels_vm_name: YOUR_VM_NAME
 parallels_prlctl_path: /usr/local/bin/prlctl
+parallels_bsdtar_path: /usr/bin/bsdtar
 parallels_tools_iso_path: "/Applications/Parallels Desktop.app/Contents/Resources/Tools/prl-tools-lin-arm.iso"
 parallels_tools_mount_path: /media/cdrom0
 
@@ -62,9 +66,10 @@ controller_powerlevel10k_config_path: >-
 controller_powerlevel10k_font_dir: >-
   {{ lookup('ansible.builtin.env', 'HOME') }}/Library/Fonts
 controller_git_config_dir: "{{ lookup('ansible.builtin.env', 'HOME') }}"
+# Machine- or client-specific include files referenced from .gitconfig belong
+# in local-vars.yml. An override replaces this list, so repeat .gitconfig there.
 controller_git_config_files:
   - .gitconfig
-  - .gitconfig-higeia
 controller_ssh_key_dir: "{{ lookup('ansible.builtin.env', 'HOME') }}/.ssh"
 controller_ssh_key_files:
   - path: id_rsa
@@ -151,11 +156,26 @@ remove_snapd: true
 hyprland_scale: 1
 # Require Option+Command together for Hyprland shortcuts in Parallels.
 hyprland_main_modifier: ALT SUPER
+# Append checkout-specific Hyprland configuration from ignored local-vars.yml
+# without replacing the managed base configuration.
+hyprland_extra_config: []
+
+# Use Hyprland/Wayland as the normal workstation session. The lean i3/Xorg
+# session remains available as an explicit compatibility fallback.
+desktop_session: hyprland
+# Append checkout-specific i3 directives from ignored local-vars.yml without
+# replacing the managed base configuration.
+i3_extra_config: []
 
 # Parallels publishes resized virtio modes, but its Linux Wayland client only
 # knows how to configure GNOME/Mutter. Bridge those modes into Hyprland.
 enable_parallels_hyprland_integration: true
+enable_parallels_x11_integration: true
 parallels_hyprland_output: Virtual-1
+# prlcp can remain alive while its Wayland clipboard connection becomes stale.
+# Recycle it periodically; systemd restarts it immediately with negligible
+# interruption to host/guest clipboard sharing.
+parallels_clipboard_restart_interval: 4h
 # Parallels v27 publishes live sizes, but its virtio GPU rejects Hyprland's
 # runtime modesets. Use a practical fixed startup size instead.
 parallels_dynamic_resolution_enabled: false
@@ -169,15 +189,12 @@ hyprland_use_legacy_drm: false
 ui_font_family: JetBrains Mono
 ui_font_size: 11
 
-ghostty_font_size: 13
-ghostty_font_family: "{{ ui_font_family }}"
-# Retain Powerlevel10k and Nerd Font glyphs without changing the primary face.
-ghostty_fallback_font_family: MesloLGS NF
-# Parallels virgl exposes less than the OpenGL 4.3 required by Ghostty.
-ghostty_force_software_rendering: true
-# Ghostty's native GTK/Wayland clipboard reader can intermittently use the
-# PRIMARY selection instead of CLIPBOARD. XWayland avoids that failure path.
-ghostty_force_xwayland: true
+kitty_font_size: 13
+kitty_font_family: "{{ ui_font_family }}"
+# Keep kitty in the native Wayland clipboard domain with Hyprland and desktop
+# applications. Use x11 only as an explicit diagnostic fallback.
+kitty_display_server: wayland
+kitty_force_software_rendering: false
 
 # Reboot remains an explicit choice by default.
 reboot_after_provision: false

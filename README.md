@@ -2,8 +2,9 @@
 
 An Ansible project for turning a fresh **Ubuntu Server 26.04.1 LTS ARM64**
 guest in Parallels Desktop into a lean, keyboard-first developer workstation.
-It installs Hyprland without a conventional desktop environment, keeps Ubuntu's
-netplan/systemd-networkd networking, and uses lightweight desktop components.
+It installs a selectable Hyprland/Wayland or i3/Xorg session without a
+conventional desktop environment, keeps Ubuntu's netplan/systemd-networkd
+networking, and uses lightweight desktop components.
 
 ## What it installs
 
@@ -14,9 +15,10 @@ netplan/systemd-networkd networking, and uses lightweight desktop components.
 - Google Chrome for Linux ARM64, Visual Studio Code ARM64, 1Password desktop
   and CLI (`op`), mise, Claude Desktop, and Claude Code
 - Docker Engine, Buildx, and Compose from Docker's repository
-- Hyprland, greetd/agreety, Ghostty, Waybar, fuzzel, mako, Nautilus, PipeWire,
-  portals, clipboard history, locking, and screenshot tools
-- Ubuntu's JetBrains Mono package, applied to Ghostty, Waybar, fuzzel, mako,
+- Hyprland, greetd/agreety, kitty, Waybar, fuzzel, mako, Nautilus, PipeWire,
+  portals, clipboard history, locking, and screenshot tools; or a lean i3/Xorg
+  session for environments where native Wayland integration is unreliable
+- Ubuntu's JetBrains Mono package, applied to kitty, Waybar, fuzzel, mako,
   and GTK 3/4 applications
 
 The project intentionally does **not** install GNOME/KDE, `ubuntu-desktop`,
@@ -205,19 +207,33 @@ case `developer_extra_tasks_file` variable with `--extra-vars`.
 The main switches live in `group_vars/all.yml`. Firefox, Chrome, VS Code,
 1Password, mise, GitHub CLI, Claude Desktop, Claude Code, Docker, and Snap
 removal are enabled by default. Set `remove_snapd: false` if the VM needs any
-snaps. Useful display settings include
+snaps. `desktop_session` defaults to `hyprland` for the native Wayland desktop.
+Set it to `i3-x11` only when an Xorg compatibility fallback is required. Useful
+display settings include
 `hyprland_scale`, `hyprland_main_modifier`, `keyboard_layout`, `ui_font_family`,
-`ui_font_size`, and `ghostty_font_size`. The main modifier defaults to `ALT SUPER`, requiring
-Option+Command together for Hyprland shortcuts in Parallels. Ghostty defaults
-to scoped Mesa software rendering through `ghostty_force_software_rendering`
-because Parallels virgl does not expose Ghostty's required OpenGL version. It
-also defaults to the XWayland GTK backend through `ghostty_force_xwayland` to
-avoid intermittent native-Wayland clipboard reads from the wrong selection.
+`ui_font_size`, and `kitty_font_size`. The main modifier defaults to
+`ALT SUPER`, requiring Option+Command together for desktop shortcuts in
+Parallels. Raw checkout-specific Hyprland stanzas can be appended through
+`hyprland_extra_config` in ignored `local-vars.yml`; the managed base
+configuration remains intact. Kitty is the managed terminal and uses the
+selected session's native display backend. Its tabs, panes, and top-level
+windows start in the workstation user's home directory.
+`kitty_display_server` defaults to `wayland`;
+`kitty_force_software_rendering` is available if the Parallels virtual GPU
+proves insufficient. Apply only the terminal configuration with:
+
+```bash
+make apply-playbook \
+  VM_NAME="Ubuntu Workstation" \
+  PLAYBOOK_ARGS="--tags kitty"
+```
+
+Apply only the rendered Hyprland configuration after changing a local override
+with `PLAYBOOK_ARGS="--tags hyprland_config"`.
 
 The desktop role installs Ubuntu's `fonts-jetbrains-mono` package. It is the
-primary Ghostty font and the configured face for Waybar, fuzzel, mako, and GTK
-3/4 applications. Ghostty keeps `MesloLGS NF` as a fallback so the synced
-Powerlevel10k configuration retains its Nerd Font symbols.
+primary kitty font and the configured face for Waybar, fuzzel, mako, and GTK
+3/4 applications. Synced Powerlevel10k fonts remain managed by the shell role.
 
 Before its first apt operation, the base role compares the VM's UTC clock with
 the Ansible controller. If their difference exceeds
@@ -227,12 +243,19 @@ the VM has been suspended or restored.
 
 Set `parallels_vm_name` to the VM's exact name in Parallels Desktop. With
 `prepare_parallels_tools_media: true`, the playbook checks inside Ubuntu for
-an installed `parallels-tools` package or Tools executable. Only when Tools is
-absent does it ask the Mac's `prlctl` to attach the bundled ARM64 ISO. It reuses
-an already attached or mounted Parallels Tools disc. Standalone playbook runs
-leave the installer available for manual use by default; set
+an installed `parallels-tools` package or Tools executable. When Tools is
+absent it asks the Mac's `prlctl` to attach the bundled ARM64 ISO, reusing an
+already attached or mounted disc. Standalone playbook runs leave an initial
+installer available for manual use by default; set
 `install_parallels_tools_automatically: true` to use the vendor's unattended
 installer. The full bootstrap workflow enables that setting automatically.
+
+Existing installations are compared with the exact version stored in the
+host-bundled ISO. With `update_parallels_tools_automatically: true` (the
+default), an older guest invokes `prlctl installtools` on the controller, waits
+up to five minutes for the new version, and verifies `prltoolsd.service` before
+continuing. Equal or newer guest versions are left untouched; the role never
+downgrades Tools.
 
 The shell role clones [Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh) and
 [Powerlevel10k](https://github.com/romkatv/powerlevel10k) into the workstation
@@ -243,10 +266,12 @@ by `sync_controller_powerlevel10k_config` and
 `sync_controller_powerlevel10k_fonts`. Override the controller paths in
 `group_vars/all.yml` when running the playbook from a different machine.
 
-The shell role also conditionally copies the controller's `.gitconfig` and
-`.gitconfig-higeia` without storing either file in the project. Missing files
-are skipped. Control this with `sync_controller_git_config`,
-`controller_git_config_dir`, and `controller_git_config_files`.
+The shell role also conditionally copies the controller's `.gitconfig` without
+storing the file in the project. Missing files are skipped. Control this with
+`sync_controller_git_config`, `controller_git_config_dir`, and
+`controller_git_config_files`. To copy further include files referenced from
+`.gitconfig`, override `controller_git_config_files` in `local-vars.yml`; the
+override replaces the committed list, so repeat `.gitconfig` there.
 
 The shell role can also copy the controller's `~/.ssh/id_rsa` and matching
 public key directly into the workstation user's `~/.ssh`, with `0700`
@@ -356,7 +381,7 @@ latest repository version so rerunning it also upgrades an existing `gh`.
 
 Set `BECOME_ARGS=` for a non-privileged operation such as `--syntax-check`.
 
-To prepare only the Parallels Tools installation media when Tools is absent:
+To install or update only Parallels Tools:
 
 ```bash
 ansible-playbook -i inventory.ini site.yml --ask-become-pass --tags parallels_tools
@@ -409,8 +434,9 @@ account settings must be enabled once from inside the unlocked app:
    ```
 
 The CLI should now request the Linux system password through the desktop
-authentication prompt. Ansible already starts the app silently with Hyprland,
-so 1Password's separate **Start at login** option is not required. See
+authentication prompt. Ansible already starts the app silently with the
+managed graphical session, so 1Password's separate **Start at login** option
+is not required. See
 [system authentication on Linux](https://support.1password.com/system-authentication-linux/)
 and [1Password CLI app integration](https://www.1password.dev/cli/app-integration/)
 for the upstream behavior and security requirements.
@@ -420,8 +446,10 @@ for the upstream behavior and security requirements.
 The base role installs `dkms`, `libelf-dev`, `build-essential`, `pkg-config`, and
 headers for the running kernel. The `parallels_tools` role conditionally makes
 the matching installer media accessible inside the VM. Full bootstrap runs the
-bundled unattended installer; standalone playbook runs keep installation
-manual by default.
+bundled unattended installer; standalone playbook runs keep an initial
+installation manual by default. Existing Tools installations are upgraded
+automatically when their four-part version is older than the version bundled
+with the controller's Parallels Desktop installation.
 
 After the role reports the installer path, run its `install` program with sudo.
 For example, if the role mounted the image at its default location:
@@ -463,6 +491,38 @@ Wayland integration in Parallels can vary by Parallels Tools release. Test
 dynamic resolution, shared clipboard, pointer behaviour, audio, and shared
 folders before treating the VM as finished.
 
+### Optional i3/Xorg session
+
+The default `desktop_session: hyprland` provides the native Wayland desktop and
+Hyprland features. An optional `desktop_session: i3-x11` fallback keeps the same
+greetd login, kitty terminal, `ALT+SUPER` modifier, browsers, editor, file
+manager, font, and Parallels Tools integration. It deliberately does not start
+a clipboard-history manager, so applications and Parallels share one ordinary
+X11 clipboard without an extra clipboard owner in the middle.
+
+To try i3/Xorg, set `desktop_session: i3-x11` in ignored `local-vars.yml`, then
+apply only the desktop role to a named VM:
+
+```bash
+make apply-playbook \
+  VM_NAME="Ubuntu Workstation - X11 Test" \
+  PLAYBOOK_ARGS="--tags desktop"
+```
+
+The graphical session is restarted during the change. Log in at the greetd
+prompt and confirm the backend with:
+
+```bash
+echo "$XDG_SESSION_TYPE"
+```
+
+It should print `x11`. To return to Wayland, remove that override (or set it to
+`hyprland`) and reapply the desktop role. The backend should then print
+`wayland`.
+
+Use the `i3_extra_config` list in ignored `local-vars.yml` for machine-specific
+i3 directives without changing the managed base configuration.
+
 Parallels Tools publishes resized virtio display modes, but its Wayland display
 client targets GNOME/Mutter rather than Hyprland. Parallels v27 and Ubuntu's
 Hyprland 0.53 currently reject runtime modesets, including ordinary advertised
@@ -474,22 +534,15 @@ With `enable_parallels_hyprland_integration: true`, clipboard and drag-and-drop
 helpers remain Wayland-native. The incompatible combined Parallels autostart is
 disabled. A narrowly matched Hyprland window rule also keeps the Parallels
 shared-clipboard helper from entering the tiled layout when input is released.
+Parallels' `prlcp` process can remain alive after its Wayland clipboard
+connection has become stale. The managed user service therefore restarts it
+after `parallels_clipboard_restart_interval` (four hours by default), and a
+changed service definition restarts it immediately when the desktop role is
+applied. This preserves host/guest integration without leaving a stale helper
+running indefinitely.
 Set `parallels_dynamic_resolution_enabled: true` only to experiment with the
 XWayland `prlcc` bridge; it is disabled by default because the current virtio
 driver rejects the requested mode.
-
-Ghostty alone uses XWayland by default because its GTK/Wayland clipboard path
-can intermittently read the PRIMARY selection instead of CLIPBOARD. This leaves
-Hyprland and the remaining desktop native Wayland. After changing
-`ghostty_force_xwayland`, sign out of the graphical session and back in so the
-single-instance Ghostty process is recreated with the selected GTK backend.
-Apply only the managed launcher change with:
-
-```bash
-make apply-playbook \
-  VM_NAME="Ubuntu Workstation" \
-  PLAYBOOK_ARGS="--tags ghostty"
-```
 
 Parallels' virtio GPU currently rejects Aquamarine's atomic test commit when
 Hyprland changes the framebuffer size. Although Aquamarine exposes a legacy
@@ -506,20 +559,27 @@ systemctl --user status parallels-prlcp-wayland.service
 systemctl --user status parallels-prldnd-wayland.service
 ```
 
+If clipboard operations become unreliable before the scheduled refresh, reset
+the bridge without logging out:
+
+```bash
+systemctl --user restart parallels-prlcp-wayland.service
+```
+
 When experimenting with dynamic resolution, inspect its services with
 `systemctl --user status parallels-prlcc-x11.service` and
 `systemctl --user status parallels-dynamic-resolution.service`.
 
 ## Software ownership boundary
 
-Ubuntu's package manager owns durable workstation software: Hyprland and its
-desktop services, browsers, VS Code, Claude Desktop, Docker, shells, editors,
-CLI utilities, and mise itself. Claude Desktop remains apt-owned through
-Anthropic's signed ARM64 repository, while GitHub CLI is apt-owned through
-GitHub's signed ARM64 repository. The ARM64 1Password desktop app and Claude
-Code are deliberate exceptions: their vendor-recommended installers own those
-applications and their updates. 1Password's signed stable ARM64 archive is
-verified against the vendor's published signing-key fingerprint before
+Ubuntu's package manager owns durable workstation software: i3, Hyprland and
+their desktop services, browsers, VS Code, Claude Desktop, Docker, shells,
+editors, CLI utilities, and mise itself. Claude Desktop remains apt-owned
+through Anthropic's signed ARM64 repository, while GitHub CLI is apt-owned
+through GitHub's signed ARM64 repository. The ARM64 1Password desktop app and
+Claude Code are deliberate exceptions: their vendor-recommended installers own
+those applications and their updates. 1Password's signed stable ARM64 archive
+is verified against the vendor's published signing-key fingerprint before
 installation. The `op` CLI remains apt-owned through 1Password's signed ARM64
 repository.
 
@@ -542,18 +602,22 @@ python = "3.14"
 This keeps the operating system boring and stable while projects select the
 toolchain versions they need.
 
-## Default Hyprland keys
+## Default desktop keys
 
 | Keys | Action |
 | --- | --- |
-| `ALT+SUPER+Enter` | Ghostty |
-| `ALT+SUPER+Space` | fuzzel launcher |
+| `ALT+SUPER+Enter` | kitty |
+| `ALT+SUPER+Space` | Application launcher |
 | `ALT+SUPER+B` | Google Chrome |
 | `ALT+SUPER+Shift+B` | Firefox |
 | `ALT+SUPER+C` | Visual Studio Code |
 | `ALT+SUPER+E` | Nautilus |
-| `ALT+SUPER+P` | Clipboard history |
-| `ALT+SUPER+Shift+S` | Select area and copy screenshot |
+| `ALT+SUPER+P` | Clipboard history (Hyprland only) |
+| `ALT+SUPER+Shift+S` | Area screenshot |
 | `ALT+SUPER+L` | Lock session |
 | `ALT+SUPER+1..9` | Select workspace |
 | `ALT+SUPER+Shift+1..9` | Move window to workspace |
+
+The i3/Xorg session retains the application, workspace, focus, movement,
+fullscreen, close, lock, and screenshot chords above. `ALT+SUPER+V` toggles a
+window between tiled and floating, and `ALT+SUPER+Shift+R` reloads i3.

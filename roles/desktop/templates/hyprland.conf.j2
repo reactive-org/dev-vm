@@ -6,6 +6,7 @@ source = {{ workstation_home }}/.local/state/dev-ubuntu/parallels-monitor.conf
 $mainMod = {{ hyprland_main_modifier }}
 
 {% if enable_parallels_hyprland_integration | bool %}
+exec-once = systemctl --user stop parallels-prlcp-x11.service parallels-prldnd-x11.service parallels-prlcc-x11.service
 exec-once = systemctl --user import-environment DISPLAY WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
 exec-once = systemctl --user daemon-reload
 {% if parallels_dynamic_resolution_enabled | bool %}
@@ -66,7 +67,7 @@ windowrule {
 {% endif %}
 
 # Applications
-bind = $mainMod, RETURN, exec, ghostty
+bind = $mainMod, RETURN, exec, {{ workstation_home }}/.local/bin/kitty
 bind = $mainMod, SPACE, exec, fuzzel
 bind = $mainMod, B, exec, google-chrome-stable
 bind = $mainMod SHIFT, B, exec, firefox
@@ -113,3 +114,10 @@ bindm = $mainMod, mouse:273, resizewindow
 bindel = , XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
 bindel = , XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
 bindl = , XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+
+{% if hyprland_extra_config | length > 0 %}
+# Checkout-specific overrides from ignored local-vars.yml
+{% for stanza in hyprland_extra_config %}
+{{ stanza }}
+{% endfor %}
+{% endif %}

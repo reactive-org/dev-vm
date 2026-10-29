@@ -1,0 +1,20 @@
+# Stay native to the selected session instead of crossing clipboard backends.
+linux_display_server {{ 'x11' if desktop_session == 'i3-x11' else kitty_display_server }}
+
+font_family {{ kitty_font_family }}
+font_size {{ kitty_font_size }}
+
+hide_window_decorations yes
+enable_audio_bell no
+shell_integration enabled
+
+# Keep every new shell rooted at home instead of inheriting another pane's
+# working directory.
+map ctrl+shift+t launch --type=tab --cwd={{ workstation_home }}
+map ctrl+shift+enter launch --cwd={{ workstation_home }}
+map ctrl+shift+n launch --type=os-window --cwd={{ workstation_home }}
+
+# State the regular clipboard bindings explicitly. Selection paste remains a
+# separate action and cannot be confused with Ctrl+Shift+V.
+map ctrl+shift+c copy_to_clipboard
+map ctrl+shift+v paste_from_clipboard
