@@ -3,5 +3,7 @@
 /developer_extra_tasks.yml
 /developer_extra_tasks/
 /local-vars.yml
+/nixos-local/
 *.retry
 .DS_Store
+__pycache__/
