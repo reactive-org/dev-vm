@@ -158,8 +158,8 @@ and rollback are validated below; interactive application acceptance remains ope
 
 ## Controlled kernel upgrade and boot rollback — 2026-10-31
 
-The earlier workstation had been deleted by the user. A new disposable ARM64
-VM was installed through the unattended workflow with four CPUs, 12 GiB RAM
+A disposable ARM64 VM was installed through the unattended workflow with
+four CPUs, 12 GiB RAM
 and a 48 GiB expanding disk to retain both kernel closures. Host folder sharing
 was disabled. No host software was installed. A cold Parallels snapshot was
 created before the upgrade.
@@ -212,53 +212,31 @@ on the new kernel, audible playback, shared-folder I/O with the new kernel,
 or multi-day reliability. Those are separate from the measured service,
 graphics, native guest clipboard, container and boot-recovery checks above.
 
-## Real-workstation cutover — in progress, 2026-10-31
+## Installation and desktop validation — 2026-10-31
 
-The implementation was committed and opened for review before starting a
-separate replacement for the first real Ubuntu workstation. Runtime identity
-and private configuration remain outside the repository. The Ubuntu source
-was snapshotted with its saved work state; it has not been replaced or retired.
-
-The first installation encountered a live-image DNS failure fetching Chrome
-after the Nix cache was reachable. The installer now starts the available
+An installation encountered a live-image DNS failure fetching Chrome after
+access to the Nix cache succeeded. The installer now starts the available
 resolver explicitly, checks cache/vendor DNS before partitioning and retries
-only the mounted build/install stage up to three times. Recovery verified the
-same VM, existing partition labels/types, selected identity and authorized key
-before mounting the original partial installation read-write. It completed
-without repartitioning, reused the privately supplied password outside Nix,
-and passed normal account, SSH and transactional-apply verification. Bash
+only the mounted build/install stage up to three times. Recovery verified VM
+identity, existing partition labels/types, configured account and authorized
+key before continuing on the original filesystems. Installation completed
+without repartitioning and passed account, SSH and apply verification. Bash
 syntax, ShellCheck and the controller/media safety suite passed for the fix.
 
-The user selected complete development and Claude directories plus the
-separate Claude and Git configuration files for migration. Data streamed over
-strictly authenticated SSH into a private staging directory. Source
-before/after and staged/published file-content and metadata fingerprints
-matched, including uncommitted/untracked files, Git metadata, symlinks and file
-modes/timestamps. The separate configuration files also matched their source
-hashes. The initial destination paths were backed up before publication, and a
-snapshot was taken after verification. Private file contents were not logged
-or added to Nix inputs; Git uses a mutable home-file include.
-All inspected repositories/worktrees matched in HEAD, branch and canonical
-working-tree status, preserving the in-progress changes. The replacement's
-explicit shared folder passed host-to-guest read/modify and guest-to-host
-create/read checks, with synthetic fixtures removed afterward.
+Graphical login, Kitty and the launcher passed. Desktop, clipboard, audio and
+portal services were active with empty system/user failed-unit lists, an empty
+Hyprland error report, fixed 2560×1600 output and native Wayland Kitty.
+Installed application version checks passed. Docker's `hello-world` container
+passed as the normal workstation user. The authentication agent and 1Password
+background app were active, and guest/host clock agreement was within a
+three-second measurement tolerance.
 
-The user confirmed graphical login, Kitty and the launcher on the replacement.
-Desktop/clipboard/audio/portal services were active with empty system/user
-failed-unit lists, an empty Hyprland error report, fixed 2560×1600 output and
-native Wayland Kitty. Installed application version checks passed. Claude Code
-recognized the explicitly imported authentication state; no conversation or
-project workflow was resumed by the validation.
-Docker's `hello-world` container also passed as the normal workstation user.
-The authentication agent and 1Password background app were active, and the
-guest/host clock agreed within a three-second measurement tolerance.
-The user confirmed Kitty-tab, macOS-to-Kitty and Kitty-to-macOS copying,
-including delayed paste, on the replacement. Audible playback was not tested;
-the synthetic tone remains available for that later check.
-The real-project workflow test was explicitly deferred by the user. Real
-application workflows, audible playback and daily-use acceptance remain in
-progress. This record
-does not mark the issue complete or authorize retiring Ubuntu.
+The explicit shared folder passed host-to-guest read/modify and guest-to-host
+create/read checks; synthetic fixtures were removed afterward. Focused
+Kitty-tab, macOS-to-Kitty and Kitty-to-macOS copying passed, including delayed
+paste. Audible playback, end-to-end application/runtime workflows and
+multi-day reliability remain acceptance work. Issue #1 remains open and the
+Ubuntu implementation remains available.
 
 ## Screenshot-identified login warnings
 
