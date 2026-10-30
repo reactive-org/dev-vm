@@ -1,5 +1,10 @@
 # Ubuntu ARM64 developer workstation
 
+The experimental NixOS ARM64 migration lives alongside this implementation.
+See [the NixOS instructions](nixos/README.md) and [automation guide](nixos/AUTOMATION.md)
+for `make bootstrap-nixos`, `make apply-nixos`, workstation applications,
+validation and recovery.
+
 An Ansible project for turning a fresh **Ubuntu Server 26.04.1 LTS ARM64**
 guest in Parallels Desktop into a lean, keyboard-first developer workstation.
 It installs a selectable Hyprland/Wayland or i3/Xorg session without a
