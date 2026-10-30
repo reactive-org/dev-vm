@@ -250,9 +250,14 @@ native Wayland Kitty. Installed application version checks passed. Claude Code
 recognized the explicitly imported authentication state; no conversation or
 project workflow was resumed by the validation.
 Docker's `hello-world` container also passed as the normal workstation user.
+The authentication agent and 1Password background app were active, and the
+guest/host clock agreed within a three-second measurement tolerance.
+The user confirmed Kitty-tab, macOS-to-Kitty and Kitty-to-macOS copying,
+including delayed paste, on the replacement. Audible playback was not tested;
+the synthetic tone remains available for that later check.
 The real-project workflow test was explicitly deferred by the user. Real
-application workflows, focused clipboard checks on the replacement and
-daily-use acceptance remain in progress. This record
+application workflows, audible playback and daily-use acceptance remain in
+progress. This record
 does not mark the issue complete or authorize retiring Ubuntu.
 
 ## Screenshot-identified login warnings
