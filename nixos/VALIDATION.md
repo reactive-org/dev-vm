@@ -212,6 +212,49 @@ on the new kernel, audible playback, shared-folder I/O with the new kernel,
 or multi-day reliability. Those are separate from the measured service,
 graphics, native guest clipboard, container and boot-recovery checks above.
 
+## Real-workstation cutover — in progress, 2026-10-31
+
+The implementation was committed and opened for review before starting a
+separate replacement for the first real Ubuntu workstation. Runtime identity
+and private configuration remain outside the repository. The Ubuntu source
+was snapshotted with its saved work state; it has not been replaced or retired.
+
+The first installation encountered a live-image DNS failure fetching Chrome
+after the Nix cache was reachable. The installer now starts the available
+resolver explicitly, checks cache/vendor DNS before partitioning and retries
+only the mounted build/install stage up to three times. Recovery verified the
+same VM, existing partition labels/types, selected identity and authorized key
+before mounting the original partial installation read-write. It completed
+without repartitioning, reused the privately supplied password outside Nix,
+and passed normal account, SSH and transactional-apply verification. Bash
+syntax, ShellCheck and the controller/media safety suite passed for the fix.
+
+The user selected complete development and Claude directories plus the
+separate Claude and Git configuration files for migration. Data streamed over
+strictly authenticated SSH into a private staging directory. Source
+before/after and staged/published file-content and metadata fingerprints
+matched, including uncommitted/untracked files, Git metadata, symlinks and file
+modes/timestamps. The separate configuration files also matched their source
+hashes. The initial destination paths were backed up before publication, and a
+snapshot was taken after verification. Private file contents were not logged
+or added to Nix inputs; Git uses a mutable home-file include.
+All inspected repositories/worktrees matched in HEAD, branch and canonical
+working-tree status, preserving the in-progress changes. The replacement's
+explicit shared folder passed host-to-guest read/modify and guest-to-host
+create/read checks, with synthetic fixtures removed afterward.
+
+The user confirmed graphical login, Kitty and the launcher on the replacement.
+Desktop/clipboard/audio/portal services were active with empty system/user
+failed-unit lists, an empty Hyprland error report, fixed 2560×1600 output and
+native Wayland Kitty. Installed application version checks passed. Claude Code
+recognized the explicitly imported authentication state; no conversation or
+project workflow was resumed by the validation.
+Docker's `hello-world` container also passed as the normal workstation user.
+The real-project workflow test was explicitly deferred by the user. Real
+application workflows, focused clipboard checks on the replacement and
+daily-use acceptance remain in progress. This record
+does not mark the issue complete or authorize retiring Ubuntu.
+
 ## Screenshot-identified login warnings
 
 The user's screenshot identifies two Hyprland startup warnings: the legacy

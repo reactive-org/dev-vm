@@ -36,6 +36,8 @@ The controller:
    command generator. The live script validates its unique boot token,
    Parallels virtualization and an unmounted, unpartitioned, signature-free
    `/dev/sda` before reusing the manual disk installer.
+   It starts the live resolver when present and waits for both the Nix cache
+   and Chrome vendor names to resolve before partitioning.
 5. Writes selected identity, authorized public key and conditional sharing
    settings only into the installed source. It sets the password through
    `chpasswd -e` outside Nix, locks root, and powers off.
@@ -45,6 +47,11 @@ The controller:
 7. Runs the transactional apply workflow and full checks against the captured
    source, verifies services and password-required sudo, then deletes its
    credential-bearing ISO/payload copies.
+
+Transient build/download failures get up to three `nixos-install` attempts on
+the same mounted filesystems during unattended installation. Partitioning and
+formatting happen once, outside that retry loop. A persistent failure retains
+the original VM and private media for explicit recovery.
 
 Finally, log into the graphical workstation with the chosen account/password.
 Application sign-ins, browser extensions and protected 1Password integration

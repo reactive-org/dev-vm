@@ -23,6 +23,9 @@ exec > >(tee /var/log/workstation-install.log /dev/tty1) 2>&1
 echo 'Starting unattended workstation installation on the confirmed blank VM disk.'
 # Start only the upstream live ISO's network daemon. Pulling in its full
 # multi-user target can also start the graphical/manual installer.
+if [[ $(systemctl show -p LoadState --value systemd-resolved.service) == loaded ]]; then
+  systemctl start systemd-resolved.service
+fi
 network_started=false
 for unit in NetworkManager.service dhcpcd.service systemd-networkd.service; do
   if [[ $(systemctl show -p LoadState --value "$unit") == loaded ]]; then
@@ -32,11 +35,15 @@ for unit in NetworkManager.service dhcpcd.service systemd-networkd.service; do
   fi
 done
 [[ $network_started == true ]] || die 'No live ISO network service found.'
+network_ready=false
 for _attempt in {1..120}; do
-  if getent ahosts cache.nixos.org >/dev/null; then break; fi
+  if getent ahosts cache.nixos.org >/dev/null && getent ahosts dl.google.com >/dev/null; then
+    network_ready=true
+    break
+  fi
   sleep 2
 done
-getent ahosts cache.nixos.org >/dev/null || die 'Network did not become ready.'
+[[ $network_ready == true ]] || die 'DNS for the Nix cache and Chrome vendor did not become ready.'
 work=$(mktemp -d /tmp/workstation-install.XXXXXXXX)
 cp -R "$media/source/." "$work/"
 host_dir="$work/hosts/workstation-test"

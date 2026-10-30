@@ -37,7 +37,20 @@ if [[ -s /home/nixos/.ssh/authorized_keys ]]; then
     '}' > "$host_dir/installation.nix"
 fi
 # Root stays locked; set the normal user's local/sudo password out of band.
-nixos-install --no-root-passwd --flake path:/mnt/etc/nixos/workstation#workstation-test
+install_attempts=1
+if [[ ${NIXOS_UNATTENDED_INSTALL:-no} == yes ]]; then install_attempts=3; fi
+installed=false
+for ((attempt=1; attempt<=install_attempts; attempt++)); do
+  if nixos-install --no-root-passwd --flake path:/mnt/etc/nixos/workstation#workstation-test; then
+    installed=true
+    break
+  fi
+  if ((attempt < install_attempts)); then
+    echo 'System build/install failed; retrying the existing mounted installation in 10 seconds. No repartitioning.' >&2
+    sleep 10
+  fi
+done
+[[ $installed == true ]] || exit 1
 user_name=$(nix --extra-experimental-features 'nix-command flakes' eval --raw \
   path:/mnt/etc/nixos/workstation#nixosConfigurations.workstation-test.config.workstation.userName)
 if [[ ${NIXOS_UNATTENDED_INSTALL:-no} == yes ]]; then
