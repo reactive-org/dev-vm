@@ -1,0 +1,38 @@
+# Omarchy VM Manager operator runbook
+
+These are the only manual steps. Omarchy VM Manager owns the VM, image,
+storage, graphics, clipboard, networking and SSH connection.
+
+1. In the sibling Omarchy VM Manager checkout, build and verify the existing
+   source without installing it globally:
+
+   ```bash
+   cd "../Omarchy VM Manager"
+   make app verify-app
+   ```
+
+   This repository never installs host software.
+2. Open `dist/Omarchy VM Manager.app` once. In **Guest Defaults**, configure
+   and enable the owner account, password, keyboard, timezone and hostname
+   prefix for new guests. The password remains in the Mac login Keychain.
+3. From a Mac terminal in this repository, run:
+
+   ```bash
+   make bootstrap-omarchy-vm \
+     VM_NAME="Dev Omarchy" \
+     OMARCHY_VM_LAYOUT_FILE="$PWD/omarchy/examples/layouts/claude-two-terminals-browser.lua"
+   ```
+
+Review the printed proposal and confirm it. The command asks Omarchy VM Manager
+to create or start the named guest, waits for its authenticated managed SSH
+connection, applies the repository-owned workstation preferences and runs the
+hardware/integration checks. New guests default to a 64 GiB sparse, grow-only
+disk. It does not scan or modify personal SSH files.
+
+If the compatibility repair changes Hyprland configuration, restart the named
+guest through Omarchy VM Manager once. Otherwise, log out and back in only when
+installing or removing an application layout.
+
+Shared folders and general port forwarding are not part of the manager's
+current CLI contract. Clone projects inside the guest for now; do not add a
+second virtualization or SSH integration layer in this repository.
