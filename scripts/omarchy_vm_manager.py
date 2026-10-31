@@ -396,6 +396,14 @@ def install_selected_software(
     ssh_command(connection, " && ".join(commands), tty=True)
 
 
+def update_guest_system(connection: ManagedSSH) -> None:
+    note(
+        "Updating Omarchy and system packages through Omarchy; "
+        "enter guest sudo if prompted"
+    )
+    ssh_command(connection, "omarchy update -y", tty=True)
+
+
 def confirm(args) -> None:
     if args.yes:
         return
@@ -465,6 +473,7 @@ def print_proposal(
         f"  Preferences:     Foot {args.foot_font_size}, idle policy {args.idle_mode}\n"
         f"  App layout:      {layout}\n"
         "  Compatibility:   apply the conditional Hyprland/VirGL repair\n"
+        "  Lifecycle:       update Omarchy, apply customizations, reboot and validate\n"
         "  Host installs:   none"
         f"{correction_text}\n",
         flush=True,
@@ -586,21 +595,13 @@ def ready_guest(args) -> tuple[dict, str]:
     return guest, manager
 
 
-def apply_workstation(args, connection: ManagedSSH) -> bool:
-    payloads = [GUEST_REPAIR, GUEST_APPLY, GUEST_CHECK]
+def apply_workstation(args, connection: ManagedSSH) -> None:
+    payloads = [GUEST_REPAIR, GUEST_APPLY]
     if args.layout_file:
         payloads.append(args.layout_file)
     remote_dir = ""
-    repaired = False
     try:
         remote_dir, _ = stage_payload(connection, payloads)
-        repair = ssh_command(
-            connection,
-            f"bash {shlex.quote(remote_dir + '/' + GUEST_REPAIR.name)}",
-            capture=True,
-        )
-        print(repair.stdout, end="", flush=True)
-        repaired = "Repaired:" in repair.stdout
         install_selected_software(connection, args.packages)
 
         apply_parts = [
@@ -618,6 +619,45 @@ def apply_workstation(args, connection: ManagedSSH) -> bool:
         elif args.remove_layout:
             apply_parts.append("--remove-layout")
         ssh_command(connection, " ".join(shlex.quote(part) for part in apply_parts))
+
+        repair = ssh_command(
+            connection,
+            f"bash {shlex.quote(remote_dir + '/' + GUEST_REPAIR.name)}",
+            capture=True,
+        )
+        print(repair.stdout, end="", flush=True)
+    finally:
+        if remote_dir:
+            cleanup_payload(connection, remote_dir)
+
+
+def restart_guest(args, guest: dict) -> dict:
+    note("Rebooting the managed VM and waiting for authenticated SSH")
+    reply = cli_call(
+        args,
+        "restart",
+        require_identifier(guest),
+        "--wait",
+        "ssh",
+        "--timeout",
+        str(args.timeout),
+    )
+    current = reply.get("guest")
+    if not isinstance(current, dict):
+        raise WorkstationError("The manager did not return the restarted guest")
+    errors = immutable_guest_errors(current) + mutable_guest_errors(args, current)
+    if errors:
+        raise WorkstationError(
+            "The restarted guest does not match the workstation contract:\n  - "
+            + format_errors(errors)
+        )
+    return current
+
+
+def check_guest_workstation(connection: ManagedSSH) -> None:
+    remote_dir = ""
+    try:
+        remote_dir, _ = stage_payload(connection, [GUEST_CHECK])
         ssh_command(
             connection,
             f"bash {shlex.quote(remote_dir + '/' + GUEST_CHECK.name)}",
@@ -625,18 +665,16 @@ def apply_workstation(args, connection: ManagedSSH) -> bool:
     finally:
         if remote_dir:
             cleanup_payload(connection, remote_dir)
-    return repaired
 
 
 def bootstrap_command(args) -> None:
     guest, _ = ready_guest(args)
     connection = managed_ssh(guest)
-    repaired = apply_workstation(args, connection)
+    update_guest_system(connection)
+    apply_workstation(args, connection)
+    guest = restart_guest(args, guest)
+    check_guest_workstation(managed_ssh(guest))
     note("Managed Omarchy workstation setup is complete")
-    if repaired:
-        note("Restart the managed VM once to activate the compatibility repair")
-    elif args.layout_file or args.remove_layout:
-        note("Log out and back in once to activate the app layout change")
 
 
 def check_command(args) -> None:
@@ -658,17 +696,7 @@ def check_command(args) -> None:
     current = reply.get("guest")
     if not isinstance(current, dict):
         raise WorkstationError("The manager did not return the current guest")
-    connection = managed_ssh(current)
-    remote_dir = ""
-    try:
-        remote_dir, _ = stage_payload(connection, [GUEST_CHECK])
-        ssh_command(
-            connection,
-            f"bash {shlex.quote(remote_dir + '/' + GUEST_CHECK.name)}",
-        )
-    finally:
-        if remote_dir:
-            cleanup_payload(connection, remote_dir)
+    check_guest_workstation(managed_ssh(current))
 
 
 def build_parser() -> argparse.ArgumentParser:

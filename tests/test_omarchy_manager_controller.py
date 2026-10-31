@@ -183,6 +183,76 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         )
         self.assertTrue(command.call_args.kwargs["tty"])
 
+    def test_system_update_uses_omarchy_supported_entrypoint(self):
+        connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
+        with mock.patch.object(CONTROLLER, "ssh_command") as command:
+            CONTROLLER.update_guest_system(connection)
+        command.assert_called_once_with(connection, "omarchy update -y", tty=True)
+
+    def test_restart_waits_for_managed_ssh_and_revalidates_the_guest(self):
+        args = SimpleNamespace(
+            timeout=3600,
+            cpus=8,
+            memory_gib=20,
+            disk_gib=64,
+        )
+        restarted = managed_guest(active=True, state="running")
+        with mock.patch.object(
+            CONTROLLER,
+            "cli_call",
+            return_value={"ok": True, "guest": restarted},
+        ) as call:
+            result = CONTROLLER.restart_guest(args, managed_guest())
+        self.assertEqual(result, restarted)
+        self.assertEqual(
+            call.call_args.args[1:],
+            (
+                "restart",
+                GUEST_ID,
+                "--wait",
+                "ssh",
+                "--timeout",
+                "3600",
+            ),
+        )
+
+    def test_bootstrap_updates_before_customizing_then_restarts_and_checks(self):
+        args = SimpleNamespace(timeout=3600)
+        initial = managed_guest()
+        restarted = managed_guest(active=True, state="running")
+        connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
+        events = []
+
+        with mock.patch.object(
+            CONTROLLER, "ready_guest", return_value=(initial, "0.6.0")
+        ), mock.patch.object(
+            CONTROLLER,
+            "managed_ssh",
+            side_effect=lambda _guest: events.append("connect") or connection,
+        ), mock.patch.object(
+            CONTROLLER,
+            "update_guest_system",
+            side_effect=lambda _connection: events.append("update"),
+        ), mock.patch.object(
+            CONTROLLER,
+            "apply_workstation",
+            side_effect=lambda _args, _connection: events.append("customize"),
+        ), mock.patch.object(
+            CONTROLLER,
+            "restart_guest",
+            side_effect=lambda _args, _guest: events.append("restart") or restarted,
+        ), mock.patch.object(
+            CONTROLLER,
+            "check_guest_workstation",
+            side_effect=lambda _connection: events.append("check"),
+        ):
+            CONTROLLER.bootstrap_command(args)
+
+        self.assertEqual(
+            events,
+            ["connect", "update", "customize", "restart", "connect", "check"],
+        )
+
     def test_new_guest_creation_is_one_explicit_manager_mutation(self):
         args = SimpleNamespace(
             vm_name="Dev Omarchy",
@@ -241,6 +311,8 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         self.assertIn('"ssh"', source)
         self.assertIn("omarchy install ai claude", source)
         self.assertIn("omarchy install service 1password", source)
+        self.assertIn("omarchy update -y", source)
+        self.assertIn('"restart"', source)
         for forbidden in (
             "codesign",
             "spctl",
