@@ -32,13 +32,30 @@ newer with command protocol 1, inventories the exact named profile, rejects
 protected or incompatible guests, and prints the complete proposal for
 confirmation. The manager creates or starts the guest and waits for its own
 authenticated, pinned SSH connection. The controller then uses that connection
-to invoke Omarchy's installers for Claude Desktop and 1Password, apply the
-small idempotent preference layer, validate hardware VirGL and integration, and
-remove its temporary payload. It never installs host software, handles guest
-passwords, scans personal SSH files, or replaces or resets an existing VM.
+to install the selected guest software through Omarchy and mise, apply the small
+idempotent preference layer, validate hardware VirGL and integration, and remove
+its temporary payload. It never installs host software, handles guest passwords,
+scans personal SSH files, or replaces or resets an existing VM.
 New guests request a 64 GiB sparse disk by default; an existing stopped guest
 can grow to that capacity but is never shrunk. Override with
 `OMARCHY_VM_DISK_GIB=128` when more space is needed.
+
+The default guest software set is `claude-desktop`, `1password`, and
+`1password-cli`. Override the comma-separated set without editing the repository.
+For example, a new VM using Omarchy's configured `mise` tool for OpenCode instead
+can be bootstrapped with:
+
+```bash
+make bootstrap-omarchy-vm \
+  VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_PACKAGES=opencode
+```
+
+`pi` works the same way, and `OMARCHY_VM_PACKAGES=` selects no additional guest
+software. An unprefixed name uses `mise` when Omarchy already configures that
+tool; all other names use `omarchy-pkg-add`. Prefix an ambiguous entry with
+`mise:` or `pkg:` to choose explicitly. Reapplying ensures the selected software
+is installed but never removes software left by an earlier selection.
 
 The default CLI path is the sibling checkout at
 `../Omarchy VM Manager/bin/omarchy-vm`. Override

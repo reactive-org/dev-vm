@@ -42,6 +42,7 @@ OMARCHY_VM_FOOT_FONT_SIZE ?= 16
 OMARCHY_VM_IDLE_MODE ?= host
 OMARCHY_VM_LAYOUT_FILE ?=
 OMARCHY_VM_YES ?= no
+OMARCHY_VM_PACKAGES ?= claude-desktop,1password,1password-cli
 OMARCHY_VM_SKIP_APPS ?= no
 
 .PHONY: help omarchy-vm-list bootstrap-omarchy-vm apply-omarchy-vm-guest check-omarchy-vm check-omarchy-vm-guest repair-omarchy-vm-black-screen bootstrap apply-playbook images vms omarchy-image bootstrap-omarchy apply-omarchy check-omarchy test-omarchy
@@ -62,9 +63,9 @@ bootstrap-omarchy-vm: ## Create or configure a managed Omarchy VM
 		--timeout "$(OMARCHY_VM_WAIT_TIMEOUT)" \
 		--foot-font-size "$(OMARCHY_VM_FOOT_FONT_SIZE)" \
 		--idle-mode "$(OMARCHY_VM_IDLE_MODE)" \
+		--packages "$(if $(filter yes true 1,$(OMARCHY_VM_SKIP_APPS)),,$(OMARCHY_VM_PACKAGES))" \
 		$(if $(filter off,$(OMARCHY_VM_LAYOUT_FILE)),--remove-layout,$(if $(OMARCHY_VM_LAYOUT_FILE),--layout-file "$(OMARCHY_VM_LAYOUT_FILE)",)) \
 		$(if $(filter yes true 1,$(OMARCHY_VM_YES)),--yes,) \
-		$(if $(filter yes true 1,$(OMARCHY_VM_SKIP_APPS)),--skip-apps,) \
 		bootstrap
 
 apply-omarchy-vm-guest: ## Apply workstation preferences inside a managed guest
