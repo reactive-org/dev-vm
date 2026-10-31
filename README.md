@@ -32,10 +32,12 @@ newer with command protocol 1, inventories the exact named profile, rejects
 protected or incompatible guests, and prints the complete proposal for
 confirmation. The manager creates or starts the guest and waits for its own
 authenticated, pinned SSH connection. The controller then uses that connection
-to install the selected guest software through Omarchy and mise, apply the small
-idempotent preference layer, validate hardware VirGL and integration, and remove
-its temporary payload. It never installs host software, handles guest passwords,
-scans personal SSH files, or replaces or resets an existing VM.
+to update Omarchy and the guest system through `omarchy update -y`, install the
+selected guest software through Omarchy and mise, and apply the small idempotent
+preference layer. It then reboots the guest through the manager, waits for managed
+SSH to return, validates hardware VirGL and integration, and removes its temporary
+payload. It never installs host software, handles guest passwords, scans personal
+SSH files, or replaces or resets an existing VM.
 New guests request a 64 GiB sparse disk by default; an existing stopped guest
 can grow to that capacity but is never shrunk. Override with
 `OMARCHY_VM_DISK_GIB=128` when more space is needed.

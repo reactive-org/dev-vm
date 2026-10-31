@@ -25,13 +25,14 @@ storage, graphics, clipboard, networking and SSH connection.
 
 Review the printed proposal and confirm it. The command asks Omarchy VM Manager
 to create or start the named guest, waits for its authenticated managed SSH
-connection, applies the repository-owned workstation preferences and runs the
+connection, updates Omarchy and the guest system, installs the selected guest
+software, and applies the repository-owned workstation preferences. It then
+reboots through Omarchy VM Manager, waits for SSH to return, and runs the
 hardware/integration checks. New guests default to a 64 GiB sparse, grow-only
 disk. It does not scan or modify personal SSH files.
 
-If the compatibility repair changes Hyprland configuration, restart the named
-guest through Omarchy VM Manager once. Otherwise, log out and back in only when
-installing or removing an application layout.
+The managed reboot activates any compatibility repair or application layout
+change; no additional logout or restart is required after a successful run.
 
 Shared folders and general port forwarding are not part of the manager's
 current CLI contract. Clone projects inside the guest for now; do not add a
