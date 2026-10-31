@@ -285,6 +285,23 @@ def ssh_command(
     )
 
 
+def guest_login_command(
+    connection: ManagedSSH,
+    command: str,
+    *,
+    check=True,
+    capture=False,
+    tty=False,
+):
+    return ssh_command(
+        connection,
+        f"bash -lc {shlex.quote(command)}",
+        check=check,
+        capture=capture,
+        tty=tty,
+    )
+
+
 def stage_payload(
     connection: ManagedSSH, payloads: Iterable[Path]
 ) -> tuple[str, list[Path]]:
@@ -393,7 +410,7 @@ def install_selected_software(
         "Installing selected guest software through Omarchy and mise; "
         "enter guest sudo if prompted"
     )
-    ssh_command(connection, " && ".join(commands), tty=True)
+    guest_login_command(connection, " && ".join(commands), tty=True)
 
 
 def update_guest_system(connection: ManagedSSH) -> None:
@@ -401,7 +418,7 @@ def update_guest_system(connection: ManagedSSH) -> None:
         "Updating Omarchy and system packages through Omarchy; "
         "enter guest sudo if prompted"
     )
-    ssh_command(connection, "omarchy update -y", tty=True)
+    guest_login_command(connection, "omarchy update -y", tty=True)
 
 
 def confirm(args) -> None:
