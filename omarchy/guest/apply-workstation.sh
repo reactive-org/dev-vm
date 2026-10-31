@@ -6,6 +6,7 @@ foot_font_size="16"
 idle_mode="host"
 layout_mode="keep"
 layout_file=""
+theme_url=""
 
 usage() {
   cat <<'EOF'
@@ -18,6 +19,7 @@ Options:
   --idle-mode MODE       host, guest, or keep (default: host)
   --layout-file PATH     Install an optional Hyprland Lua layout
   --remove-layout        Remove the managed optional layout
+  --theme-url URL        Install/select an optional HTTPS GitHub theme repository
   -h, --help             Show this help
 EOF
 }
@@ -40,6 +42,10 @@ while [[ $# -gt 0 ]]; do
     --remove-layout)
       layout_mode="remove"
       shift
+      ;;
+    --theme-url)
+      theme_url="${2:?--theme-url requires a repository URL}"
+      shift 2
       ;;
     -h|--help)
       usage
@@ -93,6 +99,8 @@ shell_backup="$state_dir/shell.before-host-idle.json"
 
 install -d -m 0755 "$state_dir" "$hypr_dir" "$(dirname "$foot_config")" \
   "$(dirname "$shell_config")"
+
+bash "$(dirname "${BASH_SOURCE[0]}")/apply-theme.sh" "$theme_url"
 
 if [[ -f "$foot_config" ]]; then
   if grep -Eq '^font=.*:size=[0-9.]+' "$foot_config"; then

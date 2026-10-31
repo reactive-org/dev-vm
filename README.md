@@ -10,7 +10,8 @@ persistence, and Mac app lifecycle. Omarchy owns Arch, Hyprland, applications,
 Docker, mise, language runtimes, and guest updates.
 
 The repository owns only workstation preferences: a readable Foot font,
-host-owned idle/locking policy, and an optional per-workstation app layout.
+host-owned idle/locking policy, an optional theme, and an optional per-workstation
+app layout.
 It does not install host software or replace either project's update path.
 
 The Omarchy/Parallels and Ubuntu/Ansible implementations remain available
@@ -33,16 +34,32 @@ Before changing anything, the controller verifies Omarchy VM Manager 0.6.0 or
 newer with command protocol 1, inventories the exact named profile, rejects
 protected or incompatible guests, and prints the complete proposal for
 confirmation. The manager creates or starts the guest and waits for its own
-authenticated, pinned SSH connection. The controller then uses that connection
+authenticated, pinned SSH connection. The controller then enables Omarchy's
+native 60-minute passwordless-sudo grant over that connection, asking you to
+confirm Omarchy's prompt and enter the guest sudo password. It uses the grant
 to update Omarchy and the guest system through `omarchy update -y`, install the
 selected guest software through Omarchy and mise, and apply the small idempotent
-preference layer. It then reboots the guest through the manager, waits for managed
-SSH to return, validates hardware VirGL and integration, and removes its temporary
-payload. It never installs host software, handles guest passwords, scans personal
+preference layer. It disables the grant before rebooting the guest through the
+manager, waits for managed SSH to return, validates hardware VirGL and integration,
+and removes its temporary payload. It never installs host software, handles guest passwords, scans personal
 SSH files, or replaces or resets an existing VM.
 New guests request a 64 GiB sparse disk by default; an existing stopped guest
 can grow to that capacity but is never shrunk. Override with
 `OMARCHY_VM_DISK_GIB=128` when more space is needed.
+
+Bootstrap also attempts to disable the grant on setup errors, Ctrl+C, SIGTERM,
+and SIGHUP, including a partially completed enable operation. A cleanup failure
+is reported, and prevents a successful setup from continuing to reboot. If the
+host process is killed outright or managed SSH is unavailable, Omarchy's native
+60-minute expiry and reboot cleanup provide the fallback. To revoke manually,
+run `omarchy sudo passwordless --disable` in a guest terminal. The controller
+never captures the password or writes its own sudoers rules.
+`OMARCHY_VM_YES=yes` skips the host proposal confirmation; Omarchy's native grant
+confirmation and initial password prompt remain interactive.
+
+An Omarchy settings-package upgrade can revoke temporary sudo grants early;
+subsequent privileged steps may then ask for authentication again. Bootstrap
+respects that native revocation and does not renew or extend the 60-minute grant.
 
 The default guest software set is `claude-desktop`, `1password`, and
 `1password-cli`. Override the comma-separated set without editing the repository.
@@ -67,6 +84,78 @@ The default CLI path is the sibling checkout at
 elsewhere. Shared folders and general port forwarding are not currently part
 of the manager's CLI contract.
 
+### Optional theme
+
+Choose an Omarchy theme with its HTTPS GitHub repository URL (with or without
+`.git`), for example one from the [community catalog](https://omarchy.org/themes/):
+
+```bash
+make bootstrap-omarchy-vm \
+  OMARCHY_VM_THEME=https://github.com/bjarneo/omarchy-ash-theme
+```
+
+Omit `OMARCHY_VM_THEME` to preserve the current theme. To choose automatically:
+
+```bash
+make bootstrap-omarchy-vm OMARCHY_VM_THEME=random
+make bootstrap-omarchy-vm OMARCHY_VM_THEME=most-starred
+```
+
+To draw a random theme with at least 10 GitHub stars:
+
+```bash
+make bootstrap-omarchy-vm \
+  OMARCHY_VM_THEME=random OMARCHY_VM_THEME_MIN_STARS=10
+```
+
+`OMARCHY_VM_THEME_MIN_STARS` defaults to `10`; set it to `0` to disable filtering.
+The minimum applies only to `random` and is ignored for other theme choices.
+A positive minimum requires the same GitHub authentication as `most-starred`
+and chooses uniformly among repositories meeting the inclusive minimum. Setup
+stops if no themes qualify. The selection reports its star count and the number
+of eligible themes. The controller flag is `--theme-min-stars`.
+
+`random` chooses uniformly from the GitHub repositories in the official
+[website catalog source](https://github.com/omacom/omarchy-site/blob/master/themes/index.html).
+`most-starred` chooses the catalog repository with the highest current GitHub
+star count; ties use alphabetical repository URL order. Entries explicitly
+reported by GitHub as `NOT_FOUND` are skipped and printed, covering removed
+or private repositories. Star ranking prefers an
+existing `gh` CLI on the host and uses `gh api` with its GitHub.com login. If you
+have already run `gh auth login --hostname github.com`, no token export is
+needed. `gh` honors `GH_TOKEN` ahead of `GITHUB_TOKEN`, and either overrides its
+stored login. If `gh` is unavailable, the controller uses `GH_TOKEN` or
+`GITHUB_TOKEN` directly, with access to public repository metadata. It never
+installs `gh` or starts an interactive login during setup.
+
+Both paths query GitHub's GraphQL API in batches; credentials stay on the host
+and are never printed, staged, or passed to the guest. Lookup or API failures
+stop setup before any VM changes instead of silently choosing another theme.
+
+The selected URL appears in the proposal before confirmation. Each automatic
+selection runs once per bootstrap invocation; reuse the printed URL to keep
+the same choice on future runs. Omarchy's native `theme install`/`theme set`
+commands apply the selection without requiring a live graphical session. An
+installed theme from the same repository is reused without pulling or deleting
+local changes; an already active selection with generated Foot settings is left
+alone. Setup runs in an Omarchy login shell so its native templates are available,
+and regenerates missing active theme settings even when no new theme is selected.
+A name collision with a local theme or another repository stops with an error.
+Omarchy continues to
+own theme updates. The normal managed reboot activates the selection.
+
+For guest-side application, `make apply-omarchy-vm-guest OMARCHY_VM_THEME=URL`
+also accepts a repository URL; automatic selection is a host bootstrap option.
+The controller's equivalent argument is `--theme URL|random|most-starred`.
+
+If Foot reports that its active theme include is missing, regenerate the current
+theme from a guest login terminal and validate the result:
+
+```bash
+OMARCHY_THEME_HEADLESS=1 omarchy theme set "$(cat "$HOME/.local/state/omarchy/current/theme.name")"
+foot --check-config
+```
+
 ### Optional workstation app layout
 
 No application layout is installed by default. The tracked example in the
@@ -88,8 +177,8 @@ make check-omarchy-vm VM_NAME="Dev Omarchy"
 ```
 
 The check requires `aarch64`, rejects `llvmpipe` and `softpipe`, verifies the
-manager-provided clipboard channel, reports the current Hyprland display and
-scale, and confirms the explicit idle preferences. Also test one host-to-guest
+Foot configuration and manager-provided clipboard channel, reports the current
+Hyprland display and scale, and confirms the explicit idle preferences. Also test one host-to-guest
 paste, one guest-to-host paste, a normal restart, and window movement between
 the two host displays before accepting the migration.
 
@@ -115,6 +204,7 @@ Validate repository changes on the Mac with:
 
 ```bash
 bash -n omarchy/guest/apply-workstation.sh \
+  omarchy/guest/apply-theme.sh \
   omarchy/guest/check-workstation.sh \
   omarchy/guest/repair-try-omarchy-black-screen.sh
 PYTHONPYCACHEPREFIX=/tmp/dev-ubuntu-pycache \

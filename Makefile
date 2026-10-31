@@ -41,6 +41,8 @@ OMARCHY_VM_WAIT_TIMEOUT ?= 3600
 OMARCHY_VM_FOOT_FONT_SIZE ?= 16
 OMARCHY_VM_IDLE_MODE ?= host
 OMARCHY_VM_LAYOUT_FILE ?=
+OMARCHY_VM_THEME ?=
+OMARCHY_VM_THEME_MIN_STARS ?= 10
 OMARCHY_VM_YES ?= no
 OMARCHY_VM_PACKAGES ?= claude-desktop,1password,1password-cli
 OMARCHY_VM_SKIP_APPS ?= no
@@ -64,13 +66,15 @@ bootstrap-omarchy-vm: ## Create or configure a managed Omarchy VM
 		--foot-font-size "$(OMARCHY_VM_FOOT_FONT_SIZE)" \
 		--idle-mode "$(OMARCHY_VM_IDLE_MODE)" \
 		--packages "$(if $(filter yes true 1,$(OMARCHY_VM_SKIP_APPS)),,$(OMARCHY_VM_PACKAGES))" \
+		--theme "$(OMARCHY_VM_THEME)" \
+		--theme-min-stars "$(OMARCHY_VM_THEME_MIN_STARS)" \
 		$(if $(filter off,$(OMARCHY_VM_LAYOUT_FILE)),--remove-layout,$(if $(OMARCHY_VM_LAYOUT_FILE),--layout-file "$(OMARCHY_VM_LAYOUT_FILE)",)) \
 		$(if $(filter yes true 1,$(OMARCHY_VM_YES)),--yes,) \
 		bootstrap
 
 apply-omarchy-vm-guest: ## Apply workstation preferences inside a managed guest
 	@test "$$(uname -s)" = Linux || { printf 'Run this target in a managed Omarchy terminal.\n' >&2; exit 1; }
-	@bash ./omarchy/guest/apply-workstation.sh --foot-font-size "$(OMARCHY_VM_FOOT_FONT_SIZE)" --idle-mode "$(OMARCHY_VM_IDLE_MODE)" $(if $(filter off,$(OMARCHY_VM_LAYOUT_FILE)),--remove-layout,$(if $(OMARCHY_VM_LAYOUT_FILE),--layout-file "$(OMARCHY_VM_LAYOUT_FILE)",))
+	@bash ./omarchy/guest/apply-workstation.sh --foot-font-size "$(OMARCHY_VM_FOOT_FONT_SIZE)" --idle-mode "$(OMARCHY_VM_IDLE_MODE)" $(if $(OMARCHY_VM_THEME),--theme-url "$(OMARCHY_VM_THEME)",) $(if $(filter off,$(OMARCHY_VM_LAYOUT_FILE)),--remove-layout,$(if $(OMARCHY_VM_LAYOUT_FILE),--layout-file "$(OMARCHY_VM_LAYOUT_FILE)",))
 
 check-omarchy-vm: ## Validate a running managed Omarchy VM
 	@python3 ./scripts/omarchy_vm_manager.py \

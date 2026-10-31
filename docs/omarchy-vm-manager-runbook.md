@@ -25,11 +25,18 @@ storage, graphics, clipboard, networking and SSH connection.
 
 Review the printed proposal and confirm it. The command asks Omarchy VM Manager
 to create or start the named guest, waits for its authenticated managed SSH
-connection, updates Omarchy and the guest system, installs the selected guest
-software, and applies the repository-owned workstation preferences. It then
-reboots through Omarchy VM Manager, waits for SSH to return, and runs the
+connection, and enables Omarchy's native 60-minute passwordless-sudo grant.
+Confirm the native prompt and enter the guest sudo password. Bootstrap then
+updates Omarchy and the guest system, installs the selected guest
+software, and applies the repository-owned workstation preferences. It disables
+the grant, reboots through Omarchy VM Manager, waits for SSH to return, and runs the
 hardware/integration checks. New guests default to a 64 GiB sparse, grow-only
 disk. It does not scan or modify personal SSH files.
+
+Bootstrap attempts to revoke the grant on failure or interruption too. If cleanup
+cannot reach the guest, it reports the failure; Omarchy's expiry and reboot cleanup
+remain the fallback. A settings-package update can revoke the grant early and
+cause later authentication prompts.
 
 The managed reboot activates any compatibility repair or application layout
 change; no additional logout or restart is required after a successful run.

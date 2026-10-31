@@ -7,14 +7,20 @@ import argparse
 import json
 import os
 import platform
+import random
 import re
 import shlex
+import shutil
+import signal
 import subprocess
 import sys
 import uuid
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Iterable, Optional
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -23,6 +29,10 @@ MINIMUM_MANAGER_VERSION = (0, 6, 0)
 GUEST_REPAIR = PROJECT_DIR / "omarchy" / "guest" / "repair-try-omarchy-black-screen.sh"
 GUEST_APPLY = PROJECT_DIR / "omarchy" / "guest" / "apply-workstation.sh"
 GUEST_CHECK = PROJECT_DIR / "omarchy" / "guest" / "check-workstation.sh"
+GUEST_THEME = PROJECT_DIR / "omarchy" / "guest" / "apply-theme.sh"
+THEMES_CATALOG_URL = (
+    "https://raw.githubusercontent.com/omacom/omarchy-site/master/themes/index.html"
+)
 REMOTE_PREFIX = "/tmp/dev-ubuntu-workstation."
 DEFAULT_PACKAGES = ("claude-desktop", "1password", "1password-cli")
 PACKAGE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+@/-]*")
@@ -30,6 +40,186 @@ PACKAGE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+@/-]*")
 
 class WorkstationError(RuntimeError):
     pass
+
+
+def theme_repo_url(value: str) -> str:
+    """Accept only an HTTPS GitHub repository root with an Omarchy-safe name."""
+    match = re.fullmatch(
+        r"https://github\.com/([A-Za-z0-9][A-Za-z0-9-]*)/"
+        r"([A-Za-z0-9_][A-Za-z0-9._+-]*)/?", value
+    )
+    if not match:
+        raise WorkstationError("Theme must be an HTTPS GitHub repository URL")
+    owner, repo = match.groups()
+    repo = repo.removesuffix(".git")
+    if repo.endswith(".git"):
+        raise WorkstationError("Theme URL has an ambiguous repeated .git suffix")
+    name = re.sub(r"-theme$", "", re.sub(r"^omarchy-", "", repo)).lower()
+    if not re.fullmatch(r"[a-z0-9_][a-z0-9._+-]*", name):
+        raise WorkstationError("The repository does not give a usable Omarchy theme name")
+    return f"https://github.com/{owner}/{repo}"
+
+
+class ThemeCatalog(HTMLParser):
+    """Read only theme figures, excluding the site's own repository links."""
+
+    def __init__(self):
+        super().__init__()
+        self.in_theme = False
+        self.urls = {}
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "figure":
+            self.in_theme = "themes__theme" in attrs.get("class", "").split()
+        if self.in_theme and tag == "a":
+            try:
+                url = theme_repo_url(attrs.get("href", ""))
+            except WorkstationError:
+                return
+            self.urls.setdefault(url.lower(), url)
+
+    def handle_endtag(self, tag):
+        if tag == "figure":
+            self.in_theme = False
+
+
+def fetch_theme_resource(request: Request) -> bytes:
+    try:
+        with urlopen(request, timeout=30) as response:
+            return response.read()
+    except (URLError, OSError, ValueError):
+        # Never echo request headers, tokens, or an API response into logs.
+        raise WorkstationError(
+            "Theme lookup failed; check connectivity, GitHub credentials and API limits"
+        ) from None
+
+
+def theme_github_auth() -> tuple[Optional[str], Optional[str]]:
+    gh = shutil.which("gh")
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if not gh and not token:
+        raise WorkstationError(
+            "Theme star lookup requires an authenticated gh CLI or GH_TOKEN/GITHUB_TOKEN on the host"
+        )
+    return gh, token
+
+
+def github_theme_query(query: str, gh: Optional[str], token: Optional[str]) -> str:
+    payload = json.dumps({"query": query})
+    if gh:
+        try:
+            result = subprocess.run(
+                [gh, "api", "--hostname", "github.com", "graphql", "--input", "-"],
+                input=payload, text=True, capture_output=True, timeout=30,
+                env={**os.environ, "GH_PROMPT_DISABLED": "1"},
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            raise WorkstationError("GitHub CLI theme lookup failed or timed out") from None
+        if result.returncode:
+            try:
+                reply = json.loads(result.stdout)
+                # GraphQL can return usable metadata alongside per-repo errors.
+                # The ranking step validates every error before using the data.
+                if not (isinstance(reply.get("data"), dict) and reply.get("errors")):
+                    raise ValueError("no partial metadata")
+            except (ValueError, AttributeError):
+                raise WorkstationError(
+                    "GitHub CLI theme lookup failed; check gh auth login --hostname github.com, "
+                    "connectivity and API limits"
+                ) from None
+        return result.stdout
+    request = Request(
+        "https://api.github.com/graphql",
+        data=payload.encode(),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
+    return fetch_theme_resource(request).decode("utf-8")
+
+
+def theme_star_counts(urls: list[str]) -> list[tuple[str, int]]:
+    gh, token = theme_github_auth()
+    ranked = []
+    for start in range(0, len(urls), 50):
+        batch = urls[start:start + 50]
+        fields = []
+        for index, url in enumerate(batch):
+            owner, repo = url.removeprefix("https://github.com/").split("/")
+            fields.append(
+                f"r{index}: repository(owner: {json.dumps(owner)}, "
+                f"name: {json.dumps(repo)}) {{ stargazerCount }}"
+            )
+        try:
+            reply = json.loads(github_theme_query("query { " + " ".join(fields) + " }", gh, token))
+            unavailable = set()
+            aliases = {f"r{index}" for index in range(len(batch))}
+            for error in reply.get("errors", []):
+                path = error.get("path", [])
+                if (
+                    error.get("type") != "NOT_FOUND"
+                    or len(path) != 1
+                    or path[0] not in aliases
+                    or reply["data"][path[0]] is not None
+                ):
+                    raise ValueError("incomplete ranking")
+                unavailable.add(path[0])
+            for index, url in enumerate(batch):
+                if f"r{index}" in unavailable:
+                    note(f"Skipping unavailable catalog theme: {url}")
+                    continue
+                stars = reply["data"][f"r{index}"]["stargazerCount"]
+                if type(stars) is not int or stars < 0:
+                    raise ValueError("invalid star count")
+                ranked.append((url, stars))
+        except (ValueError, TypeError, KeyError, AttributeError):
+            raise WorkstationError(
+                "GitHub could not read complete theme metadata; use a URL or unfiltered random"
+            ) from None
+    if not ranked:
+        raise WorkstationError("No available GitHub theme repositories remain in the catalog")
+    return ranked
+
+
+def most_starred_theme(urls: list[str]) -> tuple[str, int]:
+    ranked = theme_star_counts(urls)
+    # Stable URL order breaks ties so repeated runs with equal counts agree.
+    return min(ranked, key=lambda item: (-item[1], item[0].lower()))
+
+
+def resolve_theme(value: str, min_stars: int = 10) -> str:
+    if type(min_stars) is not int or min_stars < 0:
+        raise WorkstationError("Theme minimum stars must be a non-negative integer")
+    if not value:
+        return ""
+    if value not in {"random", "most-starred"}:
+        return theme_repo_url(value)
+    if value == "most-starred" or min_stars:
+        theme_github_auth()
+    catalog = ThemeCatalog()
+    try:
+        catalog.feed(fetch_theme_resource(Request(THEMES_CATALOG_URL)).decode("utf-8"))
+    except UnicodeError:
+        raise WorkstationError("The Omarchy theme catalog was not valid UTF-8") from None
+    urls = sorted(catalog.urls.values(), key=str.lower)
+    if not urls:
+        raise WorkstationError("No GitHub themes found in the Omarchy catalog; use a URL")
+    if value == "random":
+        if min_stars:
+            eligible = [(url, stars) for url, stars in theme_star_counts(urls) if stars >= min_stars]
+            if not eligible:
+                raise WorkstationError(f"No catalog themes have at least {min_stars} GitHub stars")
+            selected, stars = random.SystemRandom().choice(eligible)
+            note(
+                f"Random theme: {selected} ({stars} GitHub stars; "
+                f"{len(eligible)} themes meet the {min_stars}-star minimum)"
+            )
+        else:
+            selected = random.SystemRandom().choice(urls)
+            note(f"Random theme: {selected}")
+    else:
+        selected, stars = most_starred_theme(urls)
+        note(f"Most-starred theme: {selected} ({stars} GitHub stars)")
+    return selected
 
 
 @dataclass(frozen=True)
@@ -421,6 +611,45 @@ def update_guest_system(connection: ManagedSSH) -> None:
     guest_login_command(connection, "omarchy update -y", tty=True)
 
 
+def enable_bootstrap_sudo(connection: ManagedSSH) -> None:
+    note(
+        "Enabling Omarchy passwordless sudo for 60 minutes; "
+        "confirm the native prompt and enter the guest sudo password"
+    )
+    # The native command returns success even when its confirmation is declined.
+    # Require an active grant before starting any privileged setup work.
+    guest_login_command(
+        connection,
+        "omarchy sudo passwordless 60 && omarchy sudo passwordless --active",
+        tty=True,
+    )
+
+
+def disable_bootstrap_sudo(connection: ManagedSSH) -> None:
+    note("Disabling Omarchy passwordless sudo after the bootstrap work")
+    command = "bash -lc " + shlex.quote("omarchy sudo passwordless --disable")
+    message = (
+        "Could not confirm that bootstrap passwordless sudo was disabled. "
+        "Run 'omarchy sudo passwordless --disable' inside the guest. "
+        "Omarchy's 60-minute expiry and reboot cleanup remain the fallback."
+    )
+    try:
+        # Cleanup must not wait for terminal input or hang on a lost connection.
+        # Omarchy's --disable uses noninteractive sudo and handles an expired or
+        # already revoked grant without enabling anything or prompting again.
+        result = subprocess.run(
+            connection.ssh_argv() + [command],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        raise WorkstationError(message) from None
+    if result.returncode:
+        raise WorkstationError(message)
+
+
 def confirm(args) -> None:
     if args.yes:
         return
@@ -489,6 +718,8 @@ def print_proposal(
         f"  Guest software:  {packages}\n"
         f"  Preferences:     Foot {args.foot_font_size}, idle policy {args.idle_mode}\n"
         f"  App layout:      {layout}\n"
+        f"  Theme:           {args.theme or 'preserve the current choice'}\n"
+        "  Guest sudo:      native 60-minute passwordless grant; revoke on completion or failure\n"
         "  Compatibility:   apply the conditional Hyprland/VirGL repair\n"
         "  Lifecycle:       update Omarchy, apply customizations, reboot and validate\n"
         "  Host installs:   none"
@@ -524,6 +755,7 @@ def ready_guest(args) -> tuple[dict, str]:
             else "start the existing VM and wait for authenticated SSH"
         )
 
+    args.theme = resolve_theme(args.theme, min_stars=args.theme_min_stars)
     print_proposal(
         args,
         manager=manager,
@@ -613,7 +845,7 @@ def ready_guest(args) -> tuple[dict, str]:
 
 
 def apply_workstation(args, connection: ManagedSSH) -> None:
-    payloads = [GUEST_REPAIR, GUEST_APPLY]
+    payloads = [GUEST_REPAIR, GUEST_APPLY, GUEST_THEME]
     if args.layout_file:
         payloads.append(args.layout_file)
     remote_dir = ""
@@ -635,7 +867,9 @@ def apply_workstation(args, connection: ManagedSSH) -> None:
             )
         elif args.remove_layout:
             apply_parts.append("--remove-layout")
-        ssh_command(connection, " ".join(shlex.quote(part) for part in apply_parts))
+        if args.theme:
+            apply_parts.extend(["--theme-url", args.theme])
+        guest_login_command(connection, " ".join(shlex.quote(part) for part in apply_parts))
 
         repair = ssh_command(
             connection,
@@ -687,8 +921,35 @@ def check_guest_workstation(connection: ManagedSSH) -> None:
 def bootstrap_command(args) -> None:
     guest, _ = ready_guest(args)
     connection = managed_ssh(guest)
-    update_guest_system(connection)
-    apply_workstation(args, connection)
+
+    def interrupted(signum, _frame):
+        raise WorkstationError(f"Bootstrap interrupted by {signal.Signals(signum).name}")
+
+    previous_handlers = {
+        signum: signal.signal(signum, interrupted)
+        for signum in (signal.SIGTERM, signal.SIGHUP)
+    }
+    try:
+        try:
+            # Start cleanup coverage before enable: a lost SSH reply or an
+            # interrupted authorization can leave the native grant active.
+            enable_bootstrap_sudo(connection)
+            update_guest_system(connection)
+            apply_workstation(args, connection)
+        except BaseException:
+            try:
+                disable_bootstrap_sudo(connection)
+            except WorkstationError as error:
+                print(f"Warning: {error}", file=sys.stderr, flush=True)
+            raise
+        else:
+            # Revoke before restarting: the manager needs no sudo, and this
+            # leaves no grant behind if its restart or subsequent checks fail.
+            disable_bootstrap_sudo(connection)
+    finally:
+        for signum, handler in previous_handlers.items():
+            signal.signal(signum, handler)
+
     guest = restart_guest(args, guest)
     check_guest_workstation(managed_ssh(guest))
     note("Managed Omarchy workstation setup is complete")
@@ -726,6 +987,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout", type=int, default=3600)
     parser.add_argument("--foot-font-size", default="16")
     parser.add_argument(
+        "--theme", default="", metavar="URL|random|most-starred",
+        help="optional HTTPS GitHub theme repository, or a selection from the Omarchy catalog",
+    )
+    parser.add_argument(
+        "--theme-min-stars", type=int, default=10, metavar="COUNT",
+        help="minimum GitHub stars for random theme selection (default: 10; 0 disables filtering)",
+    )
+    parser.add_argument(
         "--idle-mode", choices=("host", "guest", "keep"), default="host"
     )
     layout_group = parser.add_mutually_exclusive_group()
@@ -757,6 +1026,9 @@ def main() -> int:
     except WorkstationError as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("Bootstrap cancelled.", file=sys.stderr)
+        return 130
     except subprocess.CalledProcessError as error:
         print(
             f"Error: command failed ({error.returncode}): {shlex.join(error.cmd)}",

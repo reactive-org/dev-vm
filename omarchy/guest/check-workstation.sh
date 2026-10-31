@@ -38,6 +38,12 @@ else
   fail 'Omarchy command is unavailable'
 fi
 
+if command -v foot >/dev/null && foot --check-config; then
+  pass 'Foot configuration and active theme include are valid'
+else
+  fail 'Foot configuration is invalid or Foot is unavailable'
+fi
+
 renderer_output=""
 if command -v glxinfo >/dev/null; then
   renderer_output=$(glxinfo -B 2>&1 || true)
