@@ -6,7 +6,7 @@ import sys
 import os
 import shlex
 import unittest
-from contextlib import ExitStack, redirect_stderr
+from contextlib import ExitStack, redirect_stderr, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -422,6 +422,45 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             ((None, "opencode"), ("mise", "pi"), ("pkg", "ripgrep")),
         )
         self.assertEqual(empty.packages, ())
+
+    def test_lean_profile_defaults_off_and_proposal_names_the_removals(self):
+        parser = CONTROLLER.build_parser()
+        args = parser.parse_args(["bootstrap"])
+        self.assertFalse(args.lean_developer)
+        args = parser.parse_args(["--lean-developer", "--packages", "pkg:obsidian", "bootstrap"])
+        output = io.StringIO()
+        with redirect_stdout(output):
+            CONTROLLER.print_proposal(args, manager="0.6.0", action="start", guest=None, mutable_errors=[])
+        profile_line = next(line for line in output.getvalue().splitlines() if "Lean developer:" in line)
+        self.assertIn("libreoffice-fresh", profile_line)
+        self.assertNotIn("obsidian", profile_line)
+
+    def test_lean_profile_payload_and_keep_selection_are_opt_in(self):
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled):
+                args = CONTROLLER.build_parser().parse_args(
+                    (["--lean-developer"] if enabled else []) + ["--packages", "pkg:obsidian", "bootstrap"]
+                )
+                remote = "/tmp/dev-ubuntu-workstation.ABC123"
+                events = []
+                with mock.patch.object(CONTROLLER, "stage_payload", return_value=(remote, [])) as stage, mock.patch.object(
+                    CONTROLLER, "install_selected_software", side_effect=lambda *_args: events.append("install")
+                ), mock.patch.object(
+                    CONTROLLER, "guest_login_command", side_effect=lambda *_args, **_kwargs: events.append(_args[1])
+                ) as login, mock.patch.object(
+                    CONTROLLER, "ssh_command", return_value=subprocess.CompletedProcess([], 0, "", "")
+                ), mock.patch.object(CONTROLLER, "cleanup_payload") as cleanup:
+                    CONTROLLER.apply_workstation(args, mock.sentinel.connection)
+                payloads = stage.call_args.args[1]
+                self.assertEqual(CONTROLLER.GUEST_LEAN in payloads, enabled)
+                self.assertEqual(CONTROLLER.GUEST_LEAN_PACKAGES in payloads, enabled)
+                self.assertEqual(events[0], "install")
+                if enabled:
+                    self.assertEqual(shlex.split(events[1]), ["python3", remote + "/apply-lean-developer.py", "--keep", "obsidian"])
+                    self.assertTrue(login.call_args_list[0].kwargs["tty"])
+                else:
+                    self.assertNotIn("apply-lean-developer.py", " ".join(events))
+                cleanup.assert_called_once()
 
     def test_packages_reject_unsafe_or_ambiguous_entries(self):
         for value in ("opencode,,pi", "npm:tool", "tool; reboot", "pi,pi"):

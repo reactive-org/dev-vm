@@ -46,6 +46,7 @@ OMARCHY_VM_THEME_MIN_STARS ?= 10
 OMARCHY_VM_YES ?= no
 OMARCHY_VM_PACKAGES ?= claude-desktop,1password,1password-cli
 OMARCHY_VM_SKIP_APPS ?= no
+OMARCHY_VM_LEAN_DEVELOPER ?= no
 
 .PHONY: help omarchy-vm-list bootstrap-omarchy-vm apply-omarchy-vm-guest check-omarchy-vm check-omarchy-vm-guest repair-omarchy-vm-black-screen bootstrap apply-playbook images vms omarchy-image bootstrap-omarchy apply-omarchy check-omarchy test-omarchy
 
@@ -66,6 +67,7 @@ bootstrap-omarchy-vm: ## Create or configure a managed Omarchy VM
 		--foot-font-size "$(OMARCHY_VM_FOOT_FONT_SIZE)" \
 		--idle-mode "$(OMARCHY_VM_IDLE_MODE)" \
 		--packages "$(if $(filter yes true 1,$(OMARCHY_VM_SKIP_APPS)),,$(OMARCHY_VM_PACKAGES))" \
+		$(if $(filter yes true 1,$(OMARCHY_VM_LEAN_DEVELOPER)),--lean-developer,) \
 		--theme "$(OMARCHY_VM_THEME)" \
 		--theme-min-stars "$(OMARCHY_VM_THEME_MIN_STARS)" \
 		$(if $(filter off,$(OMARCHY_VM_LAYOUT_FILE)),--remove-layout,$(if $(OMARCHY_VM_LAYOUT_FILE),--layout-file "$(OMARCHY_VM_LAYOUT_FILE)",)) \

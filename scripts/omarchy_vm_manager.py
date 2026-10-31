@@ -30,6 +30,8 @@ GUEST_REPAIR = PROJECT_DIR / "omarchy" / "guest" / "repair-try-omarchy-black-scr
 GUEST_APPLY = PROJECT_DIR / "omarchy" / "guest" / "apply-workstation.sh"
 GUEST_CHECK = PROJECT_DIR / "omarchy" / "guest" / "check-workstation.sh"
 GUEST_THEME = PROJECT_DIR / "omarchy" / "guest" / "apply-theme.sh"
+GUEST_LEAN = PROJECT_DIR / "omarchy" / "guest" / "apply-lean-developer.py"
+GUEST_LEAN_PACKAGES = GUEST_LEAN.with_name("lean-developer.packages")
 THEMES_CATALOG_URL = (
     "https://raw.githubusercontent.com/omacom/omarchy-site/master/themes/index.html"
 )
@@ -684,6 +686,9 @@ def preflight(args) -> str:
         raise WorkstationError("Timeout must be between 1 and 3600 seconds")
     if args.layout_file:
         args.layout_file = require_file(args.layout_file, "Layout file")
+    if args.lean_developer:
+        require_file(GUEST_LEAN, "Lean developer payload")
+        require_file(GUEST_LEAN_PACKAGES, "Lean developer package list")
     return manager_version(args)
 
 
@@ -707,6 +712,17 @@ def print_proposal(
     correction_text = (
         "\n  VM updates:      " + "; ".join(corrections) if corrections else ""
     )
+    lean_text = "disabled (preserve installed software)"
+    if args.lean_developer:
+        keep = {item.name for item in args.packages}
+        candidates = [
+            name for line in GUEST_LEAN_PACKAGES.read_text().splitlines()
+            if (name := line.split("#", 1)[0].strip()) and name not in keep
+        ]
+        lean_text = (
+            "opt-in; remove when installed and safe: " + ", ".join(candidates)
+            + "\n                   Retain required desktop/VM packages and selected guest software"
+        )
     print(
         "\nProposed Omarchy workstation setup\n"
         f"  Manager CLI:     {manager} (command protocol 1)\n"
@@ -716,6 +732,7 @@ def print_proposal(
         "  Integration:     manager-owned NAT, Retina/VirGL, clipboard and SSH\n"
         "  VM storage:      manager-owned factory image and independent disk\n"
         f"  Guest software:  {packages}\n"
+        f"  Lean developer:  {lean_text}\n"
         f"  Preferences:     Foot {args.foot_font_size}, idle policy {args.idle_mode}\n"
         f"  App layout:      {layout}\n"
         f"  Theme:           {args.theme or 'preserve the current choice'}\n"
@@ -846,12 +863,20 @@ def ready_guest(args) -> tuple[dict, str]:
 
 def apply_workstation(args, connection: ManagedSSH) -> None:
     payloads = [GUEST_REPAIR, GUEST_APPLY, GUEST_THEME]
+    if args.lean_developer:
+        payloads.extend([GUEST_LEAN, GUEST_LEAN_PACKAGES])
     if args.layout_file:
         payloads.append(args.layout_file)
     remote_dir = ""
     try:
         remote_dir, _ = stage_payload(connection, payloads)
         install_selected_software(connection, args.packages)
+
+        if args.lean_developer:
+            lean_parts = ["python3", remote_dir + "/" + GUEST_LEAN.name]
+            for item in args.packages:
+                lean_parts.extend(["--keep", item.name])
+            guest_login_command(connection, shlex.join(lean_parts), tty=True)
 
         apply_parts = [
             "bash",
@@ -1001,6 +1026,10 @@ def build_parser() -> argparse.ArgumentParser:
     layout_group.add_argument("--layout-file", type=Path)
     layout_group.add_argument("--remove-layout", action="store_true")
     parser.add_argument("--yes", action="store_true")
+    parser.add_argument(
+        "--lean-developer", action="store_true",
+        help="remove optional desktop apps and hardware tools; retain required VM integration",
+    )
     parser.add_argument(
         "--packages",
         type=parse_packages,
