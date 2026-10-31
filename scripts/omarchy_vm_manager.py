@@ -24,6 +24,8 @@ GUEST_REPAIR = PROJECT_DIR / "omarchy" / "guest" / "repair-try-omarchy-black-scr
 GUEST_APPLY = PROJECT_DIR / "omarchy" / "guest" / "apply-workstation.sh"
 GUEST_CHECK = PROJECT_DIR / "omarchy" / "guest" / "check-workstation.sh"
 REMOTE_PREFIX = "/tmp/dev-ubuntu-workstation."
+DEFAULT_PACKAGES = ("claude-desktop", "1password", "1password-cli")
+PACKAGE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+@/-]*")
 
 
 class WorkstationError(RuntimeError):
@@ -43,6 +45,15 @@ class ManagedSSH:
 
     def scp_argv(self) -> list[str]:
         return ["/usr/bin/scp", "-F", str(self.config)]
+
+
+@dataclass(frozen=True)
+class GuestSoftware:
+    name: str
+    source: Optional[str] = None
+
+    def display(self) -> str:
+        return f"{self.source}:{self.name}" if self.source else self.name
 
 
 def note(message: str) -> None:
@@ -189,6 +200,35 @@ def format_errors(errors: Iterable[str]) -> str:
     return "\n  - ".join(errors)
 
 
+def parse_packages(value: str) -> tuple[GuestSoftware, ...]:
+    if not value.strip():
+        return ()
+    packages = []
+    seen = set()
+    for raw_item in value.split(","):
+        item = raw_item.strip()
+        if not item:
+            raise argparse.ArgumentTypeError(
+                "packages must be a comma-separated list without empty entries"
+            )
+        source = None
+        name = item
+        if ":" in item:
+            source, name = item.split(":", 1)
+            if source not in {"pkg", "mise"}:
+                raise argparse.ArgumentTypeError(
+                    f"unsupported package source {source!r}; use pkg: or mise:"
+                )
+        if not PACKAGE_NAME.fullmatch(name):
+            raise argparse.ArgumentTypeError(f"invalid package name: {name!r}")
+        key = (source, name)
+        if key in seen:
+            raise argparse.ArgumentTypeError(f"duplicate package selection: {item!r}")
+        seen.add(key)
+        packages.append(GuestSoftware(name=name, source=source))
+    return tuple(packages)
+
+
 def managed_ssh(guest: dict) -> ManagedSSH:
     identifier = require_identifier(guest)
     ssh = guest.get("ssh")
@@ -283,20 +323,75 @@ def package_installed(connection: ManagedSSH, package: str) -> bool:
     return result.returncode == 0
 
 
-def install_missing_apps(connection: ManagedSSH) -> None:
+def mise_tool_configured(connection: ManagedSSH, tool: str) -> bool:
+    result = ssh_command(
+        connection,
+        f"mise ls --json {shlex.quote(tool)} >/dev/null 2>&1",
+        check=False,
+        capture=True,
+    )
+    return result.returncode == 0
+
+
+def mise_tool_installed(connection: ManagedSSH, tool: str) -> bool:
+    result = ssh_command(
+        connection,
+        f"mise where {shlex.quote(tool)} >/dev/null 2>&1",
+        check=False,
+        capture=True,
+    )
+    return result.returncode == 0
+
+
+def resolve_software_source(
+    connection: ManagedSSH, software: GuestSoftware
+) -> GuestSoftware:
+    if software.source:
+        return software
+    source = "mise" if mise_tool_configured(connection, software.name) else "pkg"
+    return GuestSoftware(name=software.name, source=source)
+
+
+def install_selected_software(
+    connection: ManagedSSH, selection: Iterable[GuestSoftware]
+) -> None:
+    selected = [resolve_software_source(connection, item) for item in selection]
+    if not selected:
+        note("No guest software selected")
+        return
+
     commands = []
-    if not package_installed(connection, "claude-desktop"):
-        commands.append("omarchy install ai claude")
-    if not (
-        package_installed(connection, "1password")
-        and package_installed(connection, "1password-cli")
+    package_names = {item.name for item in selected if item.source == "pkg"}
+    handled_packages = set()
+    if "claude-desktop" in package_names and not package_installed(
+        connection, "claude-desktop"
     ):
-        commands.append("omarchy install service 1password")
+        commands.append("omarchy install ai claude")
+    if "claude-desktop" in package_names:
+        handled_packages.add("claude-desktop")
+
+    one_password = {"1password", "1password-cli"}
+    if one_password <= package_names:
+        if not all(package_installed(connection, name) for name in one_password):
+            commands.append("omarchy install service 1password")
+        handled_packages.update(one_password)
+
+    for item in selected:
+        if item.source == "pkg":
+            if item.name in handled_packages or package_installed(
+                connection, item.name
+            ):
+                continue
+            commands.append(f"omarchy-pkg-add {shlex.quote(item.name)}")
+        elif not mise_tool_installed(connection, item.name):
+            commands.append(f"mise install {shlex.quote(item.name)}")
+
     if not commands:
-        note("Claude Desktop and 1Password are already installed")
+        note("Selected guest software is already installed")
         return
     note(
-        "Installing missing applications through Omarchy; enter guest sudo when prompted"
+        "Installing selected guest software through Omarchy and mise; "
+        "enter guest sudo if prompted"
     )
     ssh_command(connection, " && ".join(commands), tty=True)
 
@@ -354,6 +449,7 @@ def print_proposal(
         layout = "preserve the current choice"
     identifier = guest.get("id") if guest else "assigned by the manager"
     corrections = list(mutable_errors)
+    packages = ", ".join(item.display() for item in args.packages) or "none"
     correction_text = (
         "\n  VM updates:      " + "; ".join(corrections) if corrections else ""
     )
@@ -365,7 +461,7 @@ def print_proposal(
         f"  Resources:       {args.cpus} CPUs, {args.memory_gib} GiB RAM, {args.disk_gib} GiB disk\n"
         "  Integration:     manager-owned NAT, Retina/VirGL, clipboard and SSH\n"
         "  VM storage:      manager-owned factory image and independent disk\n"
-        "  Guest apps:      Claude Desktop and 1Password via Omarchy\n"
+        f"  Guest software:  {packages}\n"
         f"  Preferences:     Foot {args.foot_font_size}, idle policy {args.idle_mode}\n"
         f"  App layout:      {layout}\n"
         "  Compatibility:   apply the conditional Hyprland/VirGL repair\n"
@@ -505,8 +601,7 @@ def apply_workstation(args, connection: ManagedSSH) -> bool:
         )
         print(repair.stdout, end="", flush=True)
         repaired = "Repaired:" in repair.stdout
-        if not args.skip_apps:
-            install_missing_apps(connection)
+        install_selected_software(connection, args.packages)
 
         apply_parts = [
             "bash",
@@ -592,7 +687,17 @@ def build_parser() -> argparse.ArgumentParser:
     layout_group.add_argument("--layout-file", type=Path)
     layout_group.add_argument("--remove-layout", action="store_true")
     parser.add_argument("--yes", action="store_true")
-    parser.add_argument("--skip-apps", action="store_true")
+    parser.add_argument(
+        "--packages",
+        type=parse_packages,
+        default=tuple(GuestSoftware(name=name) for name in DEFAULT_PACKAGES),
+        help=(
+            "comma-separated guest software (default: "
+            + ",".join(DEFAULT_PACKAGES)
+            + "); unprefixed Omarchy mise tools use mise, other names use "
+            "omarchy-pkg-add"
+        ),
+    )
     parser.add_argument("command", choices=("bootstrap", "check"))
     return parser
 

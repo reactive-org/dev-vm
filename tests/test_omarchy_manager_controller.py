@@ -138,6 +138,51 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         self.assertEqual(installed.layout_file, Path("layout.lua"))
         self.assertTrue(removed.remove_layout)
 
+    def test_packages_default_and_override_are_explicit(self):
+        parser = CONTROLLER.build_parser()
+        default = parser.parse_args(["bootstrap"])
+        overridden = parser.parse_args(
+            ["--packages", "opencode,mise:pi,pkg:ripgrep", "bootstrap"]
+        )
+        empty = parser.parse_args(["--packages", "", "bootstrap"])
+        self.assertEqual(
+            tuple(item.name for item in default.packages),
+            ("claude-desktop", "1password", "1password-cli"),
+        )
+        self.assertEqual(
+            tuple((item.source, item.name) for item in overridden.packages),
+            ((None, "opencode"), ("mise", "pi"), ("pkg", "ripgrep")),
+        )
+        self.assertEqual(empty.packages, ())
+
+    def test_packages_reject_unsafe_or_ambiguous_entries(self):
+        for value in ("opencode,,pi", "npm:tool", "tool; reboot", "pi,pi"):
+            with self.assertRaises(CONTROLLER.argparse.ArgumentTypeError):
+                CONTROLLER.parse_packages(value)
+
+    def test_selected_software_uses_omarchy_packages_and_configured_mise_tools(self):
+        connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
+        selection = CONTROLLER.parse_packages(
+            "claude-desktop,1password,1password-cli,opencode,mise:pi,pkg:ripgrep"
+        )
+        with mock.patch.object(
+            CONTROLLER,
+            "mise_tool_configured",
+            side_effect=lambda _connection, name: name == "opencode",
+        ), mock.patch.object(
+            CONTROLLER, "mise_tool_installed", return_value=False
+        ), mock.patch.object(
+            CONTROLLER, "package_installed", return_value=False
+        ), mock.patch.object(CONTROLLER, "ssh_command") as command:
+            CONTROLLER.install_selected_software(connection, selection)
+        self.assertEqual(
+            command.call_args.args[1],
+            "omarchy install ai claude && "
+            "omarchy install service 1password && "
+            "mise install opencode && mise install pi && omarchy-pkg-add ripgrep",
+        )
+        self.assertTrue(command.call_args.kwargs["tty"])
+
     def test_new_guest_creation_is_one_explicit_manager_mutation(self):
         args = SimpleNamespace(
             vm_name="Dev Omarchy",
@@ -149,6 +194,9 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             layout_file=None,
             foot_font_size="16",
             idle_mode="host",
+            packages=CONTROLLER.parse_packages(
+                "claude-desktop,1password,1password-cli"
+            ),
         )
         ready = managed_guest(
             active=True,
