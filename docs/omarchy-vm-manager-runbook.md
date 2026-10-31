@@ -26,7 +26,8 @@ storage, graphics, clipboard, networking and SSH connection.
 Review the printed proposal and confirm it. The command asks Omarchy VM Manager
 to create or start the named guest, waits for its authenticated managed SSH
 connection, applies the repository-owned workstation preferences and runs the
-hardware/integration checks. It does not scan or modify personal SSH files.
+hardware/integration checks. New guests default to a 64 GiB sparse, grow-only
+disk. It does not scan or modify personal SSH files.
 
 If the compatibility repair changes Hyprland configuration, restart the named
 guest through Omarchy VM Manager once. Otherwise, log out and back in only when

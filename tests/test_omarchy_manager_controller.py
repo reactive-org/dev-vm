@@ -25,6 +25,7 @@ def managed_guest(**overrides):
         "active": False,
         "clipboard": True,
         "cpus": 8,
+        "diskGiB": 64,
         "id": GUEST_ID,
         "immersive": False,
         "memoryMiB": 20 * 1024,
@@ -53,10 +54,10 @@ class OmarchyManagerControllerTests(unittest.TestCase):
     def test_manager_version_requires_protocol_one_and_minimum_release(self):
         args = SimpleNamespace(cli_path=Path("/manager/omarchy-vm"))
         valid = subprocess.CompletedProcess(
-            [], 0, json.dumps({"commandProtocol": 1, "version": "0.5.1"}), ""
+            [], 0, json.dumps({"commandProtocol": 1, "version": "0.6.0"}), ""
         )
         with mock.patch.object(CONTROLLER, "run", return_value=valid):
-            self.assertEqual(CONTROLLER.manager_version(args), "0.5.1")
+            self.assertEqual(CONTROLLER.manager_version(args), "0.6.0")
 
         old = subprocess.CompletedProcess(
             [], 0, json.dumps({"commandProtocol": 1, "version": "0.5.0"}), ""
@@ -66,13 +67,13 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                 CONTROLLER.manager_version(args)
 
     def test_managed_guest_contract_accepts_expected_configuration(self):
-        args = SimpleNamespace(cpus=8, memory_gib=20)
+        args = SimpleNamespace(cpus=8, memory_gib=20, disk_gib=64)
         guest = managed_guest()
         self.assertEqual(CONTROLLER.immutable_guest_errors(guest), [])
         self.assertEqual(CONTROLLER.mutable_guest_errors(args, guest), [])
 
     def test_managed_guest_contract_reports_boundary_mismatches(self):
-        args = SimpleNamespace(cpus=8, memory_gib=20)
+        args = SimpleNamespace(cpus=8, memory_gib=20, disk_gib=64)
         guest = managed_guest(
             protected=True,
             cpus=4,
@@ -142,6 +143,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             vm_name="Dev Omarchy",
             memory_gib=20,
             cpus=8,
+            disk_gib=64,
             timeout=3600,
             remove_layout=False,
             layout_file=None,
@@ -161,7 +163,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             },
         )
         with mock.patch.object(
-            CONTROLLER, "preflight", return_value="0.5.1"
+            CONTROLLER, "preflight", return_value="0.6.0"
         ), mock.patch.object(
             CONTROLLER, "list_guests", return_value=[]
         ), mock.patch.object(
@@ -173,10 +175,12 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         ) as call:
             result, version = CONTROLLER.ready_guest(args)
         self.assertEqual(result, ready)
-        self.assertEqual(version, "0.5.1")
+        self.assertEqual(version, "0.6.0")
         values = call.call_args.args[1:]
         self.assertEqual(values[0:2], ("create", "Dev Omarchy"))
         self.assertIn("--owner-defaults", values)
+        self.assertIn("--disk", values)
+        self.assertIn("64GiB", values)
         self.assertIn("--start", values)
         self.assertIn("--wait", values)
         self.assertIn("ssh", values)

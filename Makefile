@@ -36,6 +36,7 @@ OMARCHY_VM_MANAGER_DIR ?= $(CURDIR)/../Omarchy VM Manager
 OMARCHY_VM_MANAGER_CLI ?= $(OMARCHY_VM_MANAGER_DIR)/bin/omarchy-vm
 OMARCHY_VM_CPUS ?= 8
 OMARCHY_VM_MEMORY_GIB ?= 20
+OMARCHY_VM_DISK_GIB ?= 64
 OMARCHY_VM_WAIT_TIMEOUT ?= 3600
 OMARCHY_VM_FOOT_FONT_SIZE ?= 16
 OMARCHY_VM_IDLE_MODE ?= host
@@ -57,6 +58,7 @@ bootstrap-omarchy-vm: ## Create or configure a managed Omarchy VM
 		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
 		--cpus "$(OMARCHY_VM_CPUS)" \
 		--memory-gib "$(OMARCHY_VM_MEMORY_GIB)" \
+		--disk-gib "$(OMARCHY_VM_DISK_GIB)" \
 		--timeout "$(OMARCHY_VM_WAIT_TIMEOUT)" \
 		--foot-font-size "$(OMARCHY_VM_FOOT_FONT_SIZE)" \
 		--idle-mode "$(OMARCHY_VM_IDLE_MODE)" \
@@ -75,6 +77,7 @@ check-omarchy-vm: ## Validate a running managed Omarchy VM
 		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
 		--cpus "$(OMARCHY_VM_CPUS)" \
 		--memory-gib "$(OMARCHY_VM_MEMORY_GIB)" \
+		--disk-gib "$(OMARCHY_VM_DISK_GIB)" \
 		check
 
 check-omarchy-vm-guest: ## Check the workstation from a managed guest terminal

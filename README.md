@@ -27,7 +27,7 @@ make bootstrap-omarchy-vm \
   OMARCHY_VM_LAYOUT_FILE="$PWD/omarchy/examples/layouts/claude-two-terminals-browser.lua"
 ```
 
-Before changing anything, the controller verifies Omarchy VM Manager 0.5.1 or
+Before changing anything, the controller verifies Omarchy VM Manager 0.6.0 or
 newer with command protocol 1, inventories the exact named profile, rejects
 protected or incompatible guests, and prints the complete proposal for
 confirmation. The manager creates or starts the guest and waits for its own
@@ -36,6 +36,9 @@ to invoke Omarchy's installers for Claude Desktop and 1Password, apply the
 small idempotent preference layer, validate hardware VirGL and integration, and
 remove its temporary payload. It never installs host software, handles guest
 passwords, scans personal SSH files, or replaces or resets an existing VM.
+New guests request a 64 GiB sparse disk by default; an existing stopped guest
+can grow to that capacity but is never shrunk. Override with
+`OMARCHY_VM_DISK_GIB=128` when more space is needed.
 
 The default CLI path is the sibling checkout at
 `../Omarchy VM Manager/bin/omarchy-vm`. Override

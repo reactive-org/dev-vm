@@ -19,7 +19,7 @@ from typing import Iterable, Optional
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_CLI = PROJECT_DIR.parent / "Omarchy VM Manager" / "bin" / "omarchy-vm"
-MINIMUM_MANAGER_VERSION = (0, 5, 1)
+MINIMUM_MANAGER_VERSION = (0, 6, 0)
 GUEST_REPAIR = PROJECT_DIR / "omarchy" / "guest" / "repair-try-omarchy-black-screen.sh"
 GUEST_APPLY = PROJECT_DIR / "omarchy" / "guest" / "apply-workstation.sh"
 GUEST_CHECK = PROJECT_DIR / "omarchy" / "guest" / "check-workstation.sh"
@@ -174,6 +174,7 @@ def mutable_guest_errors(args, guest: dict) -> list[str]:
     expected = {
         "memoryMiB": args.memory_gib * 1024,
         "cpus": args.cpus,
+        "diskGiB": args.disk_gib,
         "clipboard": True,
         "immersive": False,
     }
@@ -328,6 +329,8 @@ def preflight(args) -> str:
         raise WorkstationError("CPU count must be between 4 and 128")
     if not 4 <= args.memory_gib <= 1024:
         raise WorkstationError("Memory must be between 4 and 1024 GiB")
+    if not 64 <= args.disk_gib <= 8192:
+        raise WorkstationError("Disk capacity must be between 64 and 8192 GiB")
     if not 1 <= args.timeout <= 3600:
         raise WorkstationError("Timeout must be between 1 and 3600 seconds")
     if args.layout_file:
@@ -359,7 +362,7 @@ def print_proposal(
         f"  Manager CLI:     {manager} (command protocol 1)\n"
         f"  Managed VM:      {args.vm_name} ({identifier})\n"
         f"  VM action:       {action}\n"
-        f"  Resources:       {args.cpus} CPUs, {args.memory_gib} GiB RAM\n"
+        f"  Resources:       {args.cpus} CPUs, {args.memory_gib} GiB RAM, {args.disk_gib} GiB disk\n"
         "  Integration:     manager-owned NAT, Retina/VirGL, clipboard and SSH\n"
         "  VM storage:      manager-owned factory image and independent disk\n"
         "  Guest apps:      Claude Desktop and 1Password via Omarchy\n"
@@ -417,6 +420,8 @@ def ready_guest(args) -> tuple[dict, str]:
             f"{args.memory_gib}GiB",
             "--cpus",
             str(args.cpus),
+            "--disk",
+            f"{args.disk_gib}GiB",
             "--clipboard",
             "on",
             "--immersive",
@@ -443,6 +448,8 @@ def ready_guest(args) -> tuple[dict, str]:
                 f"{args.memory_gib}GiB",
                 "--cpus",
                 str(args.cpus),
+                "--disk",
+                f"{args.disk_gib}GiB",
                 "--clipboard",
                 "on",
                 "--immersive",
@@ -575,6 +582,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--vm-name", default="Dev Omarchy")
     parser.add_argument("--cpus", type=int, default=8)
     parser.add_argument("--memory-gib", type=int, default=20)
+    parser.add_argument("--disk-gib", type=int, default=64)
     parser.add_argument("--timeout", type=int, default=3600)
     parser.add_argument("--foot-font-size", default="16")
     parser.add_argument(
