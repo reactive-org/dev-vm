@@ -173,7 +173,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             CONTROLLER, "mise_tool_installed", return_value=False
         ), mock.patch.object(
             CONTROLLER, "package_installed", return_value=False
-        ), mock.patch.object(CONTROLLER, "ssh_command") as command:
+        ), mock.patch.object(CONTROLLER, "guest_login_command") as command:
             CONTROLLER.install_selected_software(connection, selection)
         self.assertEqual(
             command.call_args.args[1],
@@ -185,9 +185,25 @@ class OmarchyManagerControllerTests(unittest.TestCase):
 
     def test_system_update_uses_omarchy_supported_entrypoint(self):
         connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
-        with mock.patch.object(CONTROLLER, "ssh_command") as command:
+        with mock.patch.object(CONTROLLER, "guest_login_command") as command:
             CONTROLLER.update_guest_system(connection)
         command.assert_called_once_with(connection, "omarchy update -y", tty=True)
+
+    def test_guest_login_command_loads_omarchy_environment(self):
+        connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
+        with mock.patch.object(CONTROLLER, "ssh_command") as command:
+            CONTROLLER.guest_login_command(
+                connection,
+                "omarchy update -y",
+                tty=True,
+            )
+        command.assert_called_once_with(
+            connection,
+            "bash -lc 'omarchy update -y'",
+            check=True,
+            capture=False,
+            tty=True,
+        )
 
     def test_restart_waits_for_managed_ssh_and_revalidates_the_guest(self):
         args = SimpleNamespace(
