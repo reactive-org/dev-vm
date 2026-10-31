@@ -1,7 +1,10 @@
 .ansible/
 .artifacts/
+/omarchy/local/
 /developer_extra_tasks.yml
 /developer_extra_tasks/
 /local-vars.yml
 *.retry
 .DS_Store
+__pycache__/
+*.pyc

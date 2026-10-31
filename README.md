@@ -1,10 +1,224 @@
-# Ubuntu ARM64 developer workstation
+# Omarchy ARM64 developer workstation
 
-An Ansible project for turning a fresh **Ubuntu Server 26.04.1 LTS ARM64**
-guest in Parallels Desktop into a lean, keyboard-first developer workstation.
-It installs a selectable Hyprland/Wayland or i3/Xorg session without a
-conventional desktop environment, keeps Ubuntu's netplan/systemd-networkd
-networking, and uses lightweight desktop components.
+This repository adds a small, explicit preference layer to the official
+**Try Omarchy** app on Apple Silicon. Try Omarchy owns the ARM64 VM, GPU and
+Retina integration, display scaling, clipboard, shared folder, networking,
+SSH, persistence, and app integration. Omarchy owns Arch, Hyprland,
+applications, Docker, mise, language runtimes, and updates.
+
+The repository owns only workstation preferences: a readable Foot font,
+host-owned idle/locking policy, and an optional per-workstation app layout.
+It does not install host software or replace either project's update path.
+
+The Omarchy/Parallels and Ubuntu/Ansible implementations remain available
+temporarily as rollback paths while the Try Omarchy workstation is evaluated.
+
+## Try Omarchy quick start
+
+Follow the concise [operator runbook](docs/try-omarchy-runbook.md) to install
+the reviewed app, create the Omarchy account, save the VM settings, and enable
+the localhost SSH forward. Then hand the existing VM to the host controller:
+
+```bash
+make bootstrap-try-omarchy \
+  GUEST_USER="<omarchy-user>" \
+  TRY_OMARCHY_LAYOUT_FILE="$PWD/omarchy/examples/layouts/claude-two-terminals-browser.lua"
+```
+
+Before changing the guest, this verifies the pinned app version and signing
+team, exact launcher resources/share/forwarding, and SSH reachability; it then
+prints the complete proposal for confirmation. It authorizes the selected Mac
+public key if necessary, uses Omarchy's own installers for Claude Desktop and
+1Password, applies the small idempotent preference layer, validates hardware
+VirGL and integration, and removes its temporary payload. It never installs
+host software or replaces or resets the VM.
+
+### Optional workstation app layout
+
+No application layout is installed by default. The tracked example in the
+bootstrap command above reproduces the evaluated layout: Claude Desktop on the
+right, two Foot terminals stacked on the left, and a floating Chromium window.
+
+Copy the example into the ignored `omarchy/local/` directory for a
+workstation-specific variant. Omit `TRY_OMARCHY_LAYOUT_FILE` to preserve the
+current choice, or pass `off` to remove the managed layout. Layout changes take
+effect on the next Hyprland login.
+
+### Validation
+
+After the first graphical login, re-run the non-persistent host-side validation
+without installing diagnostic packages:
+
+```bash
+make check-try-omarchy GUEST_USER="<omarchy-user>"
+```
+
+The check requires `aarch64`, rejects `llvmpipe` and `softpipe`, verifies the
+Try Omarchy clipboard channel, reports the current Hyprland display and scale,
+and confirms the explicit idle preferences. Also test one host-to-guest paste,
+one guest-to-host paste, a normal restart, and window movement between the two
+host displays before accepting the migration.
+
+### Hyprland 0.57 black desktop after updating
+
+Try Omarchy issue [#429](https://github.com/omacom/try-omarchy/issues/429)
+tracks a current regression where an Omarchy update leaves the launcher and
+tooltips visible but turns the desktop black and hides opened windows. Do not
+force `llvmpipe`: that disables required hardware rendering. Bootstrap applies
+the conditional repair only when the installed Hyprland/Try Omarchy combination
+needs it. For manual guest-side recovery:
+
+```bash
+make repair-try-omarchy-black-screen
+sudo reboot
+```
+
+The repair backs up both changed user configuration files under
+`~/.local/state/dev-workstation/try-omarchy-black-screen/`, is safe to reapply,
+and requires a full Hyprland restart rather than only `hyprctl reload`.
+
+Validate repository changes on the Mac with:
+
+```bash
+bash -n omarchy/guest/apply-workstation.sh \
+  omarchy/guest/check-workstation.sh \
+  omarchy/guest/repair-try-omarchy-black-screen.sh
+PYTHONPYCACHEPREFIX=/tmp/dev-ubuntu-pycache \
+  python3 -m py_compile scripts/try_omarchy.py scripts/omarchy_vm.py
+make test-omarchy
+```
+
+## Legacy Omarchy/Parallels rollback workflow
+
+Install Parallels Desktop, Python 3, xorriso, and OpenSSL 3 on the Mac:
+
+```bash
+brew install python xorriso openssl@3
+```
+
+Have an SSH key available, normally `~/.ssh/id_ed25519.pub`, then run:
+
+```bash
+make bootstrap-omarchy
+```
+
+The workflow fetches the current official `edge-aarch64` manifest, downloads
+the image, verifies its SHA-256, and shows the complete VM proposal before
+making changes. It asks how much of the VM's current host display the window
+should occupy, defaulting to 75%. Rectangle Pro applies supported centered
+presets automatically; when it is unavailable, the workflow prints the manual
+target without failing. Use `OMARCHY_WINDOW_SIZE=50`, `67`, `75`, `100`,
+or `off` for unattended runs. It prompts privately for the Omarchy login/sudo
+password and uses Omarchy's supported unattended `cidata` interface. The
+generated drive contains a password hash and public SSH key, is ignored by Git,
+and is deleted after successful guest configuration.
+
+On the first apply, the controller runs `omarchy update -y` in an SSH terminal
+before installing integration packages. Omarchy deliberately requires its own
+sudo prompt for that update; enter the guest password when asked. This keeps
+keyrings, migrations, boot verification, and restart hooks in Omarchy's
+supported update path.
+
+Defaults are 4 CPUs, 12 GB RAM, a 64 GB expanding disk, and the highest
+advertised mode, `4096x2160@60`, at scale 1.0. This provides a crisp 4096x2160
+logical workspace that can be downsampled into a large host window without
+magnifying application UI. Omarchy's global text size is set to 16px while Foot
+is independently set to 15pt, keeping application UI compact without
+sacrificing terminal readability. Override the mode without editing files:
+
+```bash
+make bootstrap-omarchy \
+  VM_NAME="Dev Omarchy" \
+  CPUS=8 MEMORY_MB=16384 DISK_GB=96 \
+  OMARCHY_DISPLAY_MODE=4096x2160@60 \
+  OMARCHY_WINDOW_SIZE=75
+```
+
+### Optional per-VM app layout
+
+The managed workstation configuration does not launch or position applications.
+Bootstrap instead asks for an optional Hyprland Lua layout file, so workspace
+policy can differ per VM. Leave it blank for native Omarchy behavior.
+
+The repository includes an example reproducing the evaluated layout exactly:
+Claude Desktop fills the right 60%, two Foot terminals are stacked on the left,
+and Chromium floats above them. Use the tracked example directly:
+
+```bash
+make bootstrap-omarchy \
+  OMARCHY_LAYOUT_FILE="$PWD/omarchy/examples/layouts/claude-two-terminals-browser.lua"
+```
+
+For a VM-specific variant, copy the example into the ignored local directory
+and edit that copy:
+
+```bash
+mkdir -p omarchy/local
+cp omarchy/examples/layouts/claude-two-terminals-browser.lua \
+  omarchy/local/dev-omarchy.lua
+
+make bootstrap-omarchy \
+  OMARCHY_LAYOUT_FILE="$PWD/omarchy/local/dev-omarchy.lua"
+```
+
+`make apply-omarchy` preserves an installed layout when the variable is omitted.
+Pass another file to replace it, or `OMARCHY_LAYOUT_FILE=off` to remove it and
+return to native Omarchy behavior.
+
+The evaluation VM is deliberately unencrypted: the unattended Omarchy format
+would otherwise place the LUKS passphrase in plaintext on `cidata` and still
+require it during first boot. Use it only on encrypted host storage. Encryption
+can be reconsidered after the workstation is accepted.
+
+The new path uses Omarchy's Chromium, Neovim, Docker, mise, and Claude Code
+integration. It additionally installs Omarchy's Claude Desktop and 1Password
+packages. Google Chrome and VS Code are not installed initially.
+
+Hyprland and applications use Parallels' hardware-backed virgl renderer. The
+Omarchy shell alone uses Qt's software scene graph because Qt/Quickshell loses
+alpha on virgl and otherwise turns its full-screen launcher/bar layer opaque.
+This does not disable GPU acceleration for Chromium, Claude Desktop, or the
+compositor.
+
+If `~/Parallels/Shared` exists, it is exposed as the only host share at
+`/mnt/shared`. Parallels Tools provide clipboard and shared-folder integration.
+The vendor `prlcc` desktop autostart owns the single clipboard process; `prlcp`
+does not exchange clipboard data correctly when launched without that parent.
+A user-service drop-in periodically refreshes the complete vendor chain if it
+becomes stale.
+The guest delegates idle behavior to the host: Omarchy's automatic screensaver
+and idle lock are disabled, and its lock-before-suspend user service is masked.
+Manual guest locking remains available if explicitly invoked.
+
+After the first graphical login, inspect the fixed monitor mode and renderer:
+
+```bash
+make check-omarchy \
+  VM_NAME="Dev Omarchy" \
+  GUEST_USER="developer"
+```
+
+The check fails if the graphical session reports `llvmpipe` or `softpipe`.
+Reapply the small guest configuration after changing the display setting or
+updating Parallels Tools with:
+
+```bash
+make apply-omarchy \
+  VM_NAME="Dev Omarchy" \
+  GUEST_USER="developer"
+```
+
+Validate changes locally with:
+
+```bash
+python3 -m py_compile scripts/omarchy_vm.py
+bash -n omarchy/guest/configure.sh \
+  omarchy/guest/dev-vm-display-init \
+  omarchy/guest/dev-vm-session-check
+make test-omarchy
+```
+
+## Legacy Ubuntu/Ansible workflow
 
 ## What it installs
 
@@ -526,9 +740,11 @@ i3 directives without changing the managed base configuration.
 Parallels Tools publishes resized virtio display modes, but its Wayland display
 client targets GNOME/Mutter rather than Hyprland. Parallels v27 and Ubuntu's
 Hyprland 0.53 currently reject runtime modesets, including ordinary advertised
-resolutions. The safe default is therefore a fixed `2560x1600@59.99` startup
-mode, controlled by `parallels_hyprland_fixed_mode`. This gives the VM a useful
-window size immediately after login without depending on a resize event.
+resolutions. The safe default is therefore a fixed `4096x2160@60` startup
+mode, controlled by `parallels_hyprland_fixed_mode`. Parallels publishes the
+complete virtio mode list shortly after Hyprland starts, so the workstation
+performs one delayed configuration reload. It does not continuously follow
+host-window resize events.
 
 With `enable_parallels_hyprland_integration: true`, clipboard and drag-and-drop
 helpers remain Wayland-native. The incompatible combined Parallels autostart is

@@ -1,0 +1,9 @@
+{
+  "app": {
+    "bundle_id": "dev.tryomarchy.native",
+    "dmg_sha256": "403e7695c824dc67448d9f273bd105c6a17db2e89fd120d9fc7df1d647af30ba",
+    "release_url": "https://github.com/omacom/try-omarchy/releases/tag/v1.2.0",
+    "team_id": "RZC79MPD34",
+    "version": "1.2.0"
+  }
+}
