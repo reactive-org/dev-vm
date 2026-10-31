@@ -1,6 +1,8 @@
 # Omarchy ARM64 developer workstation
 
-This repository adds a small, explicit preference layer to
+This repository implements the
+[Reactive developer VM](https://www.reactive.org/dev-vm) as a small, explicit
+preference layer over
 [**Omarchy VM Manager**](https://github.com/reactive-org/omarchy-vm-manager)
 on Apple Silicon. The manager owns the ARM64 VM, factory image, storage, GPU
 and Retina integration, display scaling, clipboard, networking, managed SSH,
