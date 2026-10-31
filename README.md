@@ -1,37 +1,47 @@
 # Omarchy ARM64 developer workstation
 
-This repository adds a small, explicit preference layer to the official
-**Try Omarchy** app on Apple Silicon. Try Omarchy owns the ARM64 VM, GPU and
-Retina integration, display scaling, clipboard, shared folder, networking,
-SSH, persistence, and app integration. Omarchy owns Arch, Hyprland,
-applications, Docker, mise, language runtimes, and updates.
+This repository adds a small, explicit preference layer to
+[**Omarchy VM Manager**](https://github.com/reactive-org/omarchy-vm-manager)
+on Apple Silicon. The manager owns the ARM64 VM, factory image, storage, GPU
+and Retina integration, display scaling, clipboard, networking, managed SSH,
+persistence, and Mac app lifecycle. Omarchy owns Arch, Hyprland, applications,
+Docker, mise, language runtimes, and guest updates.
 
 The repository owns only workstation preferences: a readable Foot font,
 host-owned idle/locking policy, and an optional per-workstation app layout.
 It does not install host software or replace either project's update path.
 
 The Omarchy/Parallels and Ubuntu/Ansible implementations remain available
-temporarily as rollback paths while the Try Omarchy workstation is evaluated.
+temporarily as rollback paths while the managed workstation is evaluated.
 
-## Try Omarchy quick start
+## Omarchy VM Manager quick start
 
-Follow the concise [operator runbook](docs/try-omarchy-runbook.md) to install
-the reviewed app, create the Omarchy account, save the VM settings, and enable
-the localhost SSH forward. Then hand the existing VM to the host controller:
+Follow the concise [operator runbook](docs/omarchy-vm-manager-runbook.md) to
+build and verify the sibling manager checkout and configure its Guest Defaults
+once. Then hand the complete VM lifecycle to the manager's
+[JSON CLI](https://github.com/reactive-org/omarchy-vm-manager/blob/main/Docs/CLI.md):
 
 ```bash
-make bootstrap-try-omarchy \
-  GUEST_USER="<omarchy-user>" \
-  TRY_OMARCHY_LAYOUT_FILE="$PWD/omarchy/examples/layouts/claude-two-terminals-browser.lua"
+make bootstrap-omarchy-vm \
+  VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_LAYOUT_FILE="$PWD/omarchy/examples/layouts/claude-two-terminals-browser.lua"
 ```
 
-Before changing the guest, this verifies the pinned app version and signing
-team, exact launcher resources/share/forwarding, and SSH reachability; it then
-prints the complete proposal for confirmation. It authorizes the selected Mac
-public key if necessary, uses Omarchy's own installers for Claude Desktop and
-1Password, applies the small idempotent preference layer, validates hardware
-VirGL and integration, and removes its temporary payload. It never installs
-host software or replaces or resets the VM.
+Before changing anything, the controller verifies Omarchy VM Manager 0.5.1 or
+newer with command protocol 1, inventories the exact named profile, rejects
+protected or incompatible guests, and prints the complete proposal for
+confirmation. The manager creates or starts the guest and waits for its own
+authenticated, pinned SSH connection. The controller then uses that connection
+to invoke Omarchy's installers for Claude Desktop and 1Password, apply the
+small idempotent preference layer, validate hardware VirGL and integration, and
+remove its temporary payload. It never installs host software, handles guest
+passwords, scans personal SSH files, or replaces or resets an existing VM.
+
+The default CLI path is the sibling checkout at
+`../Omarchy VM Manager/bin/omarchy-vm`. Override
+`OMARCHY_VM_MANAGER_CLI=/absolute/path/to/omarchy-vm` when the manager lives
+elsewhere. Shared folders and general port forwarding are not currently part
+of the manager's CLI contract.
 
 ### Optional workstation app layout
 
@@ -40,9 +50,9 @@ bootstrap command above reproduces the evaluated layout: Claude Desktop on the
 right, two Foot terminals stacked on the left, and a floating Chromium window.
 
 Copy the example into the ignored `omarchy/local/` directory for a
-workstation-specific variant. Omit `TRY_OMARCHY_LAYOUT_FILE` to preserve the
-current choice, or pass `off` to remove the managed layout. Layout changes take
-effect on the next Hyprland login.
+workstation-specific variant. Omit `OMARCHY_VM_LAYOUT_FILE` to preserve the
+current choice, or pass `OMARCHY_VM_LAYOUT_FILE=off` to remove the managed
+layout. Layout changes take effect on the next Hyprland login.
 
 ### Validation
 
@@ -50,14 +60,14 @@ After the first graphical login, re-run the non-persistent host-side validation
 without installing diagnostic packages:
 
 ```bash
-make check-try-omarchy GUEST_USER="<omarchy-user>"
+make check-omarchy-vm VM_NAME="Dev Omarchy"
 ```
 
 The check requires `aarch64`, rejects `llvmpipe` and `softpipe`, verifies the
-Try Omarchy clipboard channel, reports the current Hyprland display and scale,
-and confirms the explicit idle preferences. Also test one host-to-guest paste,
-one guest-to-host paste, a normal restart, and window movement between the two
-host displays before accepting the migration.
+manager-provided clipboard channel, reports the current Hyprland display and
+scale, and confirms the explicit idle preferences. Also test one host-to-guest
+paste, one guest-to-host paste, a normal restart, and window movement between
+the two host displays before accepting the migration.
 
 ### Hyprland 0.57 black desktop after updating
 
@@ -69,7 +79,7 @@ the conditional repair only when the installed Hyprland/Try Omarchy combination
 needs it. For manual guest-side recovery:
 
 ```bash
-make repair-try-omarchy-black-screen
+make repair-omarchy-vm-black-screen
 sudo reboot
 ```
 
@@ -84,7 +94,7 @@ bash -n omarchy/guest/apply-workstation.sh \
   omarchy/guest/check-workstation.sh \
   omarchy/guest/repair-try-omarchy-black-screen.sh
 PYTHONPYCACHEPREFIX=/tmp/dev-ubuntu-pycache \
-  python3 -m py_compile scripts/try_omarchy.py scripts/omarchy_vm.py
+  python3 -m py_compile scripts/omarchy_vm_manager.py scripts/omarchy_vm.py
 make test-omarchy
 ```
 

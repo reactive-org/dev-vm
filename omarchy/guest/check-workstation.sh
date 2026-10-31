@@ -65,9 +65,9 @@ else
 fi
 
 if [[ -e /dev/virtio-ports/dev.tryomarchy.clipboard ]]; then
-  pass 'Try Omarchy clipboard channel is present'
+  pass 'Omarchy VM Manager clipboard channel is present'
 else
-  fail 'Try Omarchy clipboard channel is missing'
+  fail 'Omarchy VM Manager clipboard channel is missing'
 fi
 
 if command -v hyprctl >/dev/null && hyprctl monitors -j >/dev/null 2>&1; then
@@ -92,17 +92,9 @@ else
   fail 'guest lock-before-suspend service is not masked'
 fi
 
-if [[ -n ${TRY_OMARCHY_SHARED_FOLDER:-} ]]; then
-  if [[ -d "$HOME/$TRY_OMARCHY_SHARED_FOLDER" ]]; then
-    pass "shared Mac folder is mounted at ~/$TRY_OMARCHY_SHARED_FOLDER"
-  else
-    fail "expected shared Mac folder is missing: ~/$TRY_OMARCHY_SHARED_FOLDER"
-  fi
-fi
-
 if (( failures > 0 )); then
   printf '\n%d workstation check(s) failed.\n' "$failures" >&2
   exit 1
 fi
 
-printf '\nTry Omarchy workstation checks passed.\n'
+printf '\nManaged Omarchy workstation checks passed.\n'

@@ -11,7 +11,7 @@ usage() {
   cat <<'EOF'
 Usage: apply-workstation.sh [options]
 
-Apply the repository-owned preferences to a running Try Omarchy guest.
+Apply the repository-owned preferences to a managed Omarchy guest.
 
 Options:
   --foot-font-size SIZE  Foot font size (default: 16)
@@ -58,11 +58,11 @@ done
   exit 1
 }
 [[ $(uname -m) == aarch64 ]] || {
-  printf 'This customization targets the Try Omarchy aarch64 guest.\n' >&2
+  printf 'This customization targets the managed Omarchy aarch64 guest.\n' >&2
   exit 1
 }
 command -v omarchy >/dev/null || {
-  printf 'The omarchy command was not found; run this inside Try Omarchy.\n' >&2
+  printf 'The omarchy command was not found; run this inside managed Omarchy.\n' >&2
   exit 1
 }
 command -v jq >/dev/null || {
@@ -160,7 +160,7 @@ case "$layout_mode" in
     ;;
 esac
 
-printf 'Try Omarchy workstation preferences applied.\n'
+printf 'Managed Omarchy workstation preferences applied.\n'
 printf 'Foot font size: %s\n' "$foot_font_size"
 printf 'Guest idle policy: %s\n' "$idle_mode"
 case "$layout_mode" in

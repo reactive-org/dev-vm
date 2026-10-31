@@ -32,80 +32,57 @@ OMARCHY_LAYOUT_FILE ?=
 OMARCHY_TOOLS_ISO ?= /Applications/Parallels Desktop.app/Contents/Resources/Tools/prl-tools-lin-arm.iso
 OMARCHY_SHARE_PATH ?= $(HOME)/Parallels/Shared
 OMARCHY_ARTIFACTS_DIR ?= $(CURDIR)/.artifacts/omarchy
-TRY_OMARCHY_APP ?= /Applications/Try Omarchy.app
-TRY_OMARCHY_LOCK ?= $(CURDIR)/omarchy/try-omarchy.lock.json
-TRY_OMARCHY_PRIVATE_KEY ?= $(HOME)/.ssh/id_rsa
-TRY_OMARCHY_PUBLIC_KEY ?= $(TRY_OMARCHY_PRIVATE_KEY).pub
-TRY_OMARCHY_SSH_HOST ?= 127.0.0.1
-TRY_OMARCHY_SSH_PORT ?= 2222
-TRY_OMARCHY_SHARE_PATH ?= $(HOME)/Shared
-TRY_OMARCHY_CPUS ?= 8
-TRY_OMARCHY_MEMORY_GIB ?= 20
-TRY_OMARCHY_DISK_GIB ?= 64
-TRY_OMARCHY_FOOT_FONT_SIZE ?= 16
-TRY_OMARCHY_IDLE_MODE ?= host
-TRY_OMARCHY_LAYOUT_FILE ?=
-TRY_OMARCHY_YES ?= no
-TRY_OMARCHY_SKIP_APPS ?= no
+OMARCHY_VM_MANAGER_DIR ?= $(CURDIR)/../Omarchy VM Manager
+OMARCHY_VM_MANAGER_CLI ?= $(OMARCHY_VM_MANAGER_DIR)/bin/omarchy-vm
+OMARCHY_VM_CPUS ?= 8
+OMARCHY_VM_MEMORY_GIB ?= 20
+OMARCHY_VM_WAIT_TIMEOUT ?= 3600
+OMARCHY_VM_FOOT_FONT_SIZE ?= 16
+OMARCHY_VM_IDLE_MODE ?= host
+OMARCHY_VM_LAYOUT_FILE ?=
+OMARCHY_VM_YES ?= no
+OMARCHY_VM_SKIP_APPS ?= no
 
-.PHONY: help try-omarchy-open bootstrap-try-omarchy apply-try-omarchy check-try-omarchy check-try-omarchy-guest repair-try-omarchy-black-screen bootstrap apply-playbook images vms omarchy-image bootstrap-omarchy apply-omarchy check-omarchy test-omarchy
+.PHONY: help omarchy-vm-list bootstrap-omarchy-vm apply-omarchy-vm-guest check-omarchy-vm check-omarchy-vm-guest repair-omarchy-vm-black-screen bootstrap apply-playbook images vms omarchy-image bootstrap-omarchy apply-omarchy check-omarchy test-omarchy
 
 help: ## Show available targets and overrides
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-24s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-try-omarchy-open: ## Verify and open an already-installed Try Omarchy app
-	@test "$$(uname -s)" = Darwin || { printf 'Run this target on the Mac host.\n' >&2; exit 1; }
-	@test -d "$(TRY_OMARCHY_APP)" || { printf 'Install the official Try Omarchy app first: %s\n' 'https://github.com/omacom/try-omarchy/releases/latest' >&2; exit 1; }
-	@codesign --verify --deep --strict "$(TRY_OMARCHY_APP)"
-	@spctl --assess --type execute "$(TRY_OMARCHY_APP)"
-	@open "$(TRY_OMARCHY_APP)"
+omarchy-vm-list: ## List guests through Omarchy VM Manager
+	@"$(OMARCHY_VM_MANAGER_CLI)" list
 
-bootstrap-try-omarchy: ## Configure an existing Try Omarchy VM over localhost SSH
-	@python3 ./scripts/try_omarchy.py \
-		--app-path "$(TRY_OMARCHY_APP)" \
-		--lock-file "$(TRY_OMARCHY_LOCK)" \
-		--guest-user "$(if $(GUEST_USER),$(GUEST_USER),$(USER))" \
-		--ssh-host "$(TRY_OMARCHY_SSH_HOST)" \
-		--ssh-port "$(TRY_OMARCHY_SSH_PORT)" \
-		--private-key "$(TRY_OMARCHY_PRIVATE_KEY)" \
-		--public-key "$(TRY_OMARCHY_PUBLIC_KEY)" \
-		--share-path "$(TRY_OMARCHY_SHARE_PATH)" \
-		--cpus "$(TRY_OMARCHY_CPUS)" \
-		--memory-gib "$(TRY_OMARCHY_MEMORY_GIB)" \
-		--disk-gib "$(TRY_OMARCHY_DISK_GIB)" \
-		--foot-font-size "$(TRY_OMARCHY_FOOT_FONT_SIZE)" \
-		--idle-mode "$(TRY_OMARCHY_IDLE_MODE)" \
-		$(if $(filter off,$(TRY_OMARCHY_LAYOUT_FILE)),--remove-layout,$(if $(TRY_OMARCHY_LAYOUT_FILE),--layout-file "$(TRY_OMARCHY_LAYOUT_FILE)",)) \
-		$(if $(filter yes true 1,$(TRY_OMARCHY_YES)),--yes,) \
-		$(if $(filter yes true 1,$(TRY_OMARCHY_SKIP_APPS)),--skip-apps,) \
+bootstrap-omarchy-vm: ## Create or configure a managed Omarchy VM
+	@python3 ./scripts/omarchy_vm_manager.py \
+		--cli-path "$(OMARCHY_VM_MANAGER_CLI)" \
+		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
+		--cpus "$(OMARCHY_VM_CPUS)" \
+		--memory-gib "$(OMARCHY_VM_MEMORY_GIB)" \
+		--timeout "$(OMARCHY_VM_WAIT_TIMEOUT)" \
+		--foot-font-size "$(OMARCHY_VM_FOOT_FONT_SIZE)" \
+		--idle-mode "$(OMARCHY_VM_IDLE_MODE)" \
+		$(if $(filter off,$(OMARCHY_VM_LAYOUT_FILE)),--remove-layout,$(if $(OMARCHY_VM_LAYOUT_FILE),--layout-file "$(OMARCHY_VM_LAYOUT_FILE)",)) \
+		$(if $(filter yes true 1,$(OMARCHY_VM_YES)),--yes,) \
+		$(if $(filter yes true 1,$(OMARCHY_VM_SKIP_APPS)),--skip-apps,) \
 		bootstrap
 
-apply-try-omarchy: ## Apply explicit workstation preferences inside Try Omarchy
-	@test "$$(uname -s)" = Linux || { printf 'Run this target in a Try Omarchy terminal.\n' >&2; exit 1; }
-	@bash ./omarchy/guest/apply-workstation.sh --foot-font-size "$(TRY_OMARCHY_FOOT_FONT_SIZE)" --idle-mode "$(TRY_OMARCHY_IDLE_MODE)" $(if $(filter off,$(TRY_OMARCHY_LAYOUT_FILE)),--remove-layout,$(if $(TRY_OMARCHY_LAYOUT_FILE),--layout-file "$(TRY_OMARCHY_LAYOUT_FILE)",))
+apply-omarchy-vm-guest: ## Apply workstation preferences inside a managed guest
+	@test "$$(uname -s)" = Linux || { printf 'Run this target in a managed Omarchy terminal.\n' >&2; exit 1; }
+	@bash ./omarchy/guest/apply-workstation.sh --foot-font-size "$(OMARCHY_VM_FOOT_FONT_SIZE)" --idle-mode "$(OMARCHY_VM_IDLE_MODE)" $(if $(filter off,$(OMARCHY_VM_LAYOUT_FILE)),--remove-layout,$(if $(OMARCHY_VM_LAYOUT_FILE),--layout-file "$(OMARCHY_VM_LAYOUT_FILE)",))
 
-check-try-omarchy: ## Validate the Try Omarchy VM from the Mac host
-	@python3 ./scripts/try_omarchy.py \
-		--app-path "$(TRY_OMARCHY_APP)" \
-		--lock-file "$(TRY_OMARCHY_LOCK)" \
-		--guest-user "$(if $(GUEST_USER),$(GUEST_USER),$(USER))" \
-		--ssh-host "$(TRY_OMARCHY_SSH_HOST)" \
-		--ssh-port "$(TRY_OMARCHY_SSH_PORT)" \
-		--private-key "$(TRY_OMARCHY_PRIVATE_KEY)" \
-		--public-key "$(TRY_OMARCHY_PUBLIC_KEY)" \
-		--share-path "$(TRY_OMARCHY_SHARE_PATH)" \
-		--cpus "$(TRY_OMARCHY_CPUS)" \
-		--memory-gib "$(TRY_OMARCHY_MEMORY_GIB)" \
-		--disk-gib "$(TRY_OMARCHY_DISK_GIB)" \
+check-omarchy-vm: ## Validate a running managed Omarchy VM
+	@python3 ./scripts/omarchy_vm_manager.py \
+		--cli-path "$(OMARCHY_VM_MANAGER_CLI)" \
+		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
+		--cpus "$(OMARCHY_VM_CPUS)" \
+		--memory-gib "$(OMARCHY_VM_MEMORY_GIB)" \
 		check
 
-check-try-omarchy-guest: ## Check Try Omarchy from a guest terminal
-	@test "$$(uname -s)" = Linux || { printf 'Run this target in a Try Omarchy terminal.\n' >&2; exit 1; }
-	@TRY_OMARCHY_SHARED_FOLDER="$(notdir $(TRY_OMARCHY_SHARE_PATH))" \
-		bash ./omarchy/guest/check-workstation.sh
+check-omarchy-vm-guest: ## Check the workstation from a managed guest terminal
+	@test "$$(uname -s)" = Linux || { printf 'Run this target in a managed Omarchy terminal.\n' >&2; exit 1; }
+	@bash ./omarchy/guest/check-workstation.sh
 
-repair-try-omarchy-black-screen: ## Repair the Hyprland 0.57 VirGL alpha regression
-	@test "$$(uname -s)" = Linux || { printf 'Run this target in a Try Omarchy terminal.\n' >&2; exit 1; }
+repair-omarchy-vm-black-screen: ## Repair the Hyprland 0.57 VirGL alpha regression
+	@test "$$(uname -s)" = Linux || { printf 'Run this target in a managed Omarchy terminal.\n' >&2; exit 1; }
 	@bash ./omarchy/guest/repair-try-omarchy-black-screen.sh
 
 bootstrap: ## Interactively create an ARM64 Ubuntu VM from an ISO

@@ -8,7 +8,7 @@ CHECK = REPOSITORY / "omarchy" / "guest" / "check-workstation.sh"
 REPAIR = REPOSITORY / "omarchy" / "guest" / "repair-try-omarchy-black-screen.sh"
 
 
-class TryOmarchyGuestTests(unittest.TestCase):
+class OmarchyManagerGuestTests(unittest.TestCase):
     def test_preference_layer_does_not_take_over_omarchy_packages(self):
         script = APPLY.read_text(encoding="utf-8")
         for forbidden in ("pacman", "yay ", "paru ", "prlctl", "prlcp", "Parallels"):
@@ -34,8 +34,10 @@ class TryOmarchyGuestTests(unittest.TestCase):
         self.assertIn("hardware-backed VirGL", script)
         self.assertIn("hyprland.log", script)
         self.assertIn("/dev/virtio-ports/dev.tryomarchy.clipboard", script)
+        self.assertIn("Omarchy VM Manager clipboard channel", script)
         self.assertIn("HYPRLAND_INSTANCE_SIGNATURE", script)
         self.assertIn("systemctl --user show-environment", script)
+        self.assertNotIn("SHARED_FOLDER", script)
 
     def test_black_screen_repair_preserves_hardware_rendering(self):
         script = REPAIR.read_text(encoding="utf-8")
