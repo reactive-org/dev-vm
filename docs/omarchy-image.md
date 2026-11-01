@@ -73,6 +73,14 @@ The pinned Omarchy runtime and settings are rebuilt together from source as pack
 The foundation includes the native desktop's Herdr/Udiskie autostart commands,
 socat shell IPC, ImageMagick background inspection and inotify-tools watchers.
 They are desktop runtime dependencies rather than optional developer features.
+The developer foundation includes Git, Python and Arch's standard `base-devel`
+toolchain (including GCC, make and the linker), plus `yay` for native AUR updates.
+The locally built image packages can trigger that path even before any optional
+apps are selected. Dependency resolution checks these roots, and the isolated
+owner check runs `yay`, `makepkg`, `gcc`, `make` and `fakeroot` with `--version`,
+then compiles, links and runs a small C program as the synthetic owner. These
+checks run without a network update or AUR build. Additional language runtimes
+remain independently selected through the developer playbooks.
 The native VirGL integration includes the hash-guarded Hyprland 0.57 alpha-format
 setting before the first compositor starts. Preferences package 1-2 explicitly
 orders first-login work after the graphical target and native session, avoiding
@@ -108,6 +116,11 @@ VM Manager owns factory import/admission and creation-time selection. Version 0.
 
 ## Acceptance and updates
 
+For an older lean image that stops at `omarchy-update-aur-pkgs` with
+`yay: command not found`, follow the [existing-VM recovery steps](omarchy-bootstrap.md#recover-an-older-lean-image-missing-yay).
+Rebuild the foundation with `make build-omarchy-image` before creating new VMs.
+Rebuilding changes `latest`; it does not repair an existing VM.
+
 The builder checks the installed package closure and graphics policy, actual patched scripts, boot/provisioning markers and absence of regular users. It runs upstream system setup in the image chroot. It then creates a separate writable Btrfs snapshot, creates a synthetic account only there, runs the actual upstream user finalizer and first-owner preferences, and checks Foot's configuration. It deletes that test snapshot before sealing; the factory never contains the account. These checks do not prove the owner wizard/unattended adapter, a successful graphical boot or real GPU rendering. A chroot test is not a full first-boot test. Output manifests explicitly retain these distinctions.
 
 Before admitting this image, use separately authorized disposable manager guests to verify manual/unattended owner setup, independent identities, authenticated SSH, Foot preferences, hardware rendering in Hyprland and Quickshell, clipboard, Retina resizing, restart and factory reset. Reject `llvmpipe`, `softpipe` and forced software backends. Do not reuse existing VM disks for acceptance.
@@ -127,4 +140,53 @@ bash -n omarchy/image/build-container.sh omarchy/image/preferences/first-login.s
 
 The source fixtures in `tests/fixtures/omarchy-image/` come from the exact upstream revisions in `inputs.lock.json` (Try's builder, its pinned Hyprland integration policy and Omarchy's six provisioning files). Their MIT licenses are reproduced at `omarchy/image/UPSTREAM-LICENSE` and `omarchy/image/OMARCHY-LICENSE`.
 
-Validated on 1 November 2026 on Apple Silicon: 99 repository tests, the documented syntax checks, the package-only compatibility target and a complete host-backed factory build passed. The build contains 526 installed packages and compresses to approximately 1.56 GiB. System provisioning, strict user-finalization log checks, preference reapplication, Foot configuration, exclusions and identity sealing passed. A PCI hardware probe reports the expected missing Docker-kernel module resources in the chroot; hardware validation remains a real-VM requirement. No VM was launched and no VM Manager state was changed.
+Build-only validation on 1 November 2026 on Apple Silicon: 134 repository tests, the documented shell/Python syntax checks, the package-only compatibility target and a complete host-backed factory build passed. The build contains 568 installed packages and compresses to approximately 1.61 GiB. System provisioning, strict user-finalization log checks, preference reapplication, Foot configuration, AUR tool availability, a non-root C compile/link/run check, exclusions and identity sealing passed. A PCI hardware probe reports the expected missing Docker-kernel module resources in the chroot; hardware validation remains a real-VM requirement. That build launched no VM and changed no VM Manager state.
+
+## Live developer bootstrap — 1 November 2026
+
+A separately authorized test used VM Manager 0.9.3 (16), exactly one new
+disposable ARM64 guest and the rebuilt foundation with `base-devel` and `yay`.
+The factory's complete published checksum inventory passed before bootstrap.
+
+| Identity | SHA-256 |
+| --- | --- |
+| Raw factory disk | `877a32ceec343b22ce64e1cc5e0785d48789c008209bf8ae88f19387e4a59de6` |
+| Compressed factory | `fee5cb5805757e549015faeb02d03a0690f79551ebeaefc8abbdc75afe29e4c5` |
+| Imported manifest | `89e75163dc5447fd8c2d31f571316fbce7573bc83eaeee74c62bfed816c83103` |
+
+Bootstrap used 8 CPUs, 20 GiB RAM, a 64 GiB disk, saved owner defaults,
+`pkg:visual-studio-code-bin,pkg:chromium`, `vscode-browser.lua` and
+`most-starred`. The selector chose Aetheria (122 stars), at theme commit
+`dcf698e2a16226b8ec8b5a70fe8b1fd153daf0d7`.
+
+Native unattended owner setup and authenticated pinned SSH passed. The test
+was paused for the operator to authorize native temporary sudo inside the
+guest. Omarchy's settings upgrade revoked that grant, requiring a second
+native authorization before app installation. No saved password was read or
+logged. The resumed `make bootstrap-omarchy-vm` exited successfully, including
+the native AUR update, selected app installation, theme/preferences, manager
+restart and workstation checks. Runtime/settings updated normally to
+`4.0.0.r7519.gd367a56-1`; integration remained `0.1.0-43.1`.
+
+An additional live window check found VS Code 1.144.0 uses native Wayland class
+`com.microsoft.VSCode`, which the original `code` rule missed. The example now
+matches both native Wayland and XWayland classes for its rule and launch/focus
+command. The corrected layout was reapplied through the existing customization
+controller, followed by another native restart; update/install were already
+complete and no additional sudo grant was needed.
+
+After that restart, both windows were floating on workspace 1: VS Code at
+`(12,38)` with size `1470×1345`, Chromium 156.0.8078.79 at `(1494,38)` with size
+`974×1345`. This matches the 60/40 expressions on a `4960×2790` display at native
+scale 2. Hyprland reported no config errors; accelerated GLX reported
+`virgl (Apple M5 Max)`. Foot, host idle policy, clipboard-channel presence,
+non-root C compile/link/run, changed boot identity, zero failed system/user
+units and inactive temporary sudo all passed. All 134 repository tests and
+the documented shell/Python syntax checks passed after the layout fix.
+
+Evidence and the screenshot are in the ignored
+`.artifacts/bootstrap-validation/disposable-lean-code-20261101-5b26f6/` directory.
+Both pre-existing guest inventories matched their baseline. The disposable VM
+was gracefully stopped and retained. Artifact manifests were not relabelled as
+validated. Functional clipboard routing, dynamic resizing, browser WebGL and
+broader manager acceptance remain separate checks.

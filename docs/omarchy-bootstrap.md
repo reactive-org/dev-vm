@@ -77,6 +77,36 @@ New guests request a 64 GiB sparse disk by default; an existing stopped guest
 can grow to that capacity but is never shrunk. Override with
 `OMARCHY_VM_DISK_GIB=128` when more space is needed.
 
+## Recover an older lean image missing yay
+
+Older lean factories omitted the AUR helper and build prerequisites. Omarchy's
+native update can reach its AUR step because the image includes locally built
+packages, then stop with `yay: command not found`. The bootstrap cleanup message
+about disabling passwordless sudo is expected after that failure.
+
+In a terminal inside the affected guest, install the missing tools through
+Omarchy (enter the guest sudo password when prompted):
+
+```bash
+omarchy-pkg-add yay base-devel
+```
+
+Then rerun bootstrap from this repository on the Mac, using the existing VM's
+exact name and the same software, theme, layout and resource selections. Omit
+`OMARCHY_VM_FACTORY` to preserve its admitted factory, especially if `latest`
+has since been rebuilt. For example:
+
+```bash
+make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_PACKAGES=pkg:visual-studio-code-bin,pkg:chromium \
+  OMARCHY_VM_LAYOUT_FILE=omarchy/examples/layouts/vscode-browser.lua \
+  OMARCHY_VM_THEME=most-starred
+```
+
+Bootstrap retries the native update before applying the selected setup and
+restarting/checking the VM. A rebuilt image is used only for new VMs; it does
+not replace the existing VM or its disk.
+
 ## Resource and preference overrides
 
 Pass these make variables to bootstrap and use the same resource values for

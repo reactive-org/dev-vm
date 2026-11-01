@@ -13,7 +13,8 @@ make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" OMARCHY_VM_FACTORY=official
 
 **Lean, mean coding image:**
 
-Start with a smaller, reusable base and add only the apps and developer tools you need.
+Start with a smaller, reusable base containing Git, Python and the standard
+`base-devel` compiler/build tools. Add the apps and language runtimes you need.
 
 ```bash
 make build-omarchy-image

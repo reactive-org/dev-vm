@@ -1,6 +1,8 @@
 # VS Code and browser
 
 VS Code on the left (60%) and Chromium on the right (40%).
+The layout matches VS Code's native Wayland app ID (`com.microsoft.VSCode`)
+and its XWayland window classes (`Code`/`code`).
 
 Open VM Manager on your Apple Silicon Mac and save **Guest Defaults**. Run
 one of these commands from the repository root with an unused VM name.

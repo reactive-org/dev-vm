@@ -129,7 +129,7 @@ class ImageCompatibilityTests(unittest.TestCase):
         base = set(COMPAT.package_list(IMAGE.PROFILE / "base.packages"))
         excluded = set(COMPAT.package_list(IMAGE.PROFILE / "excluded.packages"))
         self.assertFalse(base & excluded)
-        self.assertTrue({"foot", "git", "python", "openssh", "mesa", "ufw"} <= base)
+        self.assertTrue({"foot", "git", "python", "openssh", "mesa", "ufw", "yay", "base-devel"} <= base)
         self.assertTrue({"docker", "chromium", "mise-bin", "nodejs", "ghostty", "kitty", "1password"} <= excluded)
 
     def test_foundation_profile_has_no_optional_apps_and_keeps_dependency_exclusions(self):

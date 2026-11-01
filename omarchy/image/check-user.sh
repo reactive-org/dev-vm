@@ -25,6 +25,21 @@ done
 arch-chroot "$check_root" runuser -u image-check -- env HOME=/home/image-check LANG=C.UTF-8 LC_ALL=C.UTF-8 \
   /usr/bin/foot --check-config >>"$output/user-provisioning.log" 2>&1
 
+# Check the native AUR tools as the owner without starting an update or build.
+for program in yay makepkg gcc make fakeroot; do
+  arch-chroot "$check_root" runuser -u image-check -- env HOME=/home/image-check LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+    "/usr/bin/$program" --version >>"$output/user-provisioning.log" 2>&1
+done
+
+arch-chroot "$check_root" runuser -u image-check -- env HOME=/home/image-check LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+  bash -euc '
+    build_dir=$(mktemp -d)
+    trap '\''rm -rf "$build_dir"'\'' EXIT
+    printf "int main(void) { return 0; }\n" > "$build_dir/check.c"
+    gcc "$build_dir/check.c" -o "$build_dir/check"
+    "$build_dir/check"
+  ' >>"$output/user-provisioning.log" 2>&1
+
 python3 - "$check_root" "$output/user-provisioning-check.json" <<'PY'
 import json, sys
 from pathlib import Path
@@ -42,6 +57,8 @@ if idle['screensaver'] != 0 or idle['lock'] != 0:
 Path(sys.argv[2]).write_text(json.dumps({
     'format': 1, 'user_finalization': 'passed-in-isolated-chroot',
     'workstation_preferences': 'passed-in-isolated-chroot', 'foot_configuration': 'passed',
+    'aur_build_tools': 'passed-in-isolated-chroot',
+    'base_development_tools': 'passed-compile-in-isolated-chroot',
     'owner_account_wizard': 'not-tested', 'hardware_rendering': 'not-tested',
 }, indent=2) + '\n')
 PY

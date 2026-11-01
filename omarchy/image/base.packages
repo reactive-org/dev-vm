@@ -1,5 +1,9 @@
 # Desktop foundation. Dependencies are resolved by pacman, never suppressed.
 base
+# Standard developer build toolchain, also required for native AUR builds.
+base-devel
+# Omarchy's native AUR update helper.
+yay
 linux-omarchy
 linux-omarchy-headers
 mkinitcpio
