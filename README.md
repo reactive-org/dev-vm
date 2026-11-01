@@ -11,10 +11,10 @@ repository's root with an unused VM name.
 make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" OMARCHY_VM_FACTORY=official
 ```
 
-**Lean, mean coding image:**
-
-Start with a smaller, reusable base containing Git, Python and the standard
-`base-devel` compiler/build tools. Add the apps and language runtimes you need.
+**Lean, mean coding image:** Standard ARM64 Omarchy with a smaller app selection,
+Git, Python and build tools, prepared for QEMU on your Mac using Try Omarchy’s
+factory approach and Omarchy VM Manager’s native integration
+([image details](docs/omarchy-image.md)).
 
 ```bash
 make build-omarchy-image

@@ -2,6 +2,30 @@
 
 `make build-omarchy-image` builds an opt-in ARM64 desktop foundation for Apple Silicon and Omarchy VM Manager. It never invokes the manager, launches QEMU, accesses a guest disk, replaces a factory cache or installs host software. Bootstrap accepts its path in `OMARCHY_VM_FACTORY` and coordinates preparation/import through VM Manager; omission keeps the official default for new guests.
 
+## Standard Omarchy, prepared for your Mac
+
+The **Lean, mean coding image** starts with standard ARM64 Omarchy and uses
+Try Omarchy’s factory approach to prepare a bootable disk for QEMU on Apple
+Silicon. It uses Omarchy’s kernel, official package repositories and normal
+update commands, with a smaller app selection that keeps Git, Python and the
+standard build tools. ARM64 packages come from Omarchy’s `edge` channel.
+
+Docker is the build environment: Try’s recipe uses Omarchy’s `pacstrap-docker`
+tooling and Arch Linux ARM mirror, then installs the system onto a disk with
+the usual ARM64 UEFI boot layout, Btrfs subvolumes and factory snapshot.
+Owner setup runs on first boot. Omarchy VM Manager runs the resulting disk
+in QEMU and supplies its native Mac integration for graphics, Retina scaling,
+dynamic resolution, clipboard, networking and SSH.
+
+The repository selects the lean package list and adds workstation preferences,
+small package-managed provisioning guards for omitted optional apps, and
+hardware-rendering settings. The pinned Omarchy runtime and settings are rebuilt
+from upstream source to include those guards; the details are recorded below.
+Omarchy continues to own the guest’s software and updates, and VM Manager
+continues to own the VM and Mac integration. See the
+[acceptance checks](#acceptance-and-updates) and recorded VM validation below
+for the tested behaviour.
+
 ## Commands
 
 Build the shared minimal foundation once, then let bootstrap install each VM's
