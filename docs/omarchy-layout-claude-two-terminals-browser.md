@@ -37,6 +37,11 @@ make bootstrap-omarchy-vm VM_NAME="Dev Claude" \
 Bootstrap ensures the apps are installed, applies the layout, restarts and
 checks the guest. Open workspace 1 in VM Manager; sign into Claude when ready.
 
+On workspace 1, **Super + Return** reopens a missing top or bottom terminal in
+its assigned position. Once both exist, it opens an ordinary additional terminal.
+Other workspaces keep the normal terminal shortcut. Terminals opened directly
+from the app launcher use Foot's generic ID and do not fill the layout slots.
+
 Review the proposal and follow the guest-password prompt.
 
 Optional check later, using the same VM name:
