@@ -4,6 +4,13 @@ Run these checks from the repository root after changing an Omarchy workflow.
 Use existing host tools; install any missing tools separately. Run
 `make syntax-check` after YAML changes.
 
+The project `mise.toml` pins Python, Lua, Ansible Core, uv, ShellCheck and
+yamllint. To opt into installing these host tools, run `mise trust` and
+`mise install`. Then use `mise run test`, `mise run syntax-check`, or
+`mise run check` for both. Lua enables the layout regression tests that otherwise
+skip when no interpreter is installed. VM Manager and Docker remain separate
+prerequisites; no mise task installs host software or operates a VM.
+
 Validate repository changes on the Mac with:
 
 ```bash
