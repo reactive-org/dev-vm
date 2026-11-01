@@ -1,5 +1,7 @@
 # Omarchy developer workstation
 
+[![CI](https://github.com/reactive-org/dev-vm/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/reactive-org/dev-vm/actions/workflows/ci.yml)
+
 Get a ready-to-code ARM64 workstation on your Apple Silicon Mac with
 [Omarchy VM Manager](https://github.com/reactive-org/omarchy-vm-manager).
 Open the existing manager app and save **Guest Defaults**. Run from this
