@@ -88,6 +88,13 @@
               "workstation": {
                 "type": "object",
                 "properties": {
+                  "shell": {
+                    "enum": [
+                      "zsh",
+                      "bash",
+                      "keep"
+                    ]
+                  },
                   "font_size": {
                     "type": "string",
                     "pattern": "^(?:[6-9]|[12][0-9]|3[0-2])(?:\\.[0-9]+)?$"
@@ -115,6 +122,13 @@
               "builtin.workstation": {
                 "type": "object",
                 "properties": {
+                  "shell": {
+                    "enum": [
+                      "zsh",
+                      "bash",
+                      "keep"
+                    ]
+                  },
                   "font_size": {
                     "type": "string",
                     "pattern": "^(?:[6-9]|[12][0-9]|3[0-2])(?:\\.[0-9]+)?$"

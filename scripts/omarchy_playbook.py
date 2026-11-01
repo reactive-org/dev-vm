@@ -24,6 +24,7 @@ FEATURES = contract.FEATURES
 LEGACY_OPTIONS = {
     "omarchy_browsers": ("browsers", "browsers"), "omarchy_languages": ("languages", "tools"),
     "omarchy_agents": ("agents", "tools"), "omarchy_credential_packages": ("credentials", "packages"),
+    "omarchy_shell": ("workstation", "shell"),
     "omarchy_foot_font_size": ("workstation", "font_size"), "omarchy_idle_mode": ("workstation", "idle_mode"),
     "omarchy_theme": ("workstation", "theme"), "omarchy_layout_file": ("workstation", "layout"),
     "omarchy_remove_layout": ("workstation", "remove_layout"),

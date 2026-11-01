@@ -3,9 +3,10 @@
   "namespace": "builtin",
   "features": {
     "workstation": {
-      "description": "Foot, idle, theme and layout preferences; hardware rendering repair",
+      "description": "Login shell, Foot, idle, theme and layout preferences; hardware rendering repair",
       "handler": "workstation",
-      "defaults": {"font_size": "16", "idle_mode": "host", "theme": "", "layout": "", "remove_layout": false}
+      "defaults": {"shell": "zsh", "font_size": "16", "idle_mode": "host", "theme": "", "layout": "", "remove_layout": false},
+      "shells": {"zsh": "/usr/bin/zsh", "bash": "/bin/bash"}
     },
     "browsers": {
       "description": "Native Omarchy browser integration",

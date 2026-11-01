@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 
@@ -19,7 +20,7 @@ def reply(code=0, stdout="", stderr=""):
 
 class Guest:
     def __init__(self, official=False):
-        self.packages = {"try-omarchy", "python", "foot", "ufw"}
+        self.packages = {"try-omarchy", "python", "foot", "ufw", "bash"}
         self.tools = {}
         self.configured = {"node", "claude", "codex", "opencode"}
         self.calls = []
@@ -28,6 +29,9 @@ class Guest:
         self.service = False
         self.firewall = False
         self.ufw_active = True
+        self.home = None
+        self.shell = "/bin/bash"
+        self.zsh_syntax = self.zsh_environment = self.zsh_activation = True
         # Observed on both live ARM64 factories; do not let fixtures silently
         # validate a nonexistent ShellCheck repository package again.
         self.unavailable = {"shellcheck"}
@@ -52,6 +56,15 @@ class Guest:
         if argv[:2] == ["command", "-v"]:
             return reply()
         if argv[:2] == ["bash", "-ic"]:
+            return reply()
+        if argv[:2] == ["test", "-x"]:
+            return reply(0 if Path(argv[-1]).name in self.packages else 1)
+        if argv[:2] == ["zsh", "-n"]:
+            return reply(0 if self.zsh_syntax else 1, stderr="invalid zsh configuration")
+        if argv[:2] == ["zsh", "-ic"]:
+            return reply(0 if (self.zsh_environment if "OMARCHY_PATH" in argv[-1] else self.zsh_activation) else 1)
+        if argv[:3] == ["sudo", "-n", "chsh"]:
+            self.shell = argv[argv.index("-s") + 1]
             return reply()
         if argv[0] == "omarchy-pkg-add":
             self.packages.update(argv[1:])
@@ -102,8 +115,17 @@ class Guest:
 
 class FeatureTests(unittest.TestCase):
     def apply(self, guest, feature, config, check=False, extension=False):
+        if guest.home is None:
+            temporary = tempfile.TemporaryDirectory(prefix="omarchy-feature-home-")
+            self.addCleanup(temporary.cleanup)
+            guest.home = Path(temporary.name)
+            guest.shells_file = guest.home / "shells"
+            guest.shells_file.write_text("/bin/bash\n/usr/bin/zsh\n")
         with mock.patch.object(FEATURE, "run", side_effect=guest.run), \
                 mock.patch.object(FEATURE, "native", side_effect=guest.native), \
+                mock.patch.object(FEATURE.Path, "home", return_value=guest.home), \
+                mock.patch.object(FEATURE, "SHELLS_FILE", guest.shells_file), \
+                mock.patch.object(FEATURE.pwd, "getpwuid", side_effect=lambda _: SimpleNamespace(pw_name="owner", pw_shell=guest.shell)), \
                 mock.patch.object(FEATURE.platform, "system", return_value="Linux"), \
                 mock.patch.object(FEATURE.platform, "machine", return_value="aarch64"), \
                 mock.patch.object(FEATURE.os, "geteuid", return_value=1000):
@@ -277,7 +299,7 @@ class FeatureTests(unittest.TestCase):
 
     def test_workstation_repairs_missing_native_desktop_helpers_once(self):
         guest = Guest()
-        config = {"font_size": "16", "idle_mode": "host", "theme": "", "layout": "", "remove_layout": False}
+        config = {**FEATURE.CATALOGUE["features"]["workstation"]["defaults"], "shell": "keep"}
         with mock.patch.object(FEATURE.FeatureRunner, "snapshot", return_value={}):
             self.assertTrue(self.apply(guest, "workstation", config)["changed"])
             self.assertFalse(self.apply(guest, "workstation", config)["changed"])
@@ -286,6 +308,105 @@ class FeatureTests(unittest.TestCase):
         self.assertNotIn("chromium", guest.packages)
         self.assertEqual(sum(call[0] == "omarchy-pkg-add" for call in guest.calls), 1)
 
+    def test_default_zsh_setup_is_idempotent_and_preserves_personal_configuration(self):
+        guest = Guest(official=True)
+        config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+        self.apply(guest, "workstation", config, check=True)
+        rc = guest.home / ".zshrc"
+        rc.write_text("# Personal configuration\nexport EDITOR=nvim\n")
+        rc.chmod(0o640)
+        self.assertTrue(self.apply(guest, "workstation", config)["changed"])
+        first = {name: (guest.home / name).read_bytes() for name in FEATURE.ZSH_STARTUP}
+        self.assertEqual(guest.shell, "/usr/bin/zsh")
+        self.assertIn("zsh", guest.packages)
+        self.assertTrue(rc.read_text().startswith("# Personal configuration\nexport EDITOR=nvim\n"))
+        self.assertEqual(rc.stat().st_mode & 0o777, 0o640)
+        self.assertIn("mise activate zsh", rc.read_text())
+        self.assertNotIn(".bashrc", rc.read_text())
+        self.assertFalse(self.apply(guest, "workstation", config)["changed"])
+        self.assertEqual(first, {name: (guest.home / name).read_bytes() for name in FEATURE.ZSH_STARTUP})
+        self.assertEqual(sum(call[:3] == ("sudo", "-n", "chsh") for call in guest.calls), 1)
+        self.assertFalse(any(call[:2] == ("mise", "use") for call in guest.calls))
+
+    def test_shell_check_mode_reports_work_without_installing_writing_or_changing_accounts(self):
+        guest = Guest()
+        config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+        result = self.apply(guest, "workstation", config, check=True)
+        self.assertTrue(result["changed"])
+        self.assertIn("Set owner login shell: zsh", result["actions"])
+        self.assertEqual(guest.shell, "/bin/bash")
+        self.assertNotIn("zsh", guest.packages)
+        self.assertFalse(any((guest.home / name).exists() for name in FEATURE.ZSH_STARTUP))
+        self.assertFalse(any(call[0] == "omarchy-pkg-add" or call[:3] == ("sudo", "-n", "chsh")
+                             or call[0] == "zsh" for call in guest.calls))
+
+    def test_bash_override_and_keep_leave_zsh_files_and_unrelated_shells_alone(self):
+        for selected in ("bash", "keep"):
+            guest = Guest()
+            config = {**FEATURE.CATALOGUE["features"]["workstation"]["defaults"], "shell": selected}
+            self.apply(guest, "workstation", config, check=True)
+            guest.shell = "/usr/bin/zsh" if selected == "bash" else "/usr/bin/fish"
+            rc = guest.home / ".zshrc"
+            rc.write_text("# Keep my settings\n")
+            self.apply(guest, "workstation", config)
+            self.assertEqual(guest.shell, "/bin/bash" if selected == "bash" else "/usr/bin/fish")
+            self.assertEqual(rc.read_text(), "# Keep my settings\n")
+            self.assertNotIn("zsh", guest.packages)
+            self.assertFalse(any(call[0] == "zsh" for call in guest.calls))
+            self.assertFalse(self.apply(guest, "workstation", config)["changed"])
+
+    def test_zsh_refuses_customized_blocks_and_symlinks_without_changing_login_shell(self):
+        for kind in ("block", "symlink"):
+            guest = Guest()
+            config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+            self.apply(guest, "workstation", config, check=True)
+            rc = guest.home / ".zshrc"
+            original = "# >>> dev-vm mise activation >>>\n# My replacement\n"
+            if kind == "block":
+                rc.write_text(original)
+            else:
+                custom = guest.home / "custom-rc"
+                custom.write_text(original)
+                rc.symlink_to(custom)
+            with self.assertRaisesRegex(FEATURE.FeatureError, "Preserving"):
+                self.apply(guest, "workstation", config)
+            self.assertEqual(rc.read_text(), original)
+            self.assertEqual(guest.shell, "/bin/bash")
+            self.assertFalse(any(call[:3] == ("sudo", "-n", "chsh") for call in guest.calls))
+
+    def test_zsh_checks_registration_syntax_and_activation_before_changing_login_shell(self):
+        for failure in ("registration", "syntax", "environment", "activation"):
+            guest = Guest(official=True)
+            config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+            self.apply(guest, "workstation", config, check=True)
+            if failure == "registration":
+                guest.shells_file.write_text("/bin/bash\n")
+            elif failure == "syntax":
+                guest.zsh_syntax = False
+            elif failure == "environment":
+                guest.zsh_environment = False
+            else:
+                guest.zsh_activation = False
+            # The native double returns errors; real native() turns checked failures into FeatureError.
+            native = guest.native
+            def checked_native(argv, *, check=True):
+                result = native(argv)
+                if check and result.returncode:
+                    raise FEATURE.FeatureError(result.stderr)
+                return result
+            with self.subTest(failure=failure), mock.patch.object(guest, "native", side_effect=checked_native):
+                with self.assertRaises(FEATURE.FeatureError):
+                    self.apply(guest, "workstation", config)
+            self.assertEqual(guest.shell, "/bin/bash")
+            self.assertFalse(any(call[:3] == ("sudo", "-n", "chsh") for call in guest.calls))
+
+    def test_toolchain_verifies_zsh_activation_when_it_is_the_login_shell(self):
+        guest = Guest(official=True)
+        guest.shell = "/usr/bin/zsh"
+        guest.zsh_activation = False
+        with self.assertRaisesRegex(FEATURE.FeatureError, "Zsh mise activation"):
+            self.apply(guest, "toolchain", {"prerequisites": []}, check=True)
+
     def test_first_login_ordering_repairs_only_the_known_unit_and_preserves_custom_overrides(self):
         content = (ROOT / "omarchy/image/preferences/first-login.service").read_text().replace(
             "After=graphical-session.target try-omarchy-session.service", "After=try-omarchy-session.service")
@@ -293,7 +414,7 @@ class FeatureTests(unittest.TestCase):
             home = Path(folder)
             unit = home / "first-login.service"
             unit.write_text(content)
-            config = {"font_size": "16", "idle_mode": "host", "theme": "", "layout": "", "remove_layout": False}
+            config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
             runner = FEATURE.FeatureRunner("workstation", config)
             with mock.patch.object(FEATURE.Path, "home", return_value=home), \
                     mock.patch.object(FEATURE, "native", return_value=reply()) as native:

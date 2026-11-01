@@ -8,6 +8,8 @@ features:
   enable: [agents]
   disable: []
 options:
+  workstation:
+    shell: zsh # Override with bash or keep.
   browsers:
     browsers: [firefox]
   languages:

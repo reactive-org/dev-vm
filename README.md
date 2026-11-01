@@ -72,6 +72,7 @@ Next: [add developer tools](docs/omarchy-features.md) or [choose a theme](docs/o
 If projects own their tools through `mise.toml`, choose the
 [`project-managed` profile](docs/omarchy-features.md#let-projects-manage-their-toolchains)
 for the workstation, mise and native build prerequisites without selecting
-global runtimes.
+global runtimes. Feature playbooks default the login shell to zsh; select `bash`
+or `keep` through the [workstation shell setting](docs/omarchy-features.md#login-shell).
 
 [All documentation](docs/README.md) · [Prerequisites and settings](docs/omarchy-bootstrap.md) · [Repository checks](docs/development.md)

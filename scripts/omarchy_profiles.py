@@ -278,8 +278,13 @@ class Resolver:
         if "workstation" in ordered:
             files.extend(["~/.config/foot/foot.ini", "~/.config/omarchy/shell.json", "~/.config/hypr/ (selected theme/layout)",
                           "~/.config/systemd/user/ (native idle/known first-login compatibility)"])
+            shell = configs["workstation"]["shell"]
+            if shell != "keep":
+                files.append("owner login shell (" + shell + ")")
+            if shell == "zsh":
+                files.append("~/.zshenv and ~/.zshrc (Omarchy environment and conditional mise activation)")
         if "toolchain" in ordered:
-            files.append("mise shims (initialized only on native mise installation); native Bash activation verified")
+            files.append("mise shims (initialized only on native mise installation); Bash and selected zsh activation verified")
         if mise:
             files.append("~/.config/mise/config.toml (explicit selections only; native declarations reused)")
         return {"schema_version": 1, "profiles": chosen_profiles, "features": ordered, "options": configs,
@@ -325,7 +330,8 @@ def schemas():
             config = obj({"prerequisites": {"type": "array", "uniqueItems": True,
                                            "items": {"enum": list(contract.CATALOGUE["language_packages"])}}})
         else:
-            config = obj({"font_size": {"type": "string", "pattern": "^(?:[6-9]|[12][0-9]|3[0-2])(?:\\.[0-9]+)?$"},
+            config = obj({"shell": {"enum": [*definition["shells"], "keep"]},
+                          "font_size": {"type": "string", "pattern": "^(?:[6-9]|[12][0-9]|3[0-2])(?:\\.[0-9]+)?$"},
                           "idle_mode": {"enum": ["host", "guest", "keep"]}, "theme": {"type": "string"},
                           "layout": {"type": "string"}, "remove_layout": {"type": "boolean"}})
         properties[name] = config

@@ -39,7 +39,8 @@ For project-owned mise versions, select `OMARCHY_PROFILES=project-managed` or
 the independently tagged `toolchain` feature. Its composite variable is
 `omarchy_toolchain: {prerequisites: [ruby]}`; supported prerequisites are Ruby
 and Python native build libraries. It verifies existing native Bash activation
-and makes no global runtime selections or project changes. See the
+and zsh mise hooks when zsh is the login shell, and makes no global runtime
+selections or project changes. See the
 [project-managed workflow](omarchy-features.md#let-projects-manage-their-toolchains).
 
 ## Native ownership
@@ -53,6 +54,14 @@ Supported coding-agent short names are `claude`, `codex`, `opencode`, `pi`, `cop
 Docker retains Omarchy's sudo/polkit policy. No account is added to the docker group. The role requires an active existing UFW policy, uses packaged `ufw-docker install`, and adds Omarchy's two standard container-to-host DNS exceptions through UFW. Those exceptions are deferred on the lean factory until Docker is selected. It reloads UFW only when integration/rule files change and enables socket activation when neither an active daemon nor the desired socket already exists. It preserves existing rules, including manager SSH access, and never resets the firewall or opens a host forward. A customized inactive UFW policy stops Docker configuration before a new socket is started. Docker daemon and resolved configuration remain owned by Omarchy's settings package.
 
 Workstation preferences reuse the existing Foot, idle, theme, layout and GPU-preserving compatibility helpers. They ensure Herdr/Udiskie autostart, socat shell IPC, ImageMagick background inspection and inotify-tools watching are available when repairing an older lean guest. A known old repository first-login unit receives a hash-guarded ordering drop-in; customized overrides are preserved. They do not install monitor, clipboard, SSH, shared-folder or host-window controllers. Existing hardware-rendering validation remains required after a graphical login.
+
+The workstation login shell defaults to zsh. Set `options.workstation.shell` in a
+selection file, or `omarchy_shell` in legacy variables/direct Ansible, to `zsh`,
+`bash` or `keep`. Zsh uses small additive startup blocks for Omarchy's environment
+and mise activation; native Bash configuration stays intact. Shell changes use
+`chsh` for the owner, require a registered executable shell, and take effect in new
+login sessions. Check mode reports planned shell/package/file changes without
+writing files or changing the account. See [login shell](omarchy-features.md#login-shell).
 
 ## Connection and privilege lifecycle
 

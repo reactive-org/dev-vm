@@ -170,6 +170,30 @@ print(json.dumps({'changed':False,'verified_check_flag':True}))
         self.assertIn('verified_check_flag', output)
         self.assertIn('changed=0', output)
 
+    def test_workstation_role_receives_default_and_overridden_shell_in_check_mode(self):
+        play = self.folder / "shell.yml"
+        play.write_text('''---
+- hosts: omarchy
+  gather_facts: false
+  tasks:
+    - ansible.builtin.import_role:
+        name: omarchy_workstation
+''')
+        helper = self.folder / "apply-features.py"
+        parameters = self.folder / "shell.json"
+        for selected in ("zsh", "bash", "keep"):
+            helper.write_text("import sys,json\nassert '--check' in sys.argv\n"
+                              "config=json.load(sys.stdin)\nassert config['shell']==" + repr(selected) + "\n"
+                              "print(json.dumps({'changed':False,'shell_checked':True}))\n")
+            plan = PLAYBOOK.Resolver().resolve(overrides={"workstation": {"shell": selected}})
+            values = PLAYBOOK.plan_variables(plan)
+            values["omarchy_payload"] = {"path": str(self.folder)}
+            parameters.write_text(json.dumps(values))
+            with self.subTest(shell=selected):
+                output = self.ansible(play, "--check", "--extra-vars", "@" + str(parameters))
+                self.assertIn("shell_checked", output)
+                self.assertIn("changed=0", output)
+
     def test_extension_tag_selects_only_the_requested_data_operation_in_check_mode(self):
         helper = self.folder / "apply-features.py"
         helper.write_text('''import sys,json

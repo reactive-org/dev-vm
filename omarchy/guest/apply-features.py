@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import platform
+import pwd
 import shlex
 import subprocess
 import sys
@@ -24,6 +25,14 @@ CREDENTIALS = set(CATALOGUE["features"]["credentials"]["choices"])
 DOCKER_PACKAGES = tuple(CATALOGUE["features"]["docker"]["packages"])
 WORKSTATION_PACKAGES = tuple(CATALOGUE["workstation_packages"])
 LANGUAGE_PACKAGES = CATALOGUE["language_packages"]
+SHELL_PATHS = CATALOGUE["features"]["workstation"]["shells"]
+SHELLS_FILE = Path("/etc/shells")
+ZSH_STARTUP = {
+    ".zshenv": ("Omarchy environment", "[ -r /usr/share/omarchy/default/bash/env-bootstrap ] && "
+                ". /usr/share/omarchy/default/bash/env-bootstrap"),
+    ".zshrc": ("mise activation", "if command -v mise >/dev/null 2>&1; then\n"
+               '  eval "$(mise activate zsh)"\nfi'),
+}
 
 
 def run(argv, *, check=True):
@@ -190,6 +199,65 @@ class FeatureRunner:
         if result.returncode:
             raise FeatureError("Omarchy's native Bash mise activation is missing; restore the native shell integration before retrying. No shell configuration was replaced")
         self.notes.append("Native Bash mise activation verified; project tools remain project-managed")
+        if os.path.realpath(pwd.getpwuid(os.geteuid()).pw_shell) == os.path.realpath(SHELL_PATHS["zsh"]):
+            self.verify_zsh_activation()
+
+    def verify_zsh_activation(self):
+        probe = ('[[ "$MISE_SHELL" == zsh ]] && (( $+functions[mise] )) && '
+                 '(( ${precmd_functions[(I)*mise*]} > 0 )) && '
+                 '(( ${chpwd_functions[(I)*mise*]} > 0 ))')
+        if native(["zsh", "-ic", probe], check=False).returncode:
+            raise FeatureError("Zsh mise activation is missing; select workstation shell zsh or restore ~/.zshrc before retrying")
+        self.notes.append("Zsh mise activation verified; no global runtime selections added")
+
+    def login_shell(self):
+        selected = self.config["shell"]
+        if selected == "keep":
+            return
+        account = pwd.getpwuid(os.geteuid())
+        desired = SHELL_PATHS[selected]
+        edits = []
+        if selected == "zsh":
+            for name, (label, snippet) in ZSH_STARTUP.items():
+                path = Path.home() / name
+                if path.is_symlink() or (path.exists() and not path.is_file()):
+                    raise FeatureError(f"Preserving non-regular zsh startup file: {name}; configure it explicitly or select shell keep")
+                existing = path.read_text() if path.exists() else ""
+                start, end = f"# >>> dev-vm {label} >>>", f"# <<< dev-vm {label} <<<"
+                block = start + "\n" + snippet + "\n" + end + "\n"
+                if start in existing or end in existing:
+                    if block not in existing:
+                        raise FeatureError(f"Preserving customized dev-vm block in {name}")
+                elif snippet not in existing and not (name == ".zshrc" and "mise activate zsh" in existing):
+                    edits.append((path, existing, block))
+
+        self.packages([selected])
+        for path, existing, block in edits:
+            self.actions.append("Configure zsh startup: " + path.name)
+            if not self.check:
+                # Append to personal configuration; never source Bash's rc in zsh.
+                new_file = not path.exists()
+                with path.open("a") as output:
+                    output.write(("\n" if existing and not existing.endswith("\n\n") else "") + block)
+                if new_file:
+                    path.chmod(0o600)
+        if not self.check:
+            allowed = {line.split("#", 1)[0].strip() for line in SHELLS_FILE.read_text().splitlines()}
+            if desired not in allowed or native(["test", "-x", desired], check=False).returncode:
+                raise FeatureError("Selected login shell is not executable and registered in /etc/shells: " + desired)
+            if selected == "zsh":
+                for name in ZSH_STARTUP:
+                    native(["zsh", "-n", str(Path.home() / name)])
+                if native(["zsh", "-ic", '[[ -n "$OMARCHY_PATH" ]] && command -v omarchy >/dev/null'], check=False).returncode:
+                    raise FeatureError("Zsh cannot load Omarchy's native environment; login shell was not changed")
+                if self.installed("mise-bin"):
+                    self.verify_zsh_activation()
+
+        if os.path.realpath(account.pw_shell) != os.path.realpath(desired):
+            self.mutate(["sudo", "-n", "chsh", "-s", desired, "--", account.pw_name], "Set owner login shell: " + selected)
+            if not self.check and os.path.realpath(pwd.getpwuid(os.geteuid()).pw_shell) != os.path.realpath(desired):
+                raise FeatureError("The owner's login shell did not change to " + desired)
+            self.notes.append("Existing terminals keep their shell; log out and back in to refresh the desktop session")
 
     def snapshot(self):
         home = Path.home()
@@ -229,6 +297,7 @@ class FeatureRunner:
         if layout and (Path(layout).resolve().parent != payload or not Path(layout).is_file()):
             raise FeatureError("Layout must be the explicitly staged payload file")
         self.packages(WORKSTATION_PACKAGES)
+        self.login_shell()
         if self.check:
             self.actions.append("Compare/apply the selected workstation preferences and GPU compatibility repair")
             self.notes.append("Workstation check mode reports conservatively and executes no configuration scripts")

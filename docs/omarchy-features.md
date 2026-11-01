@@ -29,10 +29,10 @@ make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_PROFILES=web
 
 | Profile | Features | Included selections |
 | --- | --- | --- |
-| `developer` | `workstation,cli,vcs,editors,api` | Foot/idle preferences, code search/navigation, Git/LFS/diff tools, Neovim and HTTP/TLS diagnostics |
+| `developer` | `workstation,cli,vcs,editors,api` | zsh, Foot/idle preferences, code search/navigation, Git/LFS/diff tools, Neovim and HTTP/TLS diagnostics |
 | `web` | `developer` + `browsers,languages,docker,databases,quality` | Chromium, Node `lts`, pnpm, Docker/Buildx/Compose, PostgreSQL client, SQLite, shell/YAML checks and pre-commit |
 | `python` | `developer` + `languages,build,databases,quality` | Python `3`, uv, native extension build prerequisites, CMake/Ninja/GDB, SQLite, shell/YAML checks and pre-commit |
-| `project-managed` | `developer` + `toolchain,browsers,build,docker,databases` | mise with native Bash activation, Chromium, build tools, Docker/Compose, PostgreSQL and SQLite clients; no global runtime selections |
+| `project-managed` | `developer` + `toolchain,browsers,build,docker,databases` | mise with Bash/zsh activation, Chromium, build tools, Docker/Compose, PostgreSQL and SQLite clients; no global runtime selections |
 
 Profiles supply selections and options; installation logic stays in independently
 tagged features. Agents and credentials are optional additions to every profile.
@@ -63,13 +63,13 @@ leave existing software and settings alone; deselection never uninstalls tools.
 
 | Feature / Ansible tag | Baseline when selected | Configuration |
 | --- | --- | --- |
-| `workstation` | Foot size 16, host-owned idle policy and GPU compatibility repair | `font_size`, `idle_mode`, `theme`, `layout`, `remove_layout` |
+| `workstation` | zsh login shell, Foot size 16, host-owned idle policy and GPU compatibility repair | `shell`: `zsh`, `bash` or `keep`; `font_size`, `idle_mode`, `theme`, `layout`, `remove_layout` |
 | `cli` | ripgrep, fd, fzf, jq and tree | `packages` list and `tools` mise map |
 | `vcs` | Git, git-lfs, git-delta and lazygit | `packages` and `tools`; no identity, signing or hook configuration |
 | `editors` | Neovim | `editors`: `neovim`, `vscode`, both or neither; settings/extensions remain untouched |
 | `browsers` | Chromium through the native installer | `browsers`: `chromium`, `firefox`, both or neither |
 | `languages` | Node using Omarchy's declaration when selected alone | `tools`: mise short-name/version map; Python and Ruby prerequisites are explicit |
-| `toolchain` | mise, lazy shims when newly installed, and verification of native interactive Bash activation | `prerequisites`: `ruby`, `python`, both or neither; native build libraries only, no runtime selection |
+| `toolchain` | mise, lazy shims when newly installed, and verification of Bash activation plus zsh hooks when zsh is the login shell | `prerequisites`: `ruby`, `python`, both or neither; native build libraries only, no runtime selection |
 | `build` | base-devel, pkgconf, CMake, Ninja and GDB | `packages` and `tools` |
 | `docker` | Docker, Buildx, Compose, native UFW integration and socket activation | Existing Omarchy sudo/polkit policy; requires an active existing UFW policy |
 | `databases` | SQLite CLI | `clients`: `sqlite`, `postgresql` or `mysql`; PostgreSQL uses `postgresql-libs`, MySQL uses `mariadb-clients`; no server initialization/activation |
@@ -99,13 +99,38 @@ The `github-cli` compatibility choice reuses an existing package, or Omarchy's
 existing `gh` mise declaration when present. Competing selected package/mise
 providers are refused rather than resolved by changing PATH precedence.
 
+## Login shell
+
+The `workstation` feature defaults the owner's login shell to `zsh`. Override it
+in a selection file:
+
+```yaml
+options:
+  workstation:
+    shell: bash # zsh (default), bash, or keep the current shell
+```
+
+For legacy variables or direct Ansible runs, use `omarchy_shell: bash`.
+`keep` skips shell installation, startup-file edits and login-shell changes.
+The setting applies only when `workstation` is selected, including through a profile.
+
+Zsh is installed through `omarchy-pkg-add`. Small additions to `~/.zshenv` and
+`~/.zshrc` load Omarchy's native environment and activate mise when installed.
+Personal configuration and native Bash startup files are preserved; customized
+managed blocks and symlinks stop configuration for review. No global runtimes
+are selected. Existing terminals keep their shell; log out and back in to refresh
+the desktop session. Bootstrap alone retains its existing shell behavior until
+the playbook's workstation feature is applied.
+
 ## Let projects manage their toolchains
 
 Choose `project-managed` when each project's `mise.toml` owns its runtime and
 external-tool versions. The independently tagged `toolchain` feature installs
 mise through Omarchy and checks the owner's native interactive Bash integration.
-It never selects global runtimes, edits shell startup files, trusts project
-configuration, clones a repository, installs project dependencies or starts
+It also verifies zsh activation when zsh is the login shell; `workstation` owns
+the zsh startup additions. The toolchain feature never selects global runtimes,
+edits shell startup files, trusts project configuration, clones a repository,
+installs project dependencies or starts
 application services. Existing Omarchy declarations and installed tools remain
 intact. Missing native Bash activation stops application with a diagnostic;
 restore it through Omarchy before retrying.

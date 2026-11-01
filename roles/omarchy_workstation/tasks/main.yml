@@ -2,7 +2,7 @@
 - name: Ensure selected workstation configuration through native Omarchy tools
   ansible.builtin.command:
     argv: "{{ ['python3', omarchy_payload.path ~ '/apply-features.py', '--feature', 'workstation'] + (['--check'] if ansible_check_mode else []) }}"
-    stdin: "{{ {'font_size': omarchy_foot_font_size | string, 'idle_mode': omarchy_idle_mode, 'theme': omarchy_theme, 'layout': (omarchy_payload.path ~ '/selected-layout.lua') if omarchy_layout_file else '', 'remove_layout': omarchy_remove_layout} | to_json }}"
+    stdin: "{{ {'shell': omarchy_shell, 'font_size': omarchy_foot_font_size | string, 'idle_mode': omarchy_idle_mode, 'theme': omarchy_theme, 'layout': (omarchy_payload.path ~ '/selected-layout.lua') if omarchy_layout_file else '', 'remove_layout': omarchy_remove_layout} | to_json }}"
   register: omarchy_workstation_result
   changed_when: (omarchy_workstation_result.stdout | from_json).changed | bool
   check_mode: false

@@ -73,6 +73,8 @@ def validate_config(feature, value, *, extension=False):
     elif handler == "credentials":
         selection(value["packages"], definition["choices"], "credential packages")
     elif handler == "workstation":
+        if not isinstance(value["shell"], str) or value["shell"] not in (*definition["shells"], "keep"):
+            raise FeatureError("Shell must be zsh, bash or keep")
         if not isinstance(value["font_size"], str) or not re.fullmatch(r"(?:[6-9]|[12][0-9]|3[0-2])(?:\.[0-9]+)?", value["font_size"]):
             raise FeatureError("Foot font size must be between 6 and 32")
         if value["idle_mode"] not in ("host", "guest", "keep"):
@@ -104,6 +106,8 @@ def requirements(feature, config, *, extension=False):
         packages.extend(config["packages"])
     elif handler == "workstation":
         packages.extend(CATALOGUE["workstation_packages"])
+        if config["shell"] != "keep":
+            packages.append(config["shell"])
     elif handler == "toolchain":
         packages.append("mise-bin")
         for language in config["prerequisites"]:

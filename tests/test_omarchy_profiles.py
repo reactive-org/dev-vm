@@ -38,6 +38,23 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(plan["options"], {"languages": {"tools": {"node": ""}}})
         self.assertNotIn("docker", plan["features"])
 
+    def test_workstation_shell_defaults_to_zsh_with_selection_and_legacy_overrides(self):
+        default = Resolver().resolve()
+        self.assertEqual(default["options"]["workstation"]["shell"], "zsh")
+        self.assertIn("zsh", default["packages"])
+        self.assertEqual(launcher.plan_variables(default)["omarchy_shell"], "zsh")
+        for selected in ("bash", "keep"):
+            plan = Resolver().resolve(setup_file=self.setup(options={"workstation": {"shell": selected}}))
+            self.assertEqual(plan["options"]["workstation"]["shell"], selected)
+            self.assertEqual(launcher.plan_variables(plan)["omarchy_shell"], selected)
+            self.assertNotIn("zsh", plan["packages"])
+        legacy = launcher.overrides({"omarchy_shell": "bash"})
+        plan = Resolver().resolve(setup_file=self.setup(options={"workstation": {"shell": "zsh"}}), overrides=legacy)
+        self.assertEqual(plan["options"]["workstation"]["shell"], "bash")
+        for invalid in ("fish", "/bin/zsh", "zsh;id", "", None, ["zsh"]):
+            with self.subTest(shell=invalid), self.assertRaises(ProfileError):
+                Resolver().resolve(setup_file=self.setup(options={"workstation": {"shell": invalid}}))
+
     def test_profiles_have_complete_separate_toolchains_and_no_credentials(self):
         for name in ("developer", "web", "python"):
             with self.subTest(profile=name):
