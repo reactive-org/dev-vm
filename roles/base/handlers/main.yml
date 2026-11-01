@@ -1,6 +1,0 @@
----
-- name: Restart chrony after clock correction
-  ansible.builtin.systemd:
-    name: chrony
-    state: restarted
-  when: ansible_facts["services"]["chrony.service"] is defined

@@ -35,8 +35,8 @@ GUEST_LEAN_PACKAGES = GUEST_LEAN.with_name("lean-developer.packages")
 THEMES_CATALOG_URL = (
     "https://raw.githubusercontent.com/omacom/omarchy-site/master/themes/index.html"
 )
-REMOTE_PREFIX = "/tmp/dev-ubuntu-workstation."
-DEFAULT_PACKAGES = ("claude-desktop", "1password", "1password-cli")
+REMOTE_PREFIX = "/tmp/dev-omarchy-workstation."
+DEFAULT_PACKAGES = ()
 PACKAGE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+@/-]*")
 
 
@@ -457,7 +457,7 @@ def managed_ssh(guest: dict) -> ManagedSSH:
 
 def validate_remote_dir(value: str) -> str:
     value = value.strip()
-    if not re.fullmatch(r"/tmp/dev-ubuntu-workstation\.[A-Za-z0-9]+", value):
+    if not re.fullmatch(r"/tmp/dev-omarchy-workstation\.[A-Za-z0-9]+", value):
         raise WorkstationError(f"Refusing unexpected remote temporary path: {value!r}")
     return value
 
@@ -1036,7 +1036,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=tuple(GuestSoftware(name=name) for name in DEFAULT_PACKAGES),
         help=(
             "comma-separated guest software (default: "
-            + ",".join(DEFAULT_PACKAGES)
+            + (",".join(DEFAULT_PACKAGES) or "none")
             + "); unprefixed Omarchy mise tools use mise, other names use "
             "omarchy-pkg-add"
         ),

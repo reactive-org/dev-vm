@@ -1,0 +1,7 @@
+post_install() {
+  systemctl --global enable dev-workstation-first-login.service
+}
+
+pre_remove() {
+  systemctl --global disable dev-workstation-first-login.service
+}

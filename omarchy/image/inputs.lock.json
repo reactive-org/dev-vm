@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "try_commit": "13d63df8da2947f833c04025ff5ade187d39ba81",
+  "builder_sha256": "05fd1ff21852719a413f6141a3f0f80789e7ff9e25b1da9bd8d7979915e83d39",
+  "omarchy_commit": "e4fffc6e6b57cda15cdba400e021596d985f9dbf",
+  "recipes_commit": "8490ac0993dcd65c9949f8c531263f4e76445488",
+  "omarchy_version": "4.0.0.r7481.ge4fffc6",
+  "archives": {
+    "omarchy": "f7d6bb243b84d217913d0fa7fcbd9aaad573bef62920182887029fde6f29f610",
+    "omarchy-pkgs": "01ad28d4059c15fbcc72f1fc20247d5be55f769c52e63f454f17bc6c09d1cc0f"
+  },
+  "scripts": {
+    "install/hardware/bluetooth.sh": "9eaf62a12619b6561b10be2e6bf51c3ee820dd7543203fe333e3ed8c390a99a0",
+    "install/config/enable-services.sh": "346a98f550a2582faa668f8a699cfd027d1365a0672623a618ef26b196826f69",
+    "install/config/firewall.sh": "c15b76478355ae633b990520b7f8db829e2c3ab4a850922bb2c75072a99d4fcd",
+    "install/user/chromium.sh": "ed467ddb356aaeaa1750bfb00bc07fd9d2daccd0a19da91d4afdc29e8f878858",
+    "install/user/mise.sh": "168b897baf5dbce06c664c5dab57c2335d83b2030e5b81fb7feb71e539bf3e90",
+    "bin/omarchy-provision-user": "995e33939c0aca98d7c3576d23f10cc0e38e56cc18f2008fbc8feede8a8c278e"
+  },
+  "node_file": "node-v26.13.0-linux-arm64.tar.gz",
+  "node_sha256": "439e9c438acdf6a6ffe47418da709153d66c4bed812e30a473faacb107dd2791"
+}

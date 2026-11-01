@@ -1,141 +1,120 @@
 ---
-- name: Provision lean Ubuntu ARM64 developer workstation
-  hosts: workstation
-  become: true
+- name: Apply selected Omarchy workstation features
+  hosts: omarchy
+  become: false
   gather_facts: true
 
   pre_tasks:
-    - name: Inspect optional checkout-specific variables
-      ansible.builtin.stat:
-        path: "{{ playbook_dir }}/local-vars.yml"
-      register: controller_local_vars_file
-      delegate_to: localhost
-      become: false
-      tags: [always]
-
-    - name: Load optional checkout-specific variables
-      ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/local-vars.yml"
-      when: controller_local_vars_file.stat.isreg | default(false)
-      tags: [always]
-
-    - name: Resolve optional checkout-specific developer tasks path
-      ansible.builtin.set_fact:
-        developer_extra_tasks_path: >-
-          {{
-            developer_extra_tasks_file
-            if developer_extra_tasks_file.startswith('/')
-            else playbook_dir ~ '/' ~ developer_extra_tasks_file
-          }}
-      tags: [always]
-
-    - name: Inspect optional checkout-specific developer tasks
-      ansible.builtin.stat:
-        path: "{{ developer_extra_tasks_path }}"
-      register: controller_developer_extra_tasks_file
-      delegate_to: localhost
-      become: false
-      tags: [always]
-
-    - name: Validate required inventory and user placeholders
+    - name: Validate the Omarchy owner and architecture
       ansible.builtin.assert:
         that:
-          - workstation_user != "YOUR_USER"
-          - ansible_user != "YOUR_USER"
-          - ansible_host != "YOUR_HOST_OR_IP"
-        fail_msg: >-
-          Replace the workstation user and host placeholders in inventory.ini
-          and group_vars/all.yml before running this playbook.
+          - ansible_facts['system'] == 'Linux'
+          - ansible_facts['architecture'] == 'aarch64'
+          - ansible_facts['user_id'] != 'root'
+        fail_msg: Use the non-root owner of a managed Omarchy ARM64 guest.
       tags: [always]
 
-    - name: Validate target operating system and architecture
-      ansible.builtin.assert:
-        that:
-          - ansible_facts["distribution"] == "Ubuntu"
-          - ansible_facts["distribution_release"] == "resolute"
-          - ansible_facts["distribution_version"] is version("26.04", ">=")
-          - ansible_facts["distribution_version"] is version("26.10", "<")
-          - ansible_facts["architecture"] == "aarch64"
-        fail_msg: >-
-          This playbook targets Ubuntu 26.04 Resolute on ARM64. Found
-          {{ ansible_facts["distribution"] }}
-          {{ ansible_facts["distribution_version"] }}
-          ({{ ansible_facts["distribution_release"] }}) on
-          {{ ansible_facts["architecture"] }}.
-      tags: [always]
-
-    - name: Read workstation account
-      ansible.builtin.getent:
-        database: passwd
-        key: "{{ workstation_user }}"
-      tags: [always]
-
-    - name: Store workstation account facts
-      ansible.builtin.set_fact:
-        workstation_home: >-
-          {{ ansible_facts["getent_passwd"][workstation_user][4] }}
-      tags: [always]
-
-    - name: Read workstation primary group
+    - name: Require native Omarchy and VM integration packages
       ansible.builtin.command:
-        argv:
-          - id
-          - -gn
-          - "{{ workstation_user }}"
-      register: workstation_group_result
+        argv: [pacman, -Qq, try-omarchy]
       changed_when: false
+      check_mode: false
       tags: [always]
 
-    - name: Store workstation primary group
+    - name: Validate selected feature names
+      ansible.builtin.assert:
+        that:
+          - omarchy_features is sequence
+          - omarchy_features is not string
+          - omarchy_features | difference(omarchy_supported_features) | length == 0
+        fail_msg: Select workstation, browsers, docker, languages, agents or credentials.
+      tags: [always]
+
+    - name: Resolve independently selected features and tags
       ansible.builtin.set_fact:
-        workstation_group: "{{ workstation_group_result.stdout }}"
+        omarchy_selected_features: "{{ omarchy_features | union(ansible_run_tags | intersect(omarchy_supported_features)) }}"
       tags: [always]
 
-  roles:
-    - role: base
-      tags: [base]
+  tasks:
+    - name: Apply features with a temporary owner-owned payload
+      block:
+        - name: Create temporary feature payload
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: dev-omarchy-features.
+          register: omarchy_payload
+          check_mode: false
+          changed_when: false
+          tags: [always]
 
-    - role: parallels_tools
-      when: prepare_parallels_tools_media | bool
-      tags: [parallels_tools]
+        - name: Stage the reviewed guest helpers
+          ansible.builtin.copy:
+            src: "{{ playbook_dir }}/omarchy/guest/{{ item }}"
+            dest: "{{ omarchy_payload.path }}/{{ item }}"
+            mode: "0600"
+          loop:
+            - apply-features.py
+            - apply-workstation.sh
+            - apply-theme.sh
+            - repair-try-omarchy-black-screen.sh
+          check_mode: false
+          changed_when: false
+          tags: [always]
 
-    - role: parallels_shared_folder
-      when: configure_parallels_shared_folder | bool
-      tags: [parallels_shared_folder]
+        - name: Stage the explicitly selected workstation layout
+          ansible.builtin.copy:
+            src: "{{ omarchy_layout_file }}"
+            dest: "{{ omarchy_payload.path }}/selected-layout.lua"
+            mode: "0600"
+          when:
+            - "'workstation' in omarchy_selected_features"
+            - omarchy_layout_file | length > 0
+          check_mode: false
+          changed_when: false
+          tags: [always]
 
-    - role: shell
-      tags: [shell]
+        - name: Apply workstation feature
+          ansible.builtin.import_role:
+            name: omarchy_workstation
+          when: "'workstation' in omarchy_selected_features"
+          tags: [workstation]
 
-    - role: firefox
-      when: install_firefox | bool
-      tags: [firefox]
+        - name: Apply browsers feature
+          ansible.builtin.import_role:
+            name: omarchy_browsers
+          when: "'browsers' in omarchy_selected_features"
+          tags: [browsers]
 
-    - role: developer_apps
-      tags: [developer_apps]
+        - name: Apply docker feature
+          ansible.builtin.import_role:
+            name: omarchy_docker
+          when: "'docker' in omarchy_selected_features"
+          tags: [docker]
 
-    - role: docker
-      when: install_docker | bool
-      tags: [docker]
+        - name: Apply languages feature
+          ansible.builtin.import_role:
+            name: omarchy_languages
+          when: "'languages' in omarchy_selected_features"
+          tags: [languages]
 
-    - role: desktop
-      tags: [desktop]
+        - name: Apply agents feature
+          ansible.builtin.import_role:
+            name: omarchy_agents
+          when: "'agents' in omarchy_selected_features"
+          tags: [agents]
 
-  post_tasks:
-    - name: Run optional checkout-specific developer tasks
-      ansible.builtin.include_tasks:
-        file: "{{ developer_extra_tasks_path }}"
-        apply:
-          tags: [developer_extra_tasks]
-      when: controller_developer_extra_tasks_file.stat.isreg | default(false)
-      tags: [developer_extra_tasks]
+        - name: Apply credentials feature
+          ansible.builtin.import_role:
+            name: omarchy_credentials
+          when: "'credentials' in omarchy_selected_features"
+          tags: [credentials]
 
-    - name: Reboot after provisioning
-      ansible.builtin.reboot:
-        msg: Rebooting after workstation provisioning
-      when: reboot_after_provision | bool
-
-    - name: Restore password-protected sudo
-      ansible.builtin.file:
-        path: "{{ bootstrap_passwordless_sudo_path }}"
-        state: absent
-      tags: [always]
+      always:
+        - name: Remove the temporary feature payload
+          ansible.builtin.file:
+            path: "{{ omarchy_payload.path }}"
+            state: absent
+          when: omarchy_payload.path is defined
+          check_mode: false
+          changed_when: false
+          tags: [always]

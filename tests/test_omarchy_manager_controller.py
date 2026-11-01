@@ -305,7 +305,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             "--theme", "https://github.com/o/blue", "bootstrap"
         ])
         connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
-        remote = "/tmp/dev-ubuntu-workstation.ABC123"
+        remote = "/tmp/dev-omarchy-workstation.ABC123"
         with mock.patch.object(CONTROLLER, "stage_payload", return_value=(remote, [])) as stage, mock.patch.object(
             CONTROLLER, "install_selected_software"
         ), mock.patch.object(
@@ -389,10 +389,10 @@ class OmarchyManagerControllerTests(unittest.TestCase):
 
     def test_remote_cleanup_path_is_narrowly_validated(self):
         self.assertEqual(
-            CONTROLLER.validate_remote_dir("/tmp/dev-ubuntu-workstation.A1b2c3\n"),
-            "/tmp/dev-ubuntu-workstation.A1b2c3",
+            CONTROLLER.validate_remote_dir("/tmp/dev-omarchy-workstation.A1b2c3\n"),
+            "/tmp/dev-omarchy-workstation.A1b2c3",
         )
-        for unsafe in ("/tmp", "/", "/tmp/dev-ubuntu-workstation.bad/path"):
+        for unsafe in ("/tmp", "/", "/tmp/dev-omarchy-workstation.bad/path"):
             with self.assertRaises(CONTROLLER.WorkstationError):
                 CONTROLLER.validate_remote_dir(unsafe)
 
@@ -415,7 +415,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         empty = parser.parse_args(["--packages", "", "bootstrap"])
         self.assertEqual(
             tuple(item.name for item in default.packages),
-            ("claude-desktop", "1password", "1password-cli"),
+            (),
         )
         self.assertEqual(
             tuple((item.source, item.name) for item in overridden.packages),
@@ -441,7 +441,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                 args = CONTROLLER.build_parser().parse_args(
                     (["--lean-developer"] if enabled else []) + ["--packages", "pkg:obsidian", "bootstrap"]
                 )
-                remote = "/tmp/dev-ubuntu-workstation.ABC123"
+                remote = "/tmp/dev-omarchy-workstation.ABC123"
                 events = []
                 with mock.patch.object(CONTROLLER, "stage_payload", return_value=(remote, [])) as stage, mock.patch.object(
                     CONTROLLER, "install_selected_software", side_effect=lambda *_args: events.append("install")

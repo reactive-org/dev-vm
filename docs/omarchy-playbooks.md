@@ -1,0 +1,68 @@
+# Omarchy feature playbooks
+
+The playbook targets the non-root owner of an Omarchy `aarch64` guest with native Try Omarchy integration. Both the official factory and the repository's lean factory use the same roles and Omarchy/mise commands. No Ubuntu package sources, roles, desktop templates, personal-key synchronization or Parallels controllers remain.
+
+## Selection
+
+```bash
+make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_FEATURES=browsers,docker
+make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_FEATURES=languages,agents \
+  OMARCHY_VARS_FILE="$PWD/omarchy/local/features.yml"
+```
+
+`OMARCHY_FEATURES` is an explicit comma-separated set of `workstation`, `browsers`, `docker`, `languages`, `agents` and `credentials`. It defaults to `workstation`. Every role is independently tagged with the corresponding name. Direct Ansible runs can select the same tags using their own inventory based on VM Manager's managed SSH connection. The supported launcher always generates that private inventory and passes the exact selected tags and variables.
+
+Configure lists and version mappings using `omarchy/examples/features.yml`. Copy it to the ignored `omarchy/local/` directory and pass the file explicitly. Values do not enable roles. Empty lists/maps install nothing for that role. The launcher allows only the documented feature-option keys; connection overrides, feature-list overrides and internal payload variables are refused. Old ignored root-level variable/task files remain on disk but are never loaded.
+
+| Role | Official factory | Lean factory |
+| --- | --- | --- |
+| Workstation | Reapply the explicit preferences using existing helpers | Reuse/reapply the same first-login defaults |
+| Browsers | Leave installed browsers and user flags alone | Run the native browser installer for missing Chromium/Firefox |
+| Docker | Reuse packages, firewall rules and existing daemon/socket activation | Install missing Docker/Buildx/Compose/UFW integration, then activate the socket |
+| Languages | Reuse installed active versions and Omarchy's declarations | Install mise and selected runtime prerequisites before selecting tools |
+| Agents | Install only selected lazy tools that are missing | Install mise and only selected coding agents |
+| Credentials | Reuse installed tools without changing login state | Add selected packages without importing credentials |
+
+Roles ensure presence; deselecting one never removes existing software. Image identity is not inferred from package count or an image filename. The guest must satisfy the same OS, architecture, native command and integration checks. A custom factory must separately pass VM Manager's admission and owner-provisioning contract before it can be used.
+
+## Native ownership
+
+Packages go through `omarchy-pkg-add`; browsers use `omarchy-install-browser`. The supported browser names are Chromium and Firefox, available through the ARM64 repositories. The playbook does not add third-party repositories, run AUR builders or silently substitute another architecture.
+
+Runtime and agent selections use mise registry short names. An empty version keeps Omarchy's existing declaration and installs it only if absent. Explicit selectors use `mise use --global` when the desired version is absent or differs from the current default. Other tools and config entries are preserved. A new mise installation builds Omarchy's lazy shims without eagerly installing all declared tools. Ruby/Python selections install their native build/library prerequisites. The Ansible interpreter remains system Python, independent of mise.
+
+Supported coding-agent short names are `claude`, `codex`, `opencode`, `pi`, `copilot`, `amp` and `crush`. Credential-package selections are `1password`, `1password-cli` and `github-cli`. Installing these tools does not sign in, open an authentication UI, copy SSH keys or transfer host tokens. Use the tools' own authentication flow in the guest afterward. Browser extensions and optional desktop/CLI authentication switches remain native, explicit choices.
+
+Docker retains Omarchy's sudo/polkit policy. No account is added to the docker group. The role requires an active existing UFW policy, uses packaged `ufw-docker install`, and adds Omarchy's two standard container-to-host DNS exceptions through UFW. Those exceptions are deferred on the lean factory until Docker is selected. It reloads UFW only when integration/rule files change and enables socket activation when neither an active daemon nor the desired socket already exists. It preserves existing rules, including manager SSH access, and never resets the firewall or opens a host forward. A customized inactive UFW policy stops Docker configuration before a new socket is started. Docker daemon and resolved configuration remain owned by Omarchy's settings package.
+
+Workstation preferences reuse the existing Foot, idle, theme, layout and GPU-preserving compatibility helpers. They ensure Herdr/Udiskie autostart, socat shell IPC, ImageMagick background inspection and inotify-tools watching are available when repairing an older lean guest. A known old repository first-login unit receives a hash-guarded ordering drop-in; customized overrides are preserved. They do not install monitor, clipboard, SSH, shared-folder or host-window controllers. Existing hardware-rendering validation remains required after a graphical login.
+
+## Connection and privilege lifecycle
+
+The guest must already be running with authenticated managed SSH. The launcher checks VM Manager's protocol/version, guest UUID, protected status, NAT policy and exact pinned SSH command, then generates a mode-0600 inventory and parameters in a private temporary directory. It uses the manager-owned identity and known-host pin, disables shared SSH multiplexing and cleans its temporary files on exit. It never scans personal SSH files or changes VM resource/lifecycle settings.
+
+Normal application requests Omarchy's native temporary sudo grant interactively; even theme application can need its privileged browser-policy writer. The launcher attempts revocation on success, failure, Ctrl+C, SIGTERM, SIGHUP and even a partially completed grant operation. Expiry/reboot remain the native fallback after an uncatchable termination or unavailable SSH. Check-mode runs do not request a grant. No password is stored in Ansible inventory, variables, arguments or logs. A direct Ansible run needs the same native grant enabled in the guest before application.
+
+```bash
+make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_FEATURES=agents OMARCHY_PLAYBOOK_PLAN=yes
+make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_FEATURES=agents OMARCHY_PLAYBOOK_CHECK=yes
+```
+
+Plan mode reads manager metadata and validates local options without staging a guest payload or changing privileges. Check mode reads guest state and stages/removes a temporary owner-owned helper payload; it never invokes installation/configuration commands or enables a sudo grant. Workstation and Docker firewall checks conservatively report planned work rather than executing native mutating tools. Root facts/platform checks and payload cleanup are tagged `always`. The temporary guest payload is also removed when a role fails.
+
+No automatic full update or reboot runs as part of feature application. Omarchy retains updates; VM Manager retains restart. Newly installed runtimes or applications can require a new login. The existing bootstrap controller still owns its separately requested update/restart workflow and defaults to no additional software.
+
+## Validation
+
+```bash
+make syntax-check
+make test-omarchy
+PYTHONPYCACHEPREFIX=/tmp/dev-omarchy-pycache python3 -m py_compile \
+  scripts/omarchy_playbook.py scripts/omarchy_vm_manager.py omarchy/guest/apply-features.py
+```
+
+Tests cover both initial package sets, reapplication, version selection, selective prerequisites, check-mode mutation refusal, firewall/activation policy, pinned-connection inventory, variable-override refusal and privilege cleanup. Actual Ansible tests verify tag isolation and that its check-mode flag reaches a controlled helper, with zero changes reported. These tests do not install real features into a VM. Live manual/unattended owner, browser/GPU, agent authentication, Docker containers and clipboard/display acceptance remain separate disposable-guest checks.
+
+The earlier 1 November 2026 baseline passed all 114 tests and documented syntax checks. Fresh manager 0.9.2 official-image results, including current repository-test limitations, are recorded in the [official acceptance record](omarchy-official-43-validation.md). Disposable official-image testing found and fixed a mise metadata parsing issue that caused repeated language/agent selection. Later lean-image testing corrected archive permissions, desktop dependencies, first-login ordering and the first-frame VirGL setting. See the [live acceptance results](omarchy-playbook-validation.md) and [lean 43.1 acceptance record](omarchy-lean-43-validation.md) for observed checks and limits. The VM Manager checkout remains unchanged.
+
+Sources for the native interfaces: [Omarchy browser installer](https://github.com/omacom/omarchy/blob/quattro/bin/omarchy-install-browser), [Omarchy mise declarations](https://github.com/omacom/omarchy/blob/quattro/etc/mise/conf.d/omarchy-tools.toml), [mise use](https://mise.jdx.dev/cli/use.html), [packaged UFW/Docker integration interface](https://github.com/chaifeng/ufw-docker).

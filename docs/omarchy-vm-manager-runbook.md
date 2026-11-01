@@ -18,13 +18,23 @@ storage, graphics, clipboard, networking and SSH connection.
 3. From a Mac terminal in this repository, run:
 
    ```bash
-   make bootstrap-omarchy-vm \
-     VM_NAME="Dev Omarchy" \
-     OMARCHY_VM_LAYOUT_FILE="$PWD/omarchy/examples/layouts/claude-two-terminals-browser.lua"
+   make bootstrap-omarchy-vm VM_NAME="Dev Omarchy"
    ```
 
+4. With managed SSH ready, apply the developer's selected features:
+
+   ```bash
+   make apply-playbook VM_NAME="Dev Omarchy" \
+     OMARCHY_FEATURES=browsers,docker,languages,agents,credentials
+   ```
+
+   Bootstrap adds no optional software by default. Configure selections with
+   `omarchy/examples/features.yml` and an explicit `OMARCHY_VARS_FILE`; see the
+   [feature playbooks](omarchy-playbooks.md). The same playbook supports the
+   official and admitted lean image. Application never starts or resizes a VM.
+
 For a developer-only application selection, add
-`OMARCHY_VM_LEAN_DEVELOPER=yes` to that command. It defaults off and removes
+`OMARCHY_VM_LEAN_DEVELOPER=yes` to the bootstrap command in step 3. It defaults off and removes
 optional desktop apps and hardware tools through Omarchy, retaining required
 desktop/VM integration and anything selected in `OMARCHY_VM_PACKAGES`. Review
 the candidate removals in the proposal. See the README's lean developer section

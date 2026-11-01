@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-# Parallels publishes the full virtio mode list shortly after Hyprland starts.
-# Reload once the mode is available so the fixed monitor configuration wins
-# without enabling the unreliable continuous dynamic-resolution bridge.
-sleep 10
-hyprctl reload

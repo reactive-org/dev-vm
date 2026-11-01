@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply Omarchy workstation defaults for a new desktop owner
+After=graphical-session.target try-omarchy-session.service
+PartOf=graphical-session.target
+ConditionPathExists=!%h/.local/state/dev-workstation/image-preferences-v1
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/dev-workstation/first-login.sh
+
+[Install]
+WantedBy=graphical-session.target

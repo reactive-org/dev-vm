@@ -1,0 +1,14 @@
+pkgname=dev-workstation-preferences
+pkgver=1
+pkgrel=2
+pkgdesc='Minimal Omarchy workstation preferences and hardware-rendering policy'
+arch=('aarch64')
+license=('MIT')
+depends=('bash' 'foot' 'jq' 'nano' 'try-omarchy')
+install=preferences.install
+options=('!strip' '!debug')
+
+package() {
+  cp -a "$startdir/files/." "$pkgdir/"
+  chmod 0755 "$pkgdir/usr/lib/dev-workstation/first-login.sh"
+}
