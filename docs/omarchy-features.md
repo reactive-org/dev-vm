@@ -63,7 +63,7 @@ leave existing software and settings alone; deselection never uninstalls tools.
 
 | Feature / Ansible tag | Baseline when selected | Configuration |
 | --- | --- | --- |
-| `workstation` | zsh login shell, Foot size 16, host-owned idle policy and GPU compatibility repair | `shell`: `zsh`, `bash` or `keep`; `font_size`, `idle_mode`, `theme`, `layout`, `remove_layout` |
+| `workstation` | zsh login shell, Foot size 12, host-owned idle policy and GPU compatibility repair | `shell`: `zsh`, `bash` or `keep`; `font_size`, `idle_mode`, `theme`, `layout`, `remove_layout` |
 | `cli` | ripgrep, fd, fzf, jq and tree | `packages` list and `tools` mise map |
 | `vcs` | Git, git-lfs, git-delta and lazygit | `packages` and `tools`; no identity, signing or hook configuration |
 | `editors` | Neovim | `editors`: `neovim`, `vscode`, both or neither; settings/extensions remain untouched |

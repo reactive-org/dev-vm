@@ -1328,7 +1328,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--memory-gib", type=int, default=20)
     parser.add_argument("--disk-gib", type=int, default=64)
     parser.add_argument("--timeout", type=int, default=3600)
-    parser.add_argument("--foot-font-size", default="16")
+    parser.add_argument("--foot-font-size", default="12")
     parser.add_argument(
         "--theme", default="", metavar="URL|random|most-starred",
         help="optional HTTPS GitHub theme repository, or a selection from the Omarchy catalog",

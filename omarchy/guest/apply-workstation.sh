@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-foot_font_size="16"
+foot_font_size="12"
 idle_mode="host"
 layout_mode="keep"
 layout_file=""
@@ -15,7 +15,7 @@ Usage: apply-workstation.sh [options]
 Apply the repository-owned preferences to a managed Omarchy guest.
 
 Options:
-  --foot-font-size SIZE  Foot font size (default: 16)
+  --foot-font-size SIZE  Foot font size (default: 12)
   --idle-mode MODE       host, guest, or keep (default: host)
   --layout-file PATH     Install an optional Hyprland Lua layout
   --remove-layout        Remove the managed optional layout

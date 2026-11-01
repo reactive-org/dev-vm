@@ -131,7 +131,7 @@ Pass these make variables to bootstrap and use the same resource values for
 | `OMARCHY_VM_MEMORY_GIB` | `20` | Guest RAM in GiB |
 | `OMARCHY_VM_DISK_GIB` | `64` | Guest disk capacity in GiB; grow only |
 | `OMARCHY_VM_WAIT_TIMEOUT` | `3600` | Bootstrap readiness timeout in seconds |
-| `OMARCHY_VM_FOOT_FONT_SIZE` | `16` | Foot font size |
+| `OMARCHY_VM_FOOT_FONT_SIZE` | `12` | Foot font size |
 | `OMARCHY_VM_IDLE_MODE` | `host` | `host`, `guest` or `keep` idle policy |
 
 For example, when the Mac's guest budget calls for a smaller allocation:

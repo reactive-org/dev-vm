@@ -11,7 +11,7 @@ omarchy_agents:
   opencode: ""
 omarchy_credential_packages: [1password, 1password-cli]
 omarchy_shell: zsh # zsh, bash, or keep the current login shell
-omarchy_foot_font_size: "16"
+omarchy_foot_font_size: "12"
 omarchy_idle_mode: host
 omarchy_theme: ""
 omarchy_layout_file: ""
