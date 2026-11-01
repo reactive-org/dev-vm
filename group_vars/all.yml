@@ -6,6 +6,7 @@ omarchy_extensions: []
 omarchy_resolved_plan: []
 omarchy_browsers: "{{ omarchy_catalogue.features.browsers.defaults.browsers }}"
 omarchy_languages: "{{ omarchy_catalogue.features.languages.defaults.tools }}"
+omarchy_toolchain: "{{ omarchy_catalogue.features.toolchain.defaults }}"
 omarchy_agents: "{{ omarchy_catalogue.features.agents.defaults.tools }}"
 omarchy_credential_packages: "{{ omarchy_catalogue.features.credentials.defaults.packages }}"
 omarchy_foot_font_size: "{{ omarchy_catalogue.features.workstation.defaults.font_size }}"

@@ -51,6 +51,8 @@ class Guest:
         self.calls.append(tuple(argv))
         if argv[:2] == ["command", "-v"]:
             return reply()
+        if argv[:2] == ["bash", "-ic"]:
+            return reply()
         if argv[0] == "omarchy-pkg-add":
             self.packages.update(argv[1:])
             return reply()
@@ -123,7 +125,7 @@ class FeatureTests(unittest.TestCase):
         import sys
         sys.path.insert(0, str(ROOT / "scripts"))
         from omarchy_profiles import Resolver
-        for profile in ("developer", "web", "python"):
+        for profile in ("developer", "web", "python", "project-managed"):
             for official in (False, True):
                 with self.subTest(profile=profile, official=official):
                     guest = Guest(official)
@@ -136,6 +138,35 @@ class FeatureTests(unittest.TestCase):
                     if profile == "python":
                         self.assertEqual(set(guest.tools) - ({"node", "claude"} if official else set()),
                                          {"python", "python@3", "uv", "uv@latest", "shellcheck", "shellcheck@latest"})
+
+    def test_project_toolchain_prepares_native_prerequisites_without_installing_runtimes(self):
+        for official in (False, True):
+            guest = Guest(official)
+            original_tools = dict(guest.tools)
+            config = {"prerequisites": ["ruby", "python"]}
+            self.assertTrue(self.apply(guest, "toolchain", config, check=True)["changed"])
+            self.assertNotIn("libyaml", guest.packages)
+            self.assertTrue(self.apply(guest, "toolchain", config)["changed"])
+            self.assertFalse(self.apply(guest, "toolchain", config)["changed"])
+            self.assertTrue({"mise-bin", "libyaml", "gmp", "xz"} <= guest.packages)
+            self.assertEqual(guest.tools, original_tools)
+            for call in guest.calls:
+                self.assertNotIn(call[:2], (("mise", "install"), ("mise", "use"), ("mise", "trust")))
+
+    def test_project_toolchain_refuses_missing_native_shell_activation(self):
+        guest = Guest(True)
+        native = guest.native
+        def without_activation(argv, **kwargs):
+            return reply(1) if argv[:2] == ["bash", "-ic"] else native(argv, **kwargs)
+        guest.native = without_activation
+        with self.assertRaisesRegex(FEATURE.FeatureError, "native Bash mise activation"):
+            self.apply(guest, "toolchain", {"prerequisites": []})
+
+    def test_project_toolchain_rejects_arbitrary_prerequisite_names(self):
+        for config in ({"prerequisites": ["ruby", "ruby"]}, {"prerequisites": ["node"]},
+                       {"prerequisites": [], "project": "/some/project"}):
+            with self.assertRaises(FEATURE.FeatureError):
+                FEATURE.FeatureRunner("toolchain", config)
 
     def test_extension_tools_packages_check_mode_and_empty_selection(self):
         guest = Guest()

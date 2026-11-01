@@ -50,7 +50,9 @@ make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
 
 Bootstrap prepares/imports the image through VM Manager, creates the VM, then
 updates it, applies preferences, restarts and checks it. Review the proposal
-and follow the password prompt. Apps and layouts are selected during bootstrap.
+and confirm Omarchy's prompt, then enter the guest sudo password once near the
+start. Bootstrap keeps sudo passwordless during setup and restores default sudo
+authentication before restarting. Apps and layouts are selected during bootstrap.
 An existing [custom image or factory bundle path](docs/omarchy-bootstrap.md#choose-a-starting-image)
 works too; no manual import or manifest hash is needed.
 
@@ -66,5 +68,10 @@ Every runbook shows both image choices with copy-and-paste commands.
 - [Claude, two terminals and a floating browser](docs/omarchy-layout-claude-two-terminals-browser.md)
 
 Next: [add developer tools](docs/omarchy-features.md) or [choose a theme](docs/omarchy-themes.md).
+
+If projects own their tools through `mise.toml`, choose the
+[`project-managed` profile](docs/omarchy-features.md#let-projects-manage-their-toolchains)
+for the workstation, mise and native build prerequisites without selecting
+global runtimes.
 
 [All documentation](docs/README.md) · [Prerequisites and settings](docs/omarchy-bootstrap.md) · [Repository checks](docs/development.md)

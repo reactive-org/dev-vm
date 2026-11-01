@@ -11,9 +11,9 @@ Start from the normal [bootstrap workflow](omarchy-bootstrap.md), which updates
 the guest through Omarchy. For an older or directly created factory guest, run
 `omarchy update` inside it before adding features: stale package databases can
 reference archives that the mirror has already removed. Feature application
-deliberately does not refresh databases or upgrade the guest. A native settings
-update can revoke a temporary sudo grant; complete its native authorization flow
-and enable a fresh grant before applying features when required.
+deliberately does not refresh databases or upgrade the guest. The launcher asks
+for the guest sudo password once before applying features, uses Omarchy's native
+persistent grant during setup, and restores default sudo authentication afterward.
 
 Resolve a profile locally before connecting to a guest:
 
@@ -32,6 +32,7 @@ make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_PROFILES=web
 | `developer` | `workstation,cli,vcs,editors,api` | Foot/idle preferences, code search/navigation, Git/LFS/diff tools, Neovim and HTTP/TLS diagnostics |
 | `web` | `developer` + `browsers,languages,docker,databases,quality` | Chromium, Node `lts`, pnpm, Docker/Buildx/Compose, PostgreSQL client, SQLite, shell/YAML checks and pre-commit |
 | `python` | `developer` + `languages,build,databases,quality` | Python `3`, uv, native extension build prerequisites, CMake/Ninja/GDB, SQLite, shell/YAML checks and pre-commit |
+| `project-managed` | `developer` + `toolchain,browsers,build,docker,databases` | mise with native Bash activation, Chromium, build tools, Docker/Compose, PostgreSQL and SQLite clients; no global runtime selections |
 
 Profiles supply selections and options; installation logic stays in independently
 tagged features. Agents and credentials are optional additions to every profile.
@@ -68,6 +69,7 @@ leave existing software and settings alone; deselection never uninstalls tools.
 | `editors` | Neovim | `editors`: `neovim`, `vscode`, both or neither; settings/extensions remain untouched |
 | `browsers` | Chromium through the native installer | `browsers`: `chromium`, `firefox`, both or neither |
 | `languages` | Node using Omarchy's declaration when selected alone | `tools`: mise short-name/version map; Python and Ruby prerequisites are explicit |
+| `toolchain` | mise, lazy shims when newly installed, and verification of native interactive Bash activation | `prerequisites`: `ruby`, `python`, both or neither; native build libraries only, no runtime selection |
 | `build` | base-devel, pkgconf, CMake, Ninja and GDB | `packages` and `tools` |
 | `docker` | Docker, Buildx, Compose, native UFW integration and socket activation | Existing Omarchy sudo/polkit policy; requires an active existing UFW policy |
 | `databases` | SQLite CLI | `clients`: `sqlite`, `postgresql` or `mysql`; PostgreSQL uses `postgresql-libs`, MySQL uses `mariadb-clients`; no server initialization/activation |
@@ -96,6 +98,57 @@ do not provide the `shellcheck` package; mise selects its native Linux ARM64 rel
 The `github-cli` compatibility choice reuses an existing package, or Omarchy's
 existing `gh` mise declaration when present. Competing selected package/mise
 providers are refused rather than resolved by changing PATH precedence.
+
+## Let projects manage their toolchains
+
+Choose `project-managed` when each project's `mise.toml` owns its runtime and
+external-tool versions. The independently tagged `toolchain` feature installs
+mise through Omarchy and checks the owner's native interactive Bash integration.
+It never selects global runtimes, edits shell startup files, trusts project
+configuration, clones a repository, installs project dependencies or starts
+application services. Existing Omarchy declarations and installed tools remain
+intact. Missing native Bash activation stops application with a diagnostic;
+restore it through Omarchy before retrying.
+
+Select optional Ruby or Python native build prerequisites without installing
+those runtimes. These complement the generic `build` feature and do not install
+database servers. For example:
+
+```yaml
+schema_version: 1
+profiles: [project-managed]
+features:
+  enable: [agents]
+options:
+  toolchain:
+    prerequisites: [ruby]
+  agents:
+    tools:
+      claude: ""
+```
+
+The generic [project-managed example](../omarchy/examples/project-managed.yml)
+contains this selection. Resolve it before applying:
+
+```bash
+make plan-omarchy-features OMARCHY_SETUP_FILE=omarchy/examples/project-managed.yml
+make apply-playbook VM_NAME="Dev Omarchy" \
+  OMARCHY_SETUP_FILE=omarchy/examples/project-managed.yml
+```
+
+After independently obtaining a project in the guest, review its configuration
+and run `mise install` from that checkout. Keep project tool declarations,
+lockfiles, environment and tasks in the project. Check pinned releases and
+backends on Linux ARM64, and make host-specific paths conditional in the project.
+Mise activation is needed for directory enter/leave hooks; lazy shims alone do
+not provide those hooks. Install and authenticate personal agent/credential
+clients separately. No proprietary project configuration belongs in this repo.
+
+The existing `web` and `python` profiles retain their global tool defaults.
+Combining either with `project-managed` still explicitly selects their tools;
+use `project-managed` alone to avoid those selections. An explicit empty
+`languages.tools` map alone does not ensure mise or native build prerequisites;
+select `toolchain` for that preparation.
 
 ## Customise a profile
 
@@ -248,8 +301,11 @@ installs mise solely to inspect a registry entry and cannot validate those
 releases or predict every native browser/workstation/firewall effect. Installation
 failures can leave completed package/tool additions; rerun after fixing the cause.
 
-Normal runs use Omarchy's interactive temporary sudo grant and attempt revocation
-on success, failure and interruption. Check mode enables no grant, installs no
+Normal runs use Omarchy's native `permanent` sudo grant for the setup window and
+attempt revocation, cached-authorization clearing and verification on success,
+failure and interruption. The grant has no automatic expiry and survives reboot;
+if cleanup cannot run, use `omarchy sudo passwordless --disable && sudo -K` in
+the guest. Check mode enables no grant, installs no
 packages, writes no preferences and starts no services; its temporary payload is
 removed even on failure. The launcher does not create, start, resize or reboot a
 VM. Docker retains the native sudo/polkit policy, existing firewall and service

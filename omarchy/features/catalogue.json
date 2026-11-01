@@ -24,6 +24,11 @@
       "handler": "languages",
       "defaults": {"tools": {"node": ""}}
     },
+    "toolchain": {
+      "description": "Project-managed mise with native shell activation and selected build prerequisites; no global runtimes",
+      "handler": "toolchain",
+      "defaults": {"prerequisites": []}
+    },
     "agents": {
       "description": "Explicit coding agent CLI selections; no authentication or trust changes",
       "handler": "agents",
@@ -92,6 +97,12 @@
       "extends": ["developer"],
       "features": ["languages", "build", "databases", "quality"],
       "options": {"languages": {"tools": {"python": "3", "uv": ""}}, "databases": {"clients": ["sqlite"]}}
+    },
+    "project-managed": {
+      "description": "Developer workstation with browser, Docker, build tools and SQL clients; projects own runtime versions",
+      "extends": ["developer"],
+      "features": ["toolchain", "browsers", "build", "docker", "databases"],
+      "options": {"databases": {"clients": ["postgresql", "sqlite"]}}
     }
   },
   "language_packages": {

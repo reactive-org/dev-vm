@@ -47,6 +47,16 @@ confirmation, bootstrap invokes native `factory-import`, checks the returned
 identity, then creates the VM. No hash copying or manual import is required.
 The manager remains responsible for factory admission and runtime verification.
 
+After bootstrap's restart, the manager can briefly report
+`ssh-connection-unavailable` during its final pinned identity probe even though
+the new session is running. Bootstrap retries only the manager's read-only
+`wait --for ssh` for that same VM/session, with up to five delayed retries
+within the original timeout. It never repeats the restart or relaxes SSH pins.
+Other errors, a changed session or exhausted retries still stop setup and leave
+the VM available for inspection. For a retained running guest, use
+`make check-omarchy-vm VM_NAME="your VM name"` once managed SSH is ready; then
+apply any features that bootstrap did not reach.
+
 Already-imported manifest SHA-256 selectors are still accepted. Add the same app,
 theme and layout options to either image choice; those are per-VM selections.
 
@@ -63,14 +73,16 @@ Before changing anything, the controller verifies Omarchy VM Manager 0.6.0 or
 newer with command protocol 1, inventories the exact named profile, rejects
 protected or incompatible guests, and prints the complete proposal for
 confirmation. The manager creates or starts the guest and waits for its own
-authenticated, pinned SSH connection. The controller then enables Omarchy's
-native 60-minute passwordless-sudo grant over that connection, asking you to
-confirm Omarchy's prompt and enter the guest sudo password. It uses the grant
+authenticated, pinned SSH connection. The controller then clears any older native
+grant and cached sudo authorization, asks you to confirm Omarchy's prompt and
+enter the guest sudo password once, and enables `omarchy sudo passwordless permanent`.
+This native grant survives long runs and settings-package updates. It uses the grant
 to update Omarchy and the guest system through `omarchy update -y`, install the
 selected guest software through Omarchy and mise, and apply the small idempotent
-preference layer. It disables the grant before rebooting the guest through the
+preference layer. It disables the grant, clears cached sudo authorization and
+verifies that passwordless sudo is inactive before rebooting the guest through the
 manager, waits for managed SSH to return, validates hardware VirGL and integration,
-and removes its temporary payload. It never installs host software, handles guest passwords, scans personal
+and removes its temporary payload. It never installs host software, captures guest passwords, scans personal
 SSH files, or replaces or resets an existing VM.
 New guests request a 64 GiB sparse disk by default; an existing stopped guest
 can grow to that capacity but is never shrunk. Override with
@@ -80,8 +92,8 @@ can grow to that capacity but is never shrunk. Override with
 
 Older lean factories omitted the AUR helper and build prerequisites. Omarchy's
 native update can reach its AUR step because the image includes locally built
-packages, then stop with `yay: command not found`. The bootstrap cleanup message
-about disabling passwordless sudo is expected after that failure.
+packages, then stop with `yay: command not found`. Bootstrap attempts to restore
+default sudo authentication after that failure; resolve any cleanup warning before retrying.
 
 In a terminal inside the affected guest, install the missing tools through
 Omarchy (enter the guest sudo password when prompted):
@@ -148,19 +160,25 @@ overrides. Bootstrap selects no additional software unless
 
 ## Privilege and cleanup
 
-Bootstrap also attempts to disable the grant on setup errors, Ctrl+C, SIGTERM,
-and SIGHUP, including a partially completed enable operation. A cleanup failure
-is reported, and prevents a successful setup from continuing to reboot. If the
-host process is killed outright or managed SSH is unavailable, Omarchy's native
-60-minute expiry and reboot cleanup provide the fallback. To revoke manually,
-run `omarchy sudo passwordless --disable` in a guest terminal. The controller
-never captures the password or writes its own sudoers rules.
-`OMARCHY_VM_YES=yes` skips the host proposal confirmation; Omarchy's native grant
-confirmation and initial password prompt remain interactive.
+Bootstrap also attempts to restore default sudo authentication on setup errors,
+Ctrl+C, SIGTERM and SIGHUP, including a partially completed enable operation.
+Cleanup uses the native `--disable`, clears cached sudo authentication with
+`sudo -K`, and requires the native policy probe to report inactive. A cleanup
+failure is reported and prevents a successful setup from continuing to reboot.
+The grant uses Omarchy's `permanent` mode only for the setup window: it has no
+automatic expiry and survives reboots. If the host process is killed outright
+or managed SSH is unavailable, revoke it in a guest terminal:
 
-An Omarchy settings-package upgrade can revoke temporary sudo grants early;
-subsequent privileged steps may then ask for authentication again. Bootstrap
-respects that native revocation and does not renew or extend the 60-minute grant.
+```bash
+omarchy sudo passwordless --disable && sudo -K
+```
+
+The controller never captures the password or writes its own sudoers rules.
+`OMARCHY_VM_YES=yes` skips the host proposal confirmation; the one native grant
+confirmation and initial password prompt remain interactive. Guests must support
+Omarchy's native `permanent` mode; unsupported or declined authorization stops
+setup before the update or customization steps. Bootstrap does not fall back to
+an expiring grant.
 
 Bootstrap adds no optional software by default. After the guest is ready, use
 `make apply-playbook` to select browsers, Docker, languages, coding agents and

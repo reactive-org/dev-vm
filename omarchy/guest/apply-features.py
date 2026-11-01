@@ -174,6 +174,23 @@ class FeatureRunner:
             else:
                 self.mutate(["mise", "use", "--global", tool + "@latest"], "Select user mise tool: " + tool)
 
+    def project_toolchain(self):
+        packages, _ = requirements(self.feature, self.config)
+        missing_mise = not self.installed("mise-bin")
+        self.packages(packages)
+        if missing_mise:
+            self.mutate(["mise", "reshim", "--system"], "Initialize Omarchy's lazy tool shims")
+            self.mutate(["mise", "reshim"], "Initialize user tool shims")
+        if self.check and missing_mise:
+            self.notes.append("Native Bash activation will be verified after mise installation")
+            return
+        # Use the owner's existing interactive rc chain, from HOME, without
+        # adding startup files, trusting projects or installing declared tools.
+        result = native(["bash", "-ic", 'declare -F mise >/dev/null && [[ "${PROMPT_COMMAND[*]}" == *mise* ]]'], check=False)
+        if result.returncode:
+            raise FeatureError("Omarchy's native Bash mise activation is missing; restore the native shell integration before retrying. No shell configuration was replaced")
+        self.notes.append("Native Bash mise activation verified; project tools remain project-managed")
+
     def snapshot(self):
         home = Path.home()
         paths = (
@@ -242,6 +259,8 @@ class FeatureRunner:
             self.packages([definition["choices"][item] for item in self.config[definition["option"]]])
         elif handler in ("agents", "languages"):
             self.toolchain()
+        elif handler == "toolchain":
+            self.project_toolchain()
         elif self.feature == "credentials":
             packages = list(self.config["packages"])
             # Preserve the legacy package choice, reusing Omarchy's declared CLI

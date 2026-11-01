@@ -35,6 +35,13 @@ Configure legacy lists and version mappings using `omarchy/examples/features.yml
 
 Roles ensure presence; deselecting one never removes existing software. Image identity is not inferred from package count or an image filename. The guest must satisfy the same OS, architecture, native command and integration checks. A custom factory must separately pass VM Manager's admission and owner-provisioning contract before it can be used.
 
+For project-owned mise versions, select `OMARCHY_PROFILES=project-managed` or
+the independently tagged `toolchain` feature. Its composite variable is
+`omarchy_toolchain: {prerequisites: [ruby]}`; supported prerequisites are Ruby
+and Python native build libraries. It verifies existing native Bash activation
+and makes no global runtime selections or project changes. See the
+[project-managed workflow](omarchy-features.md#let-projects-manage-their-toolchains).
+
 ## Native ownership
 
 Packages go through `omarchy-pkg-add`; browsers use `omarchy-install-browser`. The supported browser names are Chromium and Firefox, available through the ARM64 repositories. The playbook does not add third-party repositories, run AUR builders or silently substitute another architecture.
@@ -51,7 +58,7 @@ Workstation preferences reuse the existing Foot, idle, theme, layout and GPU-pre
 
 The guest must already be running with authenticated managed SSH. The launcher checks VM Manager's protocol/version, guest UUID, protected status, NAT policy and exact pinned SSH command, then generates a mode-0600 inventory and parameters in a private temporary directory. It uses the manager-owned identity and known-host pin, disables shared SSH multiplexing and cleans its temporary files on exit. It never scans personal SSH files or changes VM resource/lifecycle settings.
 
-Normal application requests Omarchy's native temporary sudo grant interactively; even theme application can need its privileged browser-policy writer. The launcher attempts revocation on success, failure, Ctrl+C, SIGTERM, SIGHUP and even a partially completed grant operation. Expiry/reboot remain the native fallback after an uncatchable termination or unavailable SSH. Check-mode runs do not request a grant. No password is stored in Ansible inventory, variables, arguments or logs. A direct Ansible run needs the same native grant enabled in the guest before application.
+Normal application clears any older native grant and cached sudo authorization, then asks for Omarchy's native consent and the guest sudo password once near the start. It uses `omarchy sudo passwordless permanent` for the setup window so long runs and settings updates do not revoke access midway; even theme application can need its privileged browser-policy writer. The launcher attempts revocation and cached-authorization clearing (`sudo -K`) on success, failure, Ctrl+C, SIGTERM, SIGHUP and even a partially completed grant operation, and verifies that passwordless sudo is inactive. This mode has no automatic expiry and survives reboot: after an uncatchable termination or unavailable SSH, run `omarchy sudo passwordless --disable && sudo -K` in the guest. Check-mode runs do not request a grant. No password is stored in Ansible inventory, variables, arguments or logs. A direct Ansible run needs a native grant enabled in the guest before application and manually revoked afterward.
 
 ```bash
 make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_FEATURES=agents OMARCHY_PLAYBOOK_PLAN=yes

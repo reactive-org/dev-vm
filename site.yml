@@ -122,6 +122,12 @@
           when: "'agents' in omarchy_selected_features"
           tags: [agents]
 
+        - name: Apply toolchain feature
+          ansible.builtin.import_role:
+            name: omarchy_toolchain
+          when: "'toolchain' in omarchy_selected_features"
+          tags: [toolchain]
+
         - name: Apply credentials feature
           ansible.builtin.import_role:
             name: omarchy_credentials

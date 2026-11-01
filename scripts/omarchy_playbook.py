@@ -167,6 +167,7 @@ def playbook(args):
               f"Variables: {args.vars_file or 'repository defaults'}\n"
               f"Mode: {'check (temporary payload only)' if args.check else 'apply'}\n"
               "Connection: VM Manager's authenticated, pinned SSH\n"
+              f"Guest sudo: {'unchanged' if args.check else 'one early password; native persistent grant, revoked on exit; manual cleanup if SSH is lost'}\n"
               "VM lifecycle and resource settings: unchanged", flush=True)
         if args.plan or not plan["features"]:
             return

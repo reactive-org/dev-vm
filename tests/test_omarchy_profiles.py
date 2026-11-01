@@ -54,6 +54,18 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn("docker", python["features"])
         self.assertEqual(python["packages"]["base-devel"], ["languages", "build"])
 
+    def test_project_managed_profile_leaves_versions_to_projects(self):
+        plan = Resolver().resolve(profiles=["project-managed"])
+        self.assertEqual(plan["mise"], {})
+        self.assertIn("mise-bin", plan["packages"])
+        self.assertTrue({"build", "docker", "browsers", "toolchain"} <= set(plan["features"]))
+        self.assertNotIn("languages", plan["features"])
+        self.assertEqual(plan["options"]["databases"]["clients"], ["postgresql", "sqlite"])
+        configured = Resolver().resolve(setup_file=ROOT / "omarchy/examples/project-managed.yml")
+        self.assertEqual(set(configured["mise"]), {"claude"})
+        self.assertTrue({"libyaml", "gmp"} <= set(configured["packages"]))
+        self.assertEqual(launcher.plan_variables(configured)["omarchy_toolchain"], {"prerequisites": ["ruby"]})
+
     def test_sibling_conflicts_require_override_and_disjoint_tools_merge(self):
         for profiles in (["web", "python"], ["python", "web"]):
             with self.assertRaisesRegex(ProfileError, "databases.clients"):

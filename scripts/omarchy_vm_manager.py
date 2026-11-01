@@ -17,6 +17,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -46,6 +47,13 @@ PACKAGE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+@/-]*")
 
 class WorkstationError(RuntimeError):
     pass
+
+
+class ManagerCommandError(WorkstationError):
+    def __init__(self, code: str, message: str, guest=None):
+        super().__init__(f"Omarchy VM Manager {code}: {message}{guest_summary(guest)}")
+        self.code = code
+        self.guest = guest
 
 
 def installed_cli(cli_path=None, manager_app=None) -> Path:
@@ -346,9 +354,7 @@ def cli_call(args, *values: str) -> dict:
         else:
             code = "command-failed"
             message = "The command failed."
-        raise WorkstationError(
-            f"Omarchy VM Manager {code}: {message}{guest_summary(reply.get('guest'))}"
-        )
+        raise ManagerCommandError(code, message, reply.get("guest"))
     return reply
 
 
@@ -839,46 +845,56 @@ def install_selected_software(
         note("Selected guest software is already installed")
         return
     note(
-        "Installing selected guest software through Omarchy and mise; "
-        "enter guest sudo if prompted"
+        "Installing selected guest software through Omarchy and mise"
     )
     guest_login_command(connection, " && ".join(commands), tty=True)
 
 
 def update_guest_system(connection: ManagedSSH) -> None:
     note(
-        "Updating Omarchy and system packages through Omarchy; "
-        "enter guest sudo if prompted"
+        "Updating Omarchy and system packages through Omarchy"
     )
     guest_login_command(connection, "omarchy update -y", tty=True)
 
 
 def enable_bootstrap_sudo(connection: ManagedSSH) -> None:
     note(
-        "Enabling Omarchy passwordless sudo for 60 minutes; "
-        "confirm the native prompt and enter the guest sudo password"
+        "Enabling Omarchy passwordless sudo for setup; confirm the native prompt "
+        "and enter the guest sudo password once. Default sudo behavior will be "
+        "restored when setup ends"
     )
-    # The native command returns success even when its confirmation is declined.
-    # Require an active grant before starting any privileged setup work.
+    # Omarchy's permanent mode survives settings-package updates and long runs.
+    # Remove any older grant first so declining the native confirmation cannot
+    # accidentally pass --active using an expiring grant. Never capture a password.
+    # Cleanup coverage in both callers starts before this operation.
     guest_login_command(
         connection,
-        "omarchy sudo passwordless 60 && omarchy sudo passwordless --active",
+        "omarchy sudo passwordless --disable && sudo -K && "
+        "omarchy sudo passwordless permanent && "
+        "omarchy sudo passwordless --active && sudo -kn true",
         tty=True,
     )
 
 
 def disable_bootstrap_sudo(connection: ManagedSSH) -> None:
-    note("Disabling Omarchy passwordless sudo after the bootstrap work")
-    command = "bash -lc " + shlex.quote("omarchy sudo passwordless --disable")
+    note("Restoring default guest sudo authentication after setup")
+    # --disable does not invalidate sudo's cached authentication. Clear it too,
+    # then require the native policy probe to report inactive (status 1).
+    command = "bash -lc " + shlex.quote(
+        "omarchy sudo passwordless --disable && sudo -K && "
+        "if omarchy sudo passwordless --active; then exit 1; "
+        'else test "$?" -eq 1; fi'
+    )
     message = (
-        "Could not confirm that bootstrap passwordless sudo was disabled. "
-        "Run 'omarchy sudo passwordless --disable' inside the guest. "
-        "Omarchy's 60-minute expiry and reboot cleanup remain the fallback."
+        "Could not confirm that default guest sudo authentication was restored. "
+        "Run 'omarchy sudo passwordless --disable && sudo -K' inside the guest. "
+        "The setup grant has no automatic expiry and can survive a reboot; "
+        "manual revocation is required if it remains active."
     )
     try:
         # Cleanup must not wait for terminal input or hang on a lost connection.
-        # Omarchy's --disable uses noninteractive sudo and handles an expired or
-        # already revoked grant without enabling anything or prompting again.
+        # Omarchy's --disable uses noninteractive sudo and handles an already
+        # revoked grant without enabling anything or prompting again.
         result = subprocess.run(
             connection.ssh_argv() + [command],
             stdin=subprocess.DEVNULL,
@@ -980,7 +996,8 @@ def print_proposal(
         f"  Preferences:     Foot {args.foot_font_size}, idle policy {args.idle_mode}\n"
         f"  App layout:      {layout}\n"
         f"  Theme:           {args.theme or 'preserve the current choice'}\n"
-        "  Guest sudo:      native 60-minute passwordless grant; revoke on completion or failure\n"
+        "  Guest sudo:      one early password; native persistent grant during setup, then revoke\n"
+        "                   Restore on completion/failure; manual cleanup if SSH is lost\n"
         "  Compatibility:   apply the conditional Hyprland/VirGL repair\n"
         "  Lifecycle:       update Omarchy, apply customizations, reboot and validate\n"
         "  Host installs:   none"
@@ -1164,15 +1181,57 @@ def apply_workstation(args, connection: ManagedSSH) -> None:
 
 def restart_guest(args, guest: dict) -> dict:
     note("Rebooting the managed VM and waiting for authenticated SSH")
-    reply = cli_call(
-        args,
-        "restart",
-        require_identifier(guest),
-        "--wait",
-        "ssh",
-        "--timeout",
-        str(args.timeout),
-    )
+    identifier = require_identifier(guest)
+    deadline = time.monotonic() + args.timeout
+    try:
+        reply = cli_call(
+            args, "restart", identifier, "--wait", "ssh", "--timeout", str(args.timeout),
+        )
+    except ManagerCommandError as error:
+        def retryable(failure, session=None):
+            current = failure.guest
+            return (
+                failure.code == "ssh-connection-unavailable"
+                and isinstance(current, dict)
+                and current.get("id") == identifier
+                and current.get("active") is True
+                and current.get("state") == "running"
+                and isinstance(current.get("sessionID"), str)
+                and bool(current["sessionID"])
+                and (session is None or current["sessionID"] == session)
+            )
+
+        if not retryable(error):
+            raise
+        session = error.guest["sessionID"]
+        # A completed restart can race the manager's final pinned SSH probe.
+        # Retry only native read-only waits for that same running session;
+        # never repeat the restart or weaken the manager's SSH verification.
+        failure = error
+        for delay in (1, 2, 4, 8, 16):
+            if deadline - time.monotonic() <= delay:
+                raise failure
+            note("Restart completed; waiting again for the manager's pinned SSH verification")
+            time.sleep(delay)
+            remaining = int(deadline - time.monotonic())
+            if remaining < 1:
+                raise failure
+            try:
+                reply = cli_call(
+                    args, "wait", identifier, "--for", "ssh", "--timeout", str(remaining),
+                )
+            except ManagerCommandError as current_error:
+                if not retryable(current_error, session):
+                    raise
+                failure = current_error
+            else:
+                current = reply.get("guest")
+                if (not isinstance(current, dict) or current.get("id") != identifier
+                        or current.get("sessionID") != session):
+                    raise WorkstationError("The guest session changed while waiting after restart")
+                break
+        else:
+            raise failure
     current = reply.get("guest")
     if not isinstance(current, dict):
         raise WorkstationError("The manager did not return the restarted guest")

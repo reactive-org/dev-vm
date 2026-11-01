@@ -68,6 +68,8 @@ def validate_config(feature, value, *, extension=False):
         selection(value[option], definition["choices"], option)
     elif handler in ("languages", "agents"):
         tools(value["tools"], agents=handler == "agents")
+    elif handler == "toolchain":
+        selection(value["prerequisites"], CATALOGUE["language_packages"], "toolchain prerequisites")
     elif handler == "credentials":
         selection(value["packages"], definition["choices"], "credential packages")
     elif handler == "workstation":
@@ -102,6 +104,10 @@ def requirements(feature, config, *, extension=False):
         packages.extend(config["packages"])
     elif handler == "workstation":
         packages.extend(CATALOGUE["workstation_packages"])
+    elif handler == "toolchain":
+        packages.append("mise-bin")
+        for language in config["prerequisites"]:
+            packages.extend(CATALOGUE["language_packages"][language])
     elif handler in ("languages", "agents"):
         requested.update(config["tools"])
         if handler == "languages":

@@ -278,6 +278,8 @@ class Resolver:
         if "workstation" in ordered:
             files.extend(["~/.config/foot/foot.ini", "~/.config/omarchy/shell.json", "~/.config/hypr/ (selected theme/layout)",
                           "~/.config/systemd/user/ (native idle/known first-login compatibility)"])
+        if "toolchain" in ordered:
+            files.append("mise shims (initialized only on native mise installation); native Bash activation verified")
         if mise:
             files.append("~/.config/mise/config.toml (explicit selections only; native declarations reused)")
         return {"schema_version": 1, "profiles": chosen_profiles, "features": ordered, "options": configs,
@@ -319,6 +321,9 @@ def schemas():
                                    "items": {"enum": list(definition["choices"])}}})
         elif handler == "docker":
             config = obj({})
+        elif handler == "toolchain":
+            config = obj({"prerequisites": {"type": "array", "uniqueItems": True,
+                                           "items": {"enum": list(contract.CATALOGUE["language_packages"])}}})
         else:
             config = obj({"font_size": {"type": "string", "pattern": "^(?:[6-9]|[12][0-9]|3[0-2])(?:\\.[0-9]+)?$"},
                           "idle_mode": {"enum": ["host", "guest", "keep"]}, "theme": {"type": "string"},

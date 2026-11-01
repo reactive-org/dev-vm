@@ -225,6 +225,40 @@
                 "required": [],
                 "additionalProperties": false
               },
+              "toolchain": {
+                "type": "object",
+                "properties": {
+                  "prerequisites": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "ruby",
+                        "python"
+                      ]
+                    }
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              },
+              "builtin.toolchain": {
+                "type": "object",
+                "properties": {
+                  "prerequisites": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": [
+                        "ruby",
+                        "python"
+                      ]
+                    }
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              },
               "agents": {
                 "type": "object",
                 "properties": {

@@ -909,6 +909,73 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             ),
         )
 
+    def test_restart_recovers_a_transient_final_probe_without_restarting_twice(self):
+        args = SimpleNamespace(timeout=60, cpus=8, memory_gib=20, disk_gib=64)
+        restarted = managed_guest(active=True, state="running", sessionID="new-session")
+        failure = CONTROLLER.ManagerCommandError("ssh-connection-unavailable", "probe failed", restarted)
+        with mock.patch.object(CONTROLLER, "cli_call", side_effect=[failure, failure, {"guest": restarted}]) as call, \
+                mock.patch.object(CONTROLLER.time, "monotonic", return_value=100), \
+                mock.patch.object(CONTROLLER.time, "sleep") as sleep:
+            self.assertEqual(CONTROLLER.restart_guest(args, managed_guest()), restarted)
+        self.assertEqual([c.args[1] for c in call.call_args_list], ["restart", "wait", "wait"])
+        self.assertEqual(call.call_args.args[2:], (GUEST_ID, "--for", "ssh", "--timeout", "60"))
+        self.assertEqual(sleep.call_args_list, [mock.call(1), mock.call(2)])
+
+    def test_restart_does_not_retry_other_errors_or_another_session(self):
+        args = SimpleNamespace(timeout=60, cpus=8, memory_gib=20, disk_gib=64)
+        restarted = managed_guest(active=True, state="running", sessionID="new-session")
+        transient = CONTROLLER.ManagerCommandError("ssh-connection-unavailable", "probe failed", restarted)
+        failures = [
+            CONTROLLER.ManagerCommandError("invalid-connection-report", "stale report", restarted),
+            CONTROLLER.ManagerCommandError("ssh-connection-unavailable", "probe failed", managed_guest()),
+            CONTROLLER.ManagerCommandError("ssh-connection-unavailable", "probe failed", {**restarted, "id": "another-vm"}),
+        ]
+        for failure in failures:
+            with self.subTest(code=failure.code, guest=failure.guest), \
+                    mock.patch.object(CONTROLLER, "cli_call", side_effect=failure) as call:
+                with self.assertRaises(CONTROLLER.ManagerCommandError):
+                    CONTROLLER.restart_guest(args, managed_guest())
+                self.assertEqual(call.call_count, 1)
+        for reply in (
+            CONTROLLER.ManagerCommandError("ssh-connection-unavailable", "probe failed", {**restarted, "sessionID": "other-session"}),
+            {"guest": {**restarted, "sessionID": "other-session"}},
+            {"guest": {**restarted, "cpus": 4}},
+        ):
+            with self.subTest(reply=reply), \
+                    mock.patch.object(CONTROLLER, "cli_call", side_effect=[transient, reply]) as call, \
+                    mock.patch.object(CONTROLLER.time, "sleep"):
+                with self.assertRaises(CONTROLLER.WorkstationError):
+                    CONTROLLER.restart_guest(args, managed_guest())
+                self.assertEqual(call.call_count, 2)
+
+    def test_restart_probe_retries_are_bounded_by_attempts_and_original_deadline(self):
+        restarted = managed_guest(active=True, state="running", sessionID="new-session")
+        failure = CONTROLLER.ManagerCommandError("ssh-connection-unavailable", "probe failed", restarted)
+        for timeout, expected in ((60, 6), (1, 1)):
+            args = SimpleNamespace(timeout=timeout, cpus=8, memory_gib=20, disk_gib=64)
+            with self.subTest(timeout=timeout), \
+                    mock.patch.object(CONTROLLER, "cli_call", side_effect=failure) as call, \
+                    mock.patch.object(CONTROLLER.time, "monotonic", return_value=100), \
+                    mock.patch.object(CONTROLLER.time, "sleep"):
+                with self.assertRaises(CONTROLLER.ManagerCommandError):
+                    CONTROLLER.restart_guest(args, managed_guest())
+                self.assertEqual(call.call_count, expected)
+        with mock.patch.object(CONTROLLER, "cli_call", side_effect=[failure, {"guest": restarted}]) as call, \
+                mock.patch.object(CONTROLLER.time, "monotonic", side_effect=[100, 110, 111]), \
+                mock.patch.object(CONTROLLER.time, "sleep"):
+            CONTROLLER.restart_guest(SimpleNamespace(timeout=60, cpus=8, memory_gib=20, disk_gib=64), managed_guest())
+        self.assertEqual(call.call_args.args[-1], "49")
+
+    def test_cli_errors_preserve_the_manager_error_code_and_guest(self):
+        guest = managed_guest(active=True, state="running", sessionID="new-session")
+        reply = {"ok": False, "error": {"code": "ssh-connection-unavailable", "message": "probe failed"}, "guest": guest}
+        with mock.patch.object(CONTROLLER, "run", return_value=subprocess.CompletedProcess([], 1, json.dumps(reply), "")):
+            with self.assertRaises(CONTROLLER.ManagerCommandError) as caught:
+                CONTROLLER.cli_call(SimpleNamespace(cli_path=Path("/manager/omarchy-vm")), "restart", GUEST_ID)
+        self.assertEqual(caught.exception.code, "ssh-connection-unavailable")
+        self.assertEqual(caught.exception.guest, guest)
+        self.assertIn("remains running", str(caught.exception))
+
     def test_bootstrap_updates_before_customizing_then_restarts_and_checks(self):
         args = SimpleNamespace(timeout=3600)
         initial = managed_guest()
@@ -954,13 +1021,15 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             ["connect", "enable sudo", "update", "customize", "disable sudo", "restart", "connect", "check"],
         )
 
-    def test_bootstrap_sudo_uses_native_timed_grant_and_checks_confirmation(self):
+    def test_bootstrap_sudo_uses_native_persistent_grant_and_checks_confirmation(self):
         connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
         with mock.patch.object(CONTROLLER, "guest_login_command") as login:
             CONTROLLER.enable_bootstrap_sudo(connection)
         login.assert_called_once_with(
             connection,
-            "omarchy sudo passwordless 60 && omarchy sudo passwordless --active",
+            "omarchy sudo passwordless --disable && sudo -K && "
+            "omarchy sudo passwordless permanent && "
+            "omarchy sudo passwordless --active && sudo -kn true",
             tty=True,
         )
 
@@ -973,7 +1042,10 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(command[:-1], connection.ssh_argv())
         login = shlex.split(command[-1])
-        self.assertEqual(login, ["bash", "-lc", "omarchy sudo passwordless --disable"])
+        self.assertEqual(login, ["bash", "-lc",
+                                "omarchy sudo passwordless --disable && sudo -K && "
+                                "if omarchy sudo passwordless --active; then exit 1; "
+                                'else test "$?" -eq 1; fi'])
         self.assertEqual(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
         self.assertEqual(run.call_args.kwargs["timeout"], 30)
         self.assertTrue(run.call_args.kwargs["capture_output"])
@@ -990,8 +1062,10 @@ class OmarchyManagerControllerTests(unittest.TestCase):
             with self.subTest(failure=type(failure).__name__), mock.patch.object(
                 CONTROLLER.subprocess, "run", **options
             ):
-                with self.assertRaisesRegex(CONTROLLER.WorkstationError, "Could not confirm"):
+                with self.assertRaisesRegex(CONTROLLER.WorkstationError, "Could not confirm") as raised:
                     CONTROLLER.disable_bootstrap_sudo(connection)
+                self.assertIn("no automatic expiry", str(raised.exception))
+                self.assertIn("sudo -K", str(raised.exception))
 
     def test_bootstrap_revokes_sudo_when_enable_update_or_apply_fails_or_is_interrupted(self):
         connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
@@ -1136,6 +1210,99 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         self.assertIn("managed SSH", runbook)
         self.assertNotIn("brew install", runbook)
         self.assertNotIn("port 2222", runbook)
+
+
+class BootstrapSudoShellTests(unittest.TestCase):
+    """Exercise the remote shell flow with native-command doubles, never real sudo."""
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="omarchy-sudo-test-")
+        self.addCleanup(temporary.cleanup)
+        self.folder = Path(temporary.name)
+        self.grant = self.folder / "grant"
+        self.cached = self.folder / "cached"
+        self.events = self.folder / "events"
+        self.connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
+        with mock.patch.object(CONTROLLER, "guest_login_command") as login:
+            CONTROLLER.enable_bootstrap_sudo(self.connection)
+        self.enable = login.call_args.args[1]
+        with mock.patch.object(CONTROLLER.subprocess, "run",
+                               return_value=subprocess.CompletedProcess([], 0)) as run:
+            CONTROLLER.disable_bootstrap_sudo(self.connection)
+        self.disable = shlex.split(run.call_args.args[0][-1])[2]
+
+    def execute(self, command, **environment):
+        doubles = '''
+omarchy() {
+    printf '%s\\n' "omarchy $*" >> "$EVENTS"
+    case "$*" in
+        'sudo passwordless --disable')
+            [ "${DISABLE_FAIL:-0}" = 0 ] || return 1
+            [ "${KEEP_GRANT:-0}" = 1 ] || rm -f "$GRANT"
+            ;;
+        'sudo passwordless permanent')
+            [ "${DECLINE:-0}" = 0 ] || return 0
+            printf 'password\\n' >> "$EVENTS"
+            printf 'permanent\\n' > "$GRANT"
+            touch "$CACHED"
+            ;;
+        'sudo passwordless --active')
+            [ "${PROBE_ERROR:-0}" = 0 ] || return 2
+            test -f "$GRANT"
+            ;;
+        *) return 99 ;;
+    esac
+}
+sudo() {
+    printf '%s\\n' "sudo $*" >> "$EVENTS"
+    case "$*" in
+        -K) rm -f "$CACHED" ;;
+        '-kn true') test -f "$GRANT" ;;
+        *) return 99 ;;
+    esac
+}
+'''
+        return subprocess.run(
+            ["bash", "-c", doubles + command], text=True, capture_output=True,
+            env={**os.environ, "GRANT": str(self.grant), "CACHED": str(self.cached),
+                 "EVENTS": str(self.events), **environment},
+        )
+
+    def test_single_authorization_survives_settings_update_then_restores_default(self):
+        result = self.execute(self.enable)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.grant.read_text().strip(), "permanent")
+        # Model Omarchy's package hook: it removes timed grants, not permanent ones.
+        result = self.execute('if [ "$(cat "$GRANT")" = timed ]; then rm "$GRANT"; fi\n'
+                              'sudo -kn true')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = self.execute(self.disable)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.grant.exists())
+        self.assertFalse(self.cached.exists())
+        self.assertEqual(self.events.read_text().splitlines().count("password"), 1)
+
+    def test_declining_does_not_reuse_an_existing_timed_grant_or_cached_password(self):
+        self.grant.write_text("timed\n")
+        self.cached.touch()
+        result = self.execute(self.enable, DECLINE="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.grant.exists())
+        self.assertFalse(self.cached.exists())
+        self.assertNotIn("sudo -kn true", self.events.read_text())
+
+    def test_cleanup_rejects_a_remaining_grant_or_failed_policy_probe(self):
+        for environment in ({"KEEP_GRANT": "1"}, {"PROBE_ERROR": "1"}, {"DISABLE_FAIL": "1"}):
+            with self.subTest(environment=environment):
+                self.grant.write_text("permanent\n")
+                self.cached.touch()
+                self.assertNotEqual(self.execute(self.disable, **environment).returncode, 0)
+
+    def test_cleanup_is_idempotent_and_clears_cached_authorization_without_a_grant(self):
+        self.cached.touch()
+        self.assertEqual(self.execute(self.disable).returncode, 0)
+        self.assertFalse(self.cached.exists())
+        self.assertEqual(self.execute(self.disable).returncode, 0)
 
 
 if __name__ == "__main__":
