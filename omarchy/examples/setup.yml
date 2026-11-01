@@ -10,6 +10,20 @@ features:
 options:
   workstation:
     shell: zsh # Override with bash or keep.
+    oh_my_zsh: true # Used only with zsh; completion/plugins.
+    oh_my_zsh_plugins: [git, docker, docker-compose] # null preserves existing plugins; [] enables none.
+    oh_my_zsh_update_mode: reminder # prompt, auto, reminder, disabled; empty preserves native policy.
+    starship: true # Used only with zsh; prompt, with the Oh My Zsh theme disabled.
+    starship_config: | # Omit or use "" to preserve personal Starship configuration.
+      add_newline = false
+      format = '$directory$git_branch$git_status$cmd_duration$line_break$character'
+
+      [directory]
+      truncation_length = 3
+
+      [character]
+      success_symbol = '[❯](bold green)'
+      error_symbol = '[❯](bold red)'
   browsers:
     browsers: [firefox]
   languages:

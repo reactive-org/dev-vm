@@ -181,11 +181,16 @@ print(json.dumps({'changed':False,'verified_check_flag':True}))
 ''')
         helper = self.folder / "apply-features.py"
         parameters = self.folder / "shell.json"
-        for selected in ("zsh", "bash", "keep"):
+        for selected, omz, starship in (("zsh", True, True), ("zsh", False, True), ("zsh", True, False),
+                                        ("zsh", False, False), ("bash", True, True), ("keep", True, True)):
+            settings = {"shell": selected, "oh_my_zsh": omz, "starship": starship}
+            if selected == "zsh" and omz and starship:
+                settings.update(oh_my_zsh_plugins=["git", "docker-compose"], oh_my_zsh_update_mode="disabled",
+                                starship_config="add_newline = false\nformat = '$directory$character'\n")
+            plan = PLAYBOOK.Resolver().resolve(overrides={"workstation": settings})
             helper.write_text("import sys,json\nassert '--check' in sys.argv\n"
-                              "config=json.load(sys.stdin)\nassert config['shell']==" + repr(selected) + "\n"
+                              "config=json.load(sys.stdin)\nassert config == " + repr(plan["options"]["workstation"]) + "\n"
                               "print(json.dumps({'changed':False,'shell_checked':True}))\n")
-            plan = PLAYBOOK.Resolver().resolve(overrides={"workstation": {"shell": selected}})
             values = PLAYBOOK.plan_variables(plan)
             values["omarchy_payload"] = {"path": str(self.folder)}
             parameters.write_text(json.dumps(values))

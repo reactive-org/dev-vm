@@ -5,8 +5,9 @@
     "workstation": {
       "description": "Login shell, Foot, idle, theme and layout preferences; hardware rendering repair",
       "handler": "workstation",
-      "defaults": {"shell": "zsh", "font_size": "12", "idle_mode": "host", "theme": "", "layout": "", "remove_layout": false},
-      "shells": {"zsh": "/usr/bin/zsh", "bash": "/bin/bash"}
+      "defaults": {"shell": "zsh", "oh_my_zsh": true, "oh_my_zsh_plugins": null, "oh_my_zsh_update_mode": "reminder", "starship": true, "starship_config": "", "font_size": "12", "idle_mode": "host", "theme": "", "layout": "", "remove_layout": false},
+      "shells": {"zsh": "/usr/bin/zsh", "bash": "/bin/bash"},
+      "oh_my_zsh_repository": "https://github.com/ohmyzsh/ohmyzsh.git"
     },
     "browsers": {
       "description": "Native Omarchy browser integration",

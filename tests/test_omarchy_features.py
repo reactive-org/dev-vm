@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -63,6 +64,17 @@ class Guest:
             return reply(0 if self.zsh_syntax else 1, stderr="invalid zsh configuration")
         if argv[:2] == ["zsh", "-ic"]:
             return reply(0 if (self.zsh_environment if "OMARCHY_PATH" in argv[-1] else self.zsh_activation) else 1)
+        if argv[:3] == ["env", "DISABLE_AUTO_UPDATE=true", "zsh"]:
+            return reply(0 if (self.zsh_environment if "OMARCHY_PATH" in argv[-1] else self.zsh_activation) else 1)
+        if argv[:4] == ["env", "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "git"]:
+            path = Path(argv[-1])
+            path.mkdir()
+            (path / "oh-my-zsh.sh").write_text("# upstream fixture\n")
+            for name in ("git", "docker", "docker-compose"):
+                plugin = path / "plugins" / name
+                plugin.mkdir(parents=True)
+                (plugin / (name + ".plugin.zsh")).touch()
+            return reply()
         if argv[:3] == ["sudo", "-n", "chsh"]:
             self.shell = argv[argv.index("-s") + 1]
             return reply()
@@ -322,10 +334,15 @@ class FeatureTests(unittest.TestCase):
         self.assertTrue(rc.read_text().startswith("# Personal configuration\nexport EDITOR=nvim\n"))
         self.assertEqual(rc.stat().st_mode & 0o777, 0o640)
         self.assertIn("mise activate zsh", rc.read_text())
+        self.assertIn('ZSH_THEME=""', rc.read_text())
+        self.assertLess(rc.read_text().index('source "$ZSH/oh-my-zsh.sh"'), rc.read_text().index("starship init zsh"))
+        self.assertTrue((guest.home / ".oh-my-zsh/oh-my-zsh.sh").is_file())
+        self.assertIn("starship", guest.packages)
         self.assertNotIn(".bashrc", rc.read_text())
         self.assertFalse(self.apply(guest, "workstation", config)["changed"])
         self.assertEqual(first, {name: (guest.home / name).read_bytes() for name in FEATURE.ZSH_STARTUP})
         self.assertEqual(sum(call[:3] == ("sudo", "-n", "chsh") for call in guest.calls), 1)
+        self.assertEqual(sum("clone" in call for call in guest.calls), 1)
         self.assertFalse(any(call[:2] == ("mise", "use") for call in guest.calls))
 
     def test_shell_check_mode_reports_work_without_installing_writing_or_changing_accounts(self):
@@ -336,6 +353,8 @@ class FeatureTests(unittest.TestCase):
         self.assertIn("Set owner login shell: zsh", result["actions"])
         self.assertEqual(guest.shell, "/bin/bash")
         self.assertNotIn("zsh", guest.packages)
+        self.assertNotIn("starship", guest.packages)
+        self.assertFalse((guest.home / ".oh-my-zsh").exists())
         self.assertFalse(any((guest.home / name).exists() for name in FEATURE.ZSH_STARTUP))
         self.assertFalse(any(call[0] == "omarchy-pkg-add" or call[:3] == ("sudo", "-n", "chsh")
                              or call[0] == "zsh" for call in guest.calls))
@@ -343,7 +362,8 @@ class FeatureTests(unittest.TestCase):
     def test_bash_override_and_keep_leave_zsh_files_and_unrelated_shells_alone(self):
         for selected in ("bash", "keep"):
             guest = Guest()
-            config = {**FEATURE.CATALOGUE["features"]["workstation"]["defaults"], "shell": selected}
+            config = {**FEATURE.CATALOGUE["features"]["workstation"]["defaults"], "shell": selected,
+                      "oh_my_zsh_plugins": ["unused-missing-plugin"], "starship_config": "add_newline = false\n"}
             self.apply(guest, "workstation", config, check=True)
             guest.shell = "/usr/bin/zsh" if selected == "bash" else "/usr/bin/fish"
             rc = guest.home / ".zshrc"
@@ -352,8 +372,244 @@ class FeatureTests(unittest.TestCase):
             self.assertEqual(guest.shell, "/bin/bash" if selected == "bash" else "/usr/bin/fish")
             self.assertEqual(rc.read_text(), "# Keep my settings\n")
             self.assertNotIn("zsh", guest.packages)
+            self.assertNotIn("starship", guest.packages)
+            self.assertFalse((guest.home / ".oh-my-zsh").exists())
             self.assertFalse(any(call[0] == "zsh" for call in guest.calls))
             self.assertFalse(self.apply(guest, "workstation", config)["changed"])
+
+    def test_zsh_extras_are_independent_and_can_be_disabled_without_removing_software(self):
+        for omz, starship in ((True, True), (True, False), (False, True), (False, False)):
+            with self.subTest(oh_my_zsh=omz, starship=starship):
+                guest = Guest()
+                config = {**FEATURE.CATALOGUE["features"]["workstation"]["defaults"], "oh_my_zsh": omz, "starship": starship}
+                self.apply(guest, "workstation", config)
+                rc = guest.home / ".zshrc"
+                self.assertEqual("oh-my-zsh.sh" in rc.read_text(), omz)
+                self.assertEqual("starship init zsh" in rc.read_text(), starship)
+                self.assertEqual("starship" in guest.packages, starship)
+                self.assertEqual((guest.home / ".oh-my-zsh").exists(), omz)
+                self.assertFalse(self.apply(guest, "workstation", config)["changed"])
+                rc.write_text(rc.read_text() + "# My aliases\nalias ll='ls -l'\n")
+                disabled = {**config, "oh_my_zsh": False, "starship": False}
+                self.apply(guest, "workstation", disabled)
+                self.assertIn("alias ll='ls -l'", rc.read_text())
+                self.assertNotIn("oh-my-zsh.sh", rc.read_text())
+                self.assertNotIn("starship init zsh", rc.read_text())
+                self.assertEqual("starship" in guest.packages, starship)
+                self.assertEqual((guest.home / ".oh-my-zsh").exists(), omz)
+                self.assertFalse(self.apply(guest, "workstation", disabled)["changed"])
+
+    def test_zsh_prompt_toggle_updates_only_untouched_blocks_and_preserves_upstream_and_config(self):
+        guest = Guest()
+        config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+        self.apply(guest, "workstation", config)
+        source = guest.home / ".oh-my-zsh/oh-my-zsh.sh"
+        source.write_text("# Personal upstream modifications\n")
+        prompt = guest.home / ".config/starship.toml"
+        prompt.parent.mkdir(exist_ok=True)
+        prompt.write_text("add_newline = false\n")
+        self.apply(guest, "workstation", {**config, "starship": False})
+        rc = guest.home / ".zshrc"
+        self.assertIn('ZSH_THEME="${ZSH_THEME-robbyrussell}"', rc.read_text())
+        self.apply(guest, "workstation", config)
+        self.assertIn('ZSH_THEME=""', rc.read_text())
+        self.assertEqual(source.read_text(), "# Personal upstream modifications\n")
+        self.assertEqual(prompt.read_text(), "add_newline = false\n")
+        self.assertEqual(sum("clone" in call for call in guest.calls), 1)
+        rc.write_text(rc.read_text().replace('starship init zsh', 'starship init zsh --print-full-init'))
+        before = rc.read_bytes()
+        with self.assertRaisesRegex(FEATURE.FeatureError, "Preserving customized"):
+            self.apply(guest, "workstation", config)
+        self.assertEqual(rc.read_bytes(), before)
+
+    def test_zsh_preserves_incomplete_framework_and_user_managed_initialization(self):
+        for personal in ('source "$ZSH/oh-my-zsh.sh"\n', 'eval "$(starship init zsh)"\n',
+                         'source ~/powerlevel10k/powerlevel10k.zsh-theme\n', None):
+            guest = Guest()
+            config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+            self.apply(guest, "workstation", config, check=True)
+            rc = guest.home / ".zshrc"
+            if personal is None:
+                (guest.home / ".oh-my-zsh").mkdir()
+            else:
+                rc.write_text(personal)
+            with self.subTest(personal=personal), self.assertRaisesRegex(FEATURE.FeatureError, "Preserving"):
+                self.apply(guest, "workstation", config)
+            self.assertEqual(rc.read_text() if rc.exists() else None, personal)
+            self.assertEqual(guest.shell, "/bin/bash")
+            self.assertFalse(any("clone" in call for call in guest.calls))
+
+    def test_failed_framework_clone_leaves_no_partial_install_or_startup_edits(self):
+        guest = Guest()
+        original = guest.native
+        def fail_clone(argv, **kwargs):
+            if "clone" in argv:
+                path = Path(argv[-1])
+                path.mkdir()
+                (path / "partial").touch()
+                raise FEATURE.FeatureError("clone interrupted")
+            return original(argv, **kwargs)
+        guest.native = fail_clone
+        config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+        with self.assertRaisesRegex(FEATURE.FeatureError, "clone interrupted"):
+            self.apply(guest, "workstation", config)
+        self.assertFalse((guest.home / ".oh-my-zsh").exists())
+        self.assertFalse(list(guest.home.glob(".dev-vm-omz-*")))
+        self.assertFalse((guest.home / ".zshrc").exists())
+        self.assertEqual(guest.shell, "/bin/bash")
+
+    def test_shell_configuration_check_apply_update_and_opt_out_preserve_personal_files(self):
+        guest = Guest()
+        config = {**FEATURE.CATALOGUE["features"]["workstation"]["defaults"],
+                  "oh_my_zsh_plugins": ["git", "docker-compose"], "oh_my_zsh_update_mode": "disabled",
+                  "starship_config": "add_newline = false\n[character]\nsuccess_symbol = '[❯](green)'\n"}
+        self.apply(guest, "workstation", config, check=True)
+        managed = guest.home / FEATURE.STARSHIP_CONFIG
+        self.assertFalse(managed.exists())
+        personal = guest.home / ".config/starship.toml"
+        personal.parent.mkdir()
+        personal.write_text("# Personal prompt\n")
+        rc = guest.home / ".zshrc"
+        rc.write_text("plugins=(docker)\nalias mine='echo personal'\n")
+        self.apply(guest, "workstation", config)
+        self.assertIn("plugins=(git docker-compose)", rc.read_text())
+        self.assertIn("zstyle ':omz:update' mode disabled", rc.read_text())
+        self.assertIn('export STARSHIP_CONFIG="$HOME/.config/dev-vm/starship.toml"', rc.read_text())
+        self.assertTrue(managed.read_text().endswith(config["starship_config"]))
+        self.assertEqual(managed.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(personal.read_text(), "# Personal prompt\n")
+        original = rc.read_bytes(), managed.read_bytes()
+        self.assertFalse(self.apply(guest, "workstation", config)["changed"])
+        updated = {**config, "oh_my_zsh_plugins": [], "oh_my_zsh_update_mode": "auto",
+                   "starship_config": "add_newline = true\n"}
+        self.apply(guest, "workstation", updated, check=True)
+        self.assertEqual(original, (rc.read_bytes(), managed.read_bytes()))
+        self.apply(guest, "workstation", updated)
+        self.assertIn("plugins=()", rc.read_text())
+        self.assertIn("zstyle ':omz:update' mode auto", rc.read_text())
+        self.assertTrue(managed.read_text().endswith(updated["starship_config"]))
+        self.assertFalse(self.apply(guest, "workstation", updated)["changed"])
+        self.apply(guest, "workstation", {**config, "oh_my_zsh_plugins": None,
+                                         "oh_my_zsh_update_mode": "", "starship_config": ""})
+        self.assertIn("plugins=(docker)", rc.read_text())
+        self.assertIn("alias mine='echo personal'", rc.read_text())
+        self.assertNotIn("zstyle ':omz:update'", rc.read_text())
+        self.assertNotIn("export STARSHIP_CONFIG=", rc.read_text())
+        self.assertTrue(managed.exists())
+        self.assertEqual(personal.read_text(), "# Personal prompt\n")
+
+    def test_configured_plugins_are_checked_before_startup_changes_and_no_custom_downloads(self):
+        guest = Guest()
+        config = {**FEATURE.CATALOGUE["features"]["workstation"]["defaults"], "oh_my_zsh_plugins": ["missing"]}
+        self.apply(guest, "workstation", config, check=True)
+        with self.assertRaisesRegex(FEATURE.FeatureError, "plugin unavailable: missing"):
+            self.apply(guest, "workstation", config)
+        self.assertFalse((guest.home / ".oh-my-zsh").exists())
+        self.assertFalse((guest.home / ".zshrc").exists())
+        self.assertEqual(guest.shell, "/bin/bash")
+        self.apply(guest, "workstation", {**config, "oh_my_zsh_plugins": []})
+        # Accept Oh My Zsh's completion-only and default-custom plugin layouts.
+        custom = guest.home / ".oh-my-zsh/custom/plugins/missing"
+        custom.mkdir(parents=True)
+        (custom / "_missing").touch()
+        self.apply(guest, "workstation", config)
+        self.assertIn("plugins=(missing)", (guest.home / ".zshrc").read_text())
+        (custom / "_missing").unlink()
+        before = (guest.home / ".zshrc").read_bytes()
+        with self.assertRaisesRegex(FEATURE.FeatureError, "plugin unavailable"):
+            self.apply(guest, "workstation", config, check=True)
+        self.assertEqual((guest.home / ".zshrc").read_bytes(), before)
+
+    def test_managed_starship_file_refuses_custom_content_and_symlinked_paths(self):
+        for kind in ("foreign", "modified", "file-link", "directory-link", "parent-file"):
+            guest = Guest()
+            config = {**FEATURE.CATALOGUE["features"]["workstation"]["defaults"], "starship_config": "add_newline = false\n"}
+            self.apply(guest, "workstation", config, check=True)
+            path = guest.home / FEATURE.STARSHIP_CONFIG
+            if kind == "modified":
+                self.apply(guest, "workstation", config)
+                path.write_text(path.read_text() + "# personal edit\n")
+            else:
+                target = guest.home / "personal.toml"
+                target.write_text("# personal\n")
+                if kind == "directory-link":
+                    path.parent.parent.mkdir()
+                    path.parent.symlink_to(guest.home, target_is_directory=True)
+                elif kind == "parent-file":
+                    path.parent.parent.write_text("# preserve\n")
+                else:
+                    path.parent.mkdir(parents=True)
+                    if kind == "file-link":
+                        path.symlink_to(target)
+                    else:
+                        path.write_text("# foreign file\n")
+            rc = guest.home / ".zshrc"
+            before = rc.read_bytes() if rc.exists() else None
+            with self.subTest(kind=kind), self.assertRaisesRegex(FEATURE.FeatureError, "Preserving"):
+                self.apply(guest, "workstation", config)
+            self.assertEqual(rc.read_bytes() if rc.exists() else None, before)
+
+    def test_dynamic_managed_blocks_preserve_edits_and_upgrade_known_legacy_blocks(self):
+        guest = Guest()
+        config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+        self.apply(guest, "workstation", config)
+        rc = guest.home / ".zshrc"
+        legacy_omz = FEATURE.OH_MY_ZSH_STARTUP.format(theme=FEATURE.OH_MY_ZSH_THEMES[0])
+        rc.write_text("# personal\n" + FEATURE.managed_block("Oh My Zsh", legacy_omz)
+                      + FEATURE.managed_block("Starship prompt", FEATURE.STARSHIP_STARTUP))
+        self.apply(guest, "workstation", config)
+        self.assertIn(FEATURE.CONTENT_HASH, rc.read_text())
+        rc.write_text(rc.read_text().replace("mode reminder", "mode disabled"))
+        before = rc.read_bytes()
+        with self.assertRaisesRegex(FEATURE.FeatureError, "Preserving customized"):
+            self.apply(guest, "workstation", config)
+        self.assertEqual(rc.read_bytes(), before)
+
+    @unittest.skipUnless(shutil.which("zsh"), "zsh is not installed; no host installation attempted")
+    def test_generated_zsh_startup_runs_with_plugins_and_single_prompt_in_order(self):
+        guest = Guest()
+        config = dict(FEATURE.CATALOGUE["features"]["workstation"]["defaults"])
+        self.apply(guest, "workstation", config)
+        # Exercise the generated shell with small upstream stand-ins; no network
+        # or third-party software installation is needed on the test host.
+        (guest.home / ".oh-my-zsh/oh-my-zsh.sh").write_text(
+            '[[ -z "$ZSH_THEME" ]] || return 21\n'
+            '[[ "$plugins[*]" == docker ]] || return 22\n'
+            'typeset -ga loaded=(omz)\n')
+        binary = guest.home / "bin"
+        binary.mkdir()
+        starship = binary / "starship"
+        starship.write_text('#!/bin/sh\ncat <<\'INIT\'\n'
+                            '[[ "$loaded[*]" == omz ]] || return 23\n'
+                            'loaded+=(starship)\nexport STARSHIP_SHELL=zsh\n'
+                            'precmd_functions+=(prompt_starship_precmd)\nINIT\n')
+        starship.chmod(0o700)
+        # Source explicitly under -f so the host's personal rc files cannot run.
+        probe = ('plugins=(docker); source "$HOME/.zshrc"; '
+                 '[[ "$loaded[*]" == "omz starship" && "$plugins[*]" == docker ]] && '
+                 '[[ "$STARSHIP_SHELL" == zsh ]] && (( ${precmd_functions[(I)*starship*]} > 0 ))')
+        result = subprocess.run([shutil.which("zsh"), "-dfc", probe], cwd=guest.home,
+                                env={"HOME": str(guest.home), "PATH": str(binary) + ":/usr/bin:/bin", "TERM": "xterm-256color"},
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        # Explicit configuration overrides a personal plugins array, selects our
+        # TOML file and sets update behavior before sourcing the framework.
+        configured = {**config, "oh_my_zsh_plugins": ["git", "docker-compose"], "oh_my_zsh_update_mode": "disabled",
+                      "starship_config": "add_newline = false\n"}
+        self.apply(guest, "workstation", configured)
+        (guest.home / ".oh-my-zsh/oh-my-zsh.sh").write_text(
+            '[[ -z "$ZSH_THEME" && "$plugins[*]" == "git docker-compose" ]] || return 21\n'
+            'zstyle -s ":omz:update" mode update_mode\n'
+            '[[ "$update_mode" == disabled ]] || return 22\n'
+            'typeset -ga loaded=(omz)\n')
+        probe = ('plugins=(docker); source "$HOME/.zshrc"; '
+                 '[[ "$loaded[*]" == "omz starship" && "$plugins[*]" == "git docker-compose" ]] && '
+                 '[[ "$STARSHIP_CONFIG" == "$HOME/.config/dev-vm/starship.toml" && -r "$STARSHIP_CONFIG" ]]')
+        result = subprocess.run([shutil.which("zsh"), "-dfc", probe], cwd=guest.home,
+                                env={"HOME": str(guest.home), "PATH": str(binary) + ":/usr/bin:/bin", "TERM": "xterm-256color"},
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_zsh_refuses_customized_blocks_and_symlinks_without_changing_login_shell(self):
         for kind in ("block", "symlink"):

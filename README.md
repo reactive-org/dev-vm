@@ -19,6 +19,7 @@ Install missing host tools separately; this repository does not install them.
 | Docker CLI and a running ARM64 Linux engine | `make build-omarchy-image` and `make check-omarchy-image`. Full image builds require privileged containers. The official factory and image previews (`OMARCHY_IMAGE_PLAN=yes`) do not require host Docker. |
 | Ansible (`ansible-playbook`, `ansible-inventory`) | Optional feature playbooks (`make apply-playbook`), `make syntax-check` and the complete `make test-omarchy` suite. CI pins `ansible-core` 2.21.5. Standard bootstrap does not require Ansible. |
 | PyYAML | Reading YAML setup, catalogue or variables files. The loader can reuse the existing Ansible Python runtime; JSON files do not need PyYAML. |
+| Python 3.11+ | Providing optional `starship_config` TOML in feature playbooks; validation uses the standard-library TOML parser. |
 | Authenticated GitHub CLI (`gh`) or `GH_TOKEN`/`GITHUB_TOKEN` | Optional theme selection by GitHub stars. See [theme selection](docs/omarchy-themes.md). |
 
 Guest applications, Docker, mise and language runtimes are managed inside the VM
@@ -72,7 +73,8 @@ Next: [add developer tools](docs/omarchy-features.md) or [choose a theme](docs/o
 If projects own their tools through `mise.toml`, choose the
 [`project-managed` profile](docs/omarchy-features.md#let-projects-manage-their-toolchains)
 for the workstation, mise and native build prerequisites without selecting
-global runtimes. Feature playbooks default the login shell to zsh; select `bash`
+global runtimes. Feature playbooks default to zsh with optional Oh My Zsh and
+Starship enabled; select `bash`
 or `keep` through the [workstation shell setting](docs/omarchy-features.md#login-shell).
 
 [All documentation](docs/README.md) · [Prerequisites and settings](docs/omarchy-bootstrap.md) · [Repository checks](docs/development.md)

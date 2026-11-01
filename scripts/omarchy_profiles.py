@@ -283,6 +283,12 @@ class Resolver:
                 files.append("owner login shell (" + shell + ")")
             if shell == "zsh":
                 files.append("~/.zshenv and ~/.zshrc (Omarchy environment and conditional mise activation)")
+                if configs["workstation"]["oh_my_zsh"]:
+                    files.append("~/.oh-my-zsh (official upstream clone when absent; existing installation preserved)")
+                if configs["workstation"]["starship"]:
+                    files.append("~/.zshrc (Starship prompt; existing starship.toml preserved)")
+                    if configs["workstation"]["starship_config"]:
+                        files.append("~/.config/dev-vm/starship.toml (managed TOML selected via STARSHIP_CONFIG)")
         if "toolchain" in ordered:
             files.append("mise shims (initialized only on native mise installation); Bash and selected zsh activation verified")
         if mise:
@@ -291,6 +297,10 @@ class Resolver:
                 "reasons": {name: sorted(set(reasons.get(name, []))) for name in ordered},
                 "packages": packages, "mise": mise, "sources": self.sources,
                 "effects": {"files": files,
+                            "sources": ([{"url": contract.CATALOGUE["features"]["workstation"]["oh_my_zsh_repository"],
+                                          "destination": "~/.oh-my-zsh", "updates": "Oh My Zsh updater; no pull on reapplication"}]
+                                        if "workstation" in ordered and configs["workstation"]["shell"] == "zsh"
+                                        and configs["workstation"]["oh_my_zsh"] else []),
                             "native": "Packages, browser integration and shims remain owned by native Omarchy/mise commands",
                             "services": ["Docker UFW integration and socket activation"] if "docker" in ordered else []},
                 "limits": ["Selectors may move; guest package and ARM64 tool availability are checked in the guest.",
@@ -331,6 +341,11 @@ def schemas():
                                            "items": {"enum": list(contract.CATALOGUE["language_packages"])}}})
         else:
             config = obj({"shell": {"enum": [*definition["shells"], "keep"]},
+                          "oh_my_zsh": {"type": "boolean"}, "starship": {"type": "boolean"},
+                          "oh_my_zsh_plugins": {"type": ["array", "null"], "uniqueItems": True,
+                                                "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"}},
+                          "oh_my_zsh_update_mode": {"enum": ["", "prompt", "auto", "reminder", "disabled"]},
+                          "starship_config": {"type": "string", "maxLength": 65536},
                           "font_size": {"type": "string", "pattern": "^(?:[6-9]|[12][0-9]|3[0-2])(?:\\.[0-9]+)?$"},
                           "idle_mode": {"enum": ["host", "guest", "keep"]}, "theme": {"type": "string"},
                           "layout": {"type": "string"}, "remove_layout": {"type": "boolean"}})

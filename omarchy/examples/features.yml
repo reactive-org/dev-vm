@@ -11,6 +11,11 @@ omarchy_agents:
   opencode: ""
 omarchy_credential_packages: [1password, 1password-cli]
 omarchy_shell: zsh # zsh, bash, or keep the current login shell
+omarchy_oh_my_zsh: true # Optional zsh completion/plugins
+omarchy_oh_my_zsh_plugins: null # Preserve existing plugins, default [git] on a fresh shell; [] enables none.
+omarchy_oh_my_zsh_update_mode: reminder # prompt, auto, reminder, disabled; "" preserves native policy.
+omarchy_starship: true # Optional zsh prompt
+omarchy_starship_config: "" # Optional native TOML; see the setup.yml example.
 omarchy_foot_font_size: "12"
 omarchy_idle_mode: host
 omarchy_theme: ""

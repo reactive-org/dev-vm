@@ -95,6 +95,36 @@
                       "keep"
                     ]
                   },
+                  "oh_my_zsh": {
+                    "type": "boolean"
+                  },
+                  "starship": {
+                    "type": "boolean"
+                  },
+                  "oh_my_zsh_plugins": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+                    }
+                  },
+                  "oh_my_zsh_update_mode": {
+                    "enum": [
+                      "",
+                      "prompt",
+                      "auto",
+                      "reminder",
+                      "disabled"
+                    ]
+                  },
+                  "starship_config": {
+                    "type": "string",
+                    "maxLength": 65536
+                  },
                   "font_size": {
                     "type": "string",
                     "pattern": "^(?:[6-9]|[12][0-9]|3[0-2])(?:\\.[0-9]+)?$"
@@ -128,6 +158,36 @@
                       "bash",
                       "keep"
                     ]
+                  },
+                  "oh_my_zsh": {
+                    "type": "boolean"
+                  },
+                  "starship": {
+                    "type": "boolean"
+                  },
+                  "oh_my_zsh_plugins": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+                    }
+                  },
+                  "oh_my_zsh_update_mode": {
+                    "enum": [
+                      "",
+                      "prompt",
+                      "auto",
+                      "reminder",
+                      "disabled"
+                    ]
+                  },
+                  "starship_config": {
+                    "type": "string",
+                    "maxLength": 65536
                   },
                   "font_size": {
                     "type": "string",

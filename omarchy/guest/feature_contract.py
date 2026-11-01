@@ -75,6 +75,23 @@ def validate_config(feature, value, *, extension=False):
     elif handler == "workstation":
         if not isinstance(value["shell"], str) or value["shell"] not in (*definition["shells"], "keep"):
             raise FeatureError("Shell must be zsh, bash or keep")
+        if any(type(value[name]) is not bool for name in ("oh_my_zsh", "starship")):
+            raise FeatureError("oh_my_zsh and starship must be booleans")
+        if value["oh_my_zsh_plugins"] is not None:
+            strings(value["oh_my_zsh_plugins"], r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", "Oh My Zsh plugins")
+        if not isinstance(value["oh_my_zsh_update_mode"], str) or value["oh_my_zsh_update_mode"] not in ("", "prompt", "auto", "reminder", "disabled"):
+            raise FeatureError("Oh My Zsh update mode must be empty, prompt, auto, reminder or disabled")
+        if not isinstance(value["starship_config"], str) or len(value["starship_config"].encode()) > 65536:
+            raise FeatureError("starship_config must be TOML text of at most 64 KiB")
+        if value["starship_config"]:
+            try:
+                import tomllib
+            except ImportError as error:
+                raise FeatureError("Validating starship_config requires an existing Python 3.11+ interpreter") from error
+            try:
+                tomllib.loads(value["starship_config"])
+            except tomllib.TOMLDecodeError as error:
+                raise FeatureError(f"Invalid starship_config TOML: {error}") from error
         if not isinstance(value["font_size"], str) or not re.fullmatch(r"(?:[6-9]|[12][0-9]|3[0-2])(?:\.[0-9]+)?", value["font_size"]):
             raise FeatureError("Foot font size must be between 6 and 32")
         if value["idle_mode"] not in ("host", "guest", "keep"):
@@ -108,6 +125,11 @@ def requirements(feature, config, *, extension=False):
         packages.extend(CATALOGUE["workstation_packages"])
         if config["shell"] != "keep":
             packages.append(config["shell"])
+        if config["shell"] == "zsh":
+            if config["oh_my_zsh"]:
+                packages.append("git")
+            if config["starship"]:
+                packages.append("starship")
     elif handler == "toolchain":
         packages.append("mise-bin")
         for language in config["prerequisites"]:

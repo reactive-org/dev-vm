@@ -42,18 +42,70 @@ class ProfileTests(unittest.TestCase):
         default = Resolver().resolve()
         self.assertEqual(default["options"]["workstation"]["shell"], "zsh")
         self.assertIn("zsh", default["packages"])
+        self.assertIn("starship", default["packages"])
+        self.assertIn("git", default["packages"])
+        self.assertTrue(default["options"]["workstation"]["oh_my_zsh"])
+        self.assertTrue(default["options"]["workstation"]["starship"])
+        self.assertEqual(default["effects"]["sources"][0]["url"], "https://github.com/ohmyzsh/ohmyzsh.git")
         self.assertEqual(launcher.plan_variables(default)["omarchy_shell"], "zsh")
         for selected in ("bash", "keep"):
             plan = Resolver().resolve(setup_file=self.setup(options={"workstation": {"shell": selected}}))
             self.assertEqual(plan["options"]["workstation"]["shell"], selected)
             self.assertEqual(launcher.plan_variables(plan)["omarchy_shell"], selected)
             self.assertNotIn("zsh", plan["packages"])
+            self.assertNotIn("starship", plan["packages"])
+            self.assertEqual(plan["effects"]["sources"], [])
         legacy = launcher.overrides({"omarchy_shell": "bash"})
         plan = Resolver().resolve(setup_file=self.setup(options={"workstation": {"shell": "zsh"}}), overrides=legacy)
         self.assertEqual(plan["options"]["workstation"]["shell"], "bash")
         for invalid in ("fish", "/bin/zsh", "zsh;id", "", None, ["zsh"]):
             with self.subTest(shell=invalid), self.assertRaises(ProfileError):
                 Resolver().resolve(setup_file=self.setup(options={"workstation": {"shell": invalid}}))
+
+    def test_zsh_extras_resolve_independently_with_strict_boolean_overrides(self):
+        for omz, starship in ((True, True), (True, False), (False, True), (False, False)):
+            plan = Resolver().resolve(overrides=launcher.overrides({"omarchy_oh_my_zsh": omz, "omarchy_starship": starship}))
+            self.assertEqual("starship" in plan["packages"], starship)
+            self.assertEqual("git" in plan["packages"], omz)
+            self.assertEqual(bool(plan["effects"]["sources"]), omz)
+            self.assertEqual(launcher.plan_variables(plan)["omarchy_oh_my_zsh"], omz)
+            self.assertEqual(launcher.plan_variables(plan)["omarchy_starship"], starship)
+        for field in ("oh_my_zsh", "starship"):
+            for value in ("false", 1, None, []):
+                with self.subTest(field=field, value=value), self.assertRaises(ProfileError):
+                    Resolver().resolve(overrides={"workstation": {field: value}})
+
+    def test_shell_configuration_round_trips_selection_legacy_vars_and_effects(self):
+        config = {"oh_my_zsh_plugins": ["git", "docker", "docker-compose"], "oh_my_zsh_update_mode": "disabled",
+                  "starship_config": "add_newline = false\n[character]\nsuccess_symbol = '[❯](green)'\n"}
+        plan = Resolver().resolve(setup_file=self.setup(options={"workstation": config}))
+        for name, value in config.items():
+            self.assertEqual(plan["options"]["workstation"][name], value)
+            self.assertEqual(launcher.plan_variables(plan)["omarchy_" + name], value)
+        legacy = launcher.overrides({"omarchy_" + name: value for name, value in config.items()})
+        self.assertEqual(legacy["workstation"], config)
+        self.assertTrue(any(".config/dev-vm/starship.toml" in path for path in plan["effects"]["files"]))
+        disabled = Resolver().resolve(overrides={"workstation": {**config, "starship": False}})
+        self.assertFalse(any(".config/dev-vm/starship.toml" in path for path in disabled["effects"]["files"]))
+        default = Resolver().resolve()["options"]["workstation"]
+        self.assertIsNone(default["oh_my_zsh_plugins"])
+        self.assertEqual(default["oh_my_zsh_update_mode"], "reminder")
+        self.assertEqual(default["starship_config"], "")
+
+    def test_shell_configuration_rejects_invalid_names_modes_and_toml_locally(self):
+        invalid = [{"oh_my_zsh_plugins": value} for value in
+                   ("git", ["git", "git"], ["../git"], ["$(id)"], ["git;id"], ["git\nwhoami"], [1])]
+        invalid += [{"oh_my_zsh_update_mode": value} for value in (None, [], True, "bogus", "auto;id")]
+        invalid += [{"starship_config": value} for value in (None, {}, True, "bad = [", "a=1\na=2", "#" * 65537)]
+        for config in invalid:
+            with self.subTest(config=str(config)[:100]), self.assertRaises(ProfileError):
+                Resolver().resolve(overrides={"workstation": config})
+
+    def test_missing_toml_parser_only_blocks_explicit_starship_configuration(self):
+        with mock.patch.dict(sys.modules, {"tomllib": None}):
+            self.assertEqual(Resolver().resolve()["options"]["workstation"]["starship_config"], "")
+            with self.assertRaisesRegex(ProfileError, "Python 3.11"):
+                Resolver().resolve(overrides={"workstation": {"starship_config": "add_newline = false"}})
 
     def test_profiles_have_complete_separate_toolchains_and_no_credentials(self):
         for name in ("developer", "web", "python"):

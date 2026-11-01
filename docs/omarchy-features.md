@@ -63,7 +63,7 @@ leave existing software and settings alone; deselection never uninstalls tools.
 
 | Feature / Ansible tag | Baseline when selected | Configuration |
 | --- | --- | --- |
-| `workstation` | zsh login shell, Foot size 12, host-owned idle policy and GPU compatibility repair | `shell`: `zsh`, `bash` or `keep`; `font_size`, `idle_mode`, `theme`, `layout`, `remove_layout` |
+| `workstation` | zsh with Oh My Zsh and Starship, Foot size 12, host-owned idle policy and GPU compatibility repair | `shell`: `zsh`, `bash` or `keep`; `oh_my_zsh`, `oh_my_zsh_plugins`, `oh_my_zsh_update_mode`, `starship`, `starship_config`; `font_size`, `idle_mode`, `theme`, `layout`, `remove_layout` |
 | `cli` | ripgrep, fd, fzf, jq and tree | `packages` list and `tools` mise map |
 | `vcs` | Git, git-lfs, git-delta and lazygit | `packages` and `tools`; no identity, signing or hook configuration |
 | `editors` | Neovim | `editors`: `neovim`, `vscode`, both or neither; settings/extensions remain untouched |
@@ -107,10 +107,27 @@ in a selection file:
 ```yaml
 options:
   workstation:
-    shell: bash # zsh (default), bash, or keep the current shell
+    shell: zsh # zsh (default), bash, or keep the current shell
+    oh_my_zsh: true # Default enabled; completion/plugins
+    oh_my_zsh_plugins: [git, docker, docker-compose]
+    oh_my_zsh_update_mode: reminder
+    starship: true # Default enabled; prompt
+    starship_config: |
+      add_newline = false
+      format = '$directory$git_branch$git_status$cmd_duration$line_break$character'
+
+      [directory]
+      truncation_length = 3
+
+      [character]
+      success_symbol = '[❯](bold green)'
+      error_symbol = '[❯](bold red)'
 ```
 
-For legacy variables or direct Ansible runs, use `omarchy_shell: bash`.
+Set either boolean to `false` to opt out independently. Both are ignored for
+`bash` and `keep`. Legacy variables and direct Ansible runs use `omarchy_shell`,
+`omarchy_oh_my_zsh`, `omarchy_oh_my_zsh_plugins`, `omarchy_oh_my_zsh_update_mode`,
+`omarchy_starship` and `omarchy_starship_config`.
 `keep` skips shell installation, startup-file edits and login-shell changes.
 The setting applies only when `workstation` is selected, including through a profile.
 
@@ -121,6 +138,42 @@ managed blocks and symlinks stop configuration for review. No global runtimes
 are selected. Existing terminals keep their shell; log out and back in to refresh
 the desktop session. Bootstrap alone retains its existing shell behavior until
 the playbook's workstation feature is applied.
+
+[Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh) supplies completion and plugins
+(`git` by default, or your existing `plugins` array).
+[Starship](https://starship.rs/guide/) supplies the prompt and initializes last;
+Oh My Zsh's theme is disabled when Starship is enabled. The desktop theme and
+existing `~/.config/starship.toml` remain untouched. Omarchy's Nerd Font is reused.
+
+`oh_my_zsh_plugins` defaults to `null`: preserve an existing `plugins` array, or
+use `[git]` on a fresh shell. An explicit list replaces that array; `[]` enables
+none. Selected plugins must already be bundled with Oh My Zsh or installed under
+its default `custom/plugins` directory. Availability is checked before startup
+files change; when the framework is absent, check mode defers that check until
+application clones it. Plugins do not install their corresponding applications
+or download third-party plugins. `oh_my_zsh_update_mode` defaults to `reminder`;
+other modes are `prompt`, `auto` or `disabled`. An empty string leaves existing
+native update policy alone.
+
+`starship_config` defaults to an empty string, leaving native personal settings
+active. Supplied text is validated as TOML before connecting to the guest, written
+to `~/.config/dev-vm/starship.toml`, and selected with `STARSHIP_CONFIG` in the
+managed startup block. TOML validation requires an existing Python 3.11+ on the
+controller; other workflows still support Python 3.10. Starship owns module and
+format semantics. Edit the playbook to update this managed configuration;
+personal edits to managed files/blocks stop application for review. Omitting or
+emptying the setting removes our `STARSHIP_CONFIG` export and retains the unused
+managed file. Personal Starship files, aliases and other startup content remain
+intact. These settings apply only when their respective zsh add-on is enabled.
+
+Starship and Git use `omarchy-pkg-add`. Oh My Zsh is cloned from its official
+repository into the guest owner's `~/.oh-my-zsh` only when absent. Its installer
+is not run, and existing installations are reused without pulling or resetting;
+updates remain with `omz update`. The resolved proposal includes this source.
+Reapplying is idempotent. Disabling an option removes only its untouched managed
+startup block and retains the installed software. Existing user-managed Oh My Zsh,
+Starship or Powerlevel10k startup stops configuration for review rather than
+adding competing initialization; opt out or migrate those startup lines first.
 
 ## Let projects manage their toolchains
 

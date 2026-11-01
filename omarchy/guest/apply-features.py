@@ -7,9 +7,11 @@ import json
 import os
 import platform
 import pwd
+import re
 import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -33,6 +35,48 @@ ZSH_STARTUP = {
     ".zshrc": ("mise activation", "if command -v mise >/dev/null 2>&1; then\n"
                '  eval "$(mise activate zsh)"\nfi'),
 }
+OH_MY_ZSH_STARTUP = ('export ZSH="$HOME/.oh-my-zsh"\n{theme}\n'
+                     'if (( ! ${{+plugins}} )); then plugins=(git); fi\n'
+                     'source "$ZSH/oh-my-zsh.sh"')
+OH_MY_ZSH_THEMES = ('ZSH_THEME=""', 'ZSH_THEME="${ZSH_THEME-robbyrussell}"')
+STARSHIP_STARTUP = ('if command -v starship >/dev/null 2>&1; then\n'
+                    '  eval "$(starship init zsh)"\nfi')
+STARSHIP_CONFIG = Path(".config/dev-vm/starship.toml")
+CONTENT_HASH = "# dev-vm content-sha256: "
+
+
+def tracked_content(text):
+    return CONTENT_HASH + hashlib.sha256(text.encode()).hexdigest() + "\n" + text
+
+
+def unchanged_content(text):
+    header, _, content = text.partition("\n")
+    return header == CONTENT_HASH + hashlib.sha256(content.encode()).hexdigest()
+
+
+def managed_block(label, snippet, *, tracked=False):
+    if tracked:
+        snippet = tracked_content(snippet)
+    return f"# >>> dev-vm {label} >>>\n{snippet}\n# <<< dev-vm {label} <<<\n"
+
+
+def remove_managed_block(text, label, snippets):
+    """Only replace blocks whose entire contents are still repository-owned."""
+    start, end = f"# >>> dev-vm {label} >>>", f"# <<< dev-vm {label} <<<"
+    if start not in text and end not in text:
+        return text
+    if text.count(start) == text.count(end) == 1:
+        for snippet in snippets:
+            block = managed_block(label, snippet)
+            if block in text:
+                return text.replace(block, "", 1)
+        # Dynamic options can change between applications. A content digest
+        # distinguishes our previous generated contents from personal edits.
+        pattern = rf"(?m)^{re.escape(start)}\n(.*?)\n{re.escape(end)}\n"
+        match = re.search(pattern, text, re.DOTALL)
+        if match and unchanged_content(match[1]):
+            return text[:match.start()] + text[match.end():]
+    raise FeatureError("Preserving customized dev-vm block: " + label)
 
 
 def run(argv, *, check=True):
@@ -206,9 +250,107 @@ class FeatureRunner:
         probe = ('[[ "$MISE_SHELL" == zsh ]] && (( $+functions[mise] )) && '
                  '(( ${precmd_functions[(I)*mise*]} > 0 )) && '
                  '(( ${chpwd_functions[(I)*mise*]} > 0 ))')
-        if native(["zsh", "-ic", probe], check=False).returncode:
+        if native(["env", "DISABLE_AUTO_UPDATE=true", "zsh", "-ic", probe], check=False).returncode:
             raise FeatureError("Zsh mise activation is missing; select workstation shell zsh or restore ~/.zshrc before retrying")
         self.notes.append("Zsh mise activation verified; no global runtime selections added")
+
+    def zsh_startup(self):
+        edits = []
+        for name, (label, snippet) in ZSH_STARTUP.items():
+            path = Path.home() / name
+            if path.is_symlink() or (path.exists() and not path.is_file()):
+                raise FeatureError(f"Preserving non-regular zsh startup file: {name}; configure it explicitly or select shell keep")
+            existing = path.read_text() if path.exists() else ""
+            updated = existing
+            # Validate existing managed blocks, but also reuse the original
+            # unmarked native activation installed by earlier workstation setups.
+            without = remove_managed_block(existing, label, [snippet])
+            if without == existing and snippet not in existing and not (name == ".zshrc" and "mise activate zsh" in existing):
+                updated += ("\n" if updated and not updated.endswith("\n") else "") + managed_block(label, snippet)
+            if name == ".zshrc":
+                variants = [OH_MY_ZSH_STARTUP.format(theme=theme) for theme in OH_MY_ZSH_THEMES]
+                updated = remove_managed_block(updated, "Oh My Zsh", variants)
+                updated = remove_managed_block(updated, "Starship prompt", [STARSHIP_STARTUP])
+                personal = "\n".join(line for line in updated.splitlines() if not line.lstrip().startswith("#"))
+                if self.config["oh_my_zsh"] and "oh-my-zsh.sh" in personal:
+                    raise FeatureError("Preserving user-managed Oh My Zsh initialization; set oh_my_zsh false or migrate it before retrying")
+                if self.config["starship"] and re.search(r"starship\s+init|powerlevel10k|p10k\.zsh", personal):
+                    raise FeatureError("Preserving user-managed prompt initialization; set starship false or migrate it before retrying")
+                blocks = []
+                if self.config["oh_my_zsh"]:
+                    theme = OH_MY_ZSH_THEMES[0 if self.config["starship"] else 1]
+                    plugins = self.config["oh_my_zsh_plugins"]
+                    plugin_init = ('if (( ! ${+plugins} )); then plugins=(git); fi' if plugins is None else
+                                   "plugins=(" + shlex.join(plugins) + ")")
+                    update = self.config["oh_my_zsh_update_mode"]
+                    settings = [theme, plugin_init]
+                    if update:
+                        settings.append("zstyle ':omz:update' mode " + update)
+                    snippet = 'export ZSH="$HOME/.oh-my-zsh"\n' + "\n".join(settings) + '\nsource "$ZSH/oh-my-zsh.sh"'
+                    blocks.append(managed_block("Oh My Zsh", snippet, tracked=True))
+                if self.config["starship"]:
+                    snippet = STARSHIP_STARTUP
+                    if self.config["starship_config"]:
+                        snippet = 'export STARSHIP_CONFIG="$HOME/' + str(STARSHIP_CONFIG) + '"\n' + snippet
+                    blocks.append(managed_block("Starship prompt", snippet, tracked=True))
+                if blocks:
+                    updated += ("\n" if updated and not updated.endswith("\n") else "") + "".join(blocks)
+            if updated != existing:
+                edits.append((path, updated))
+        return edits
+
+    def starship_configuration(self):
+        if not self.config["starship"] or not self.config["starship_config"]:
+            return []
+        path = Path.home() / STARSHIP_CONFIG
+        for parent in (path.parent.parent, path.parent):
+            if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
+                raise FeatureError("Preserving non-directory or symlinked Starship configuration path: " + str(parent))
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise FeatureError("Preserving non-regular managed Starship configuration")
+        existing = path.read_text() if path.exists() else None
+        if existing is not None and not unchanged_content(existing):
+            raise FeatureError("Preserving customized managed Starship configuration; migrate edits into starship_config first")
+        desired = tracked_content(self.config["starship_config"])
+        return [(path, desired)] if existing != desired else []
+
+    def verify_oh_my_zsh_plugins(self, path):
+        plugins = self.config["oh_my_zsh_plugins"]
+        if plugins is None:
+            return
+        if not path.exists() and self.check:
+            self.notes.append("Selected Oh My Zsh plugin availability will be verified after cloning; no startup files changed")
+            return
+        for plugin in plugins:
+            if not any((base / plugin / name).is_file()
+                       for base in (path / "plugins", path / "custom/plugins")
+                       for name in (plugin + ".plugin.zsh", "_" + plugin)):
+                raise FeatureError("Oh My Zsh plugin unavailable: " + plugin + "; use an installed bundled/default-custom plugin. No startup files changed")
+
+    def oh_my_zsh(self):
+        if not self.config["oh_my_zsh"]:
+            return
+        path = Path.home() / ".oh-my-zsh"
+        if path.exists() or path.is_symlink():
+            if not path.is_dir() or not (path / "oh-my-zsh.sh").is_file():
+                raise FeatureError("Preserving incomplete or non-directory ~/.oh-my-zsh; move it aside explicitly before retrying")
+            self.verify_oh_my_zsh_plugins(path)
+            self.notes.append("Existing Oh My Zsh installation reused; updates remain owned by omz update")
+            return
+        self.actions.append("Install Oh My Zsh from official upstream into ~/.oh-my-zsh")
+        if not self.check:
+            # Clone as the owner, without running upstream's rc-replacing installer.
+            # Stage first so an interrupted download cannot claim the final path.
+            with tempfile.TemporaryDirectory(prefix=".dev-vm-omz-", dir=Path.home()) as folder:
+                staged = Path(folder) / "oh-my-zsh"
+                native(["env", "GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "git", "-c", "credential.helper=",
+                        "clone", "--depth", "1", "--", CATALOGUE["features"]["workstation"]["oh_my_zsh_repository"], str(staged)])
+                if not (staged / "oh-my-zsh.sh").is_file():
+                    raise FeatureError("Official Oh My Zsh clone is missing its startup script")
+                self.verify_oh_my_zsh_plugins(staged)
+                staged.rename(path)
+        else:
+            self.verify_oh_my_zsh_plugins(path)
 
     def login_shell(self):
         selected = self.config["shell"]
@@ -216,29 +358,18 @@ class FeatureRunner:
             return
         account = pwd.getpwuid(os.geteuid())
         desired = SHELL_PATHS[selected]
-        edits = []
+        edits = self.starship_configuration() + self.zsh_startup() if selected == "zsh" else []
+        packages, _ = requirements("workstation", self.config)
+        self.packages(packages)
         if selected == "zsh":
-            for name, (label, snippet) in ZSH_STARTUP.items():
-                path = Path.home() / name
-                if path.is_symlink() or (path.exists() and not path.is_file()):
-                    raise FeatureError(f"Preserving non-regular zsh startup file: {name}; configure it explicitly or select shell keep")
-                existing = path.read_text() if path.exists() else ""
-                start, end = f"# >>> dev-vm {label} >>>", f"# <<< dev-vm {label} <<<"
-                block = start + "\n" + snippet + "\n" + end + "\n"
-                if start in existing or end in existing:
-                    if block not in existing:
-                        raise FeatureError(f"Preserving customized dev-vm block in {name}")
-                elif snippet not in existing and not (name == ".zshrc" and "mise activate zsh" in existing):
-                    edits.append((path, existing, block))
-
-        self.packages([selected])
-        for path, existing, block in edits:
-            self.actions.append("Configure zsh startup: " + path.name)
+            self.oh_my_zsh()
+        for path, updated in edits:
+            self.actions.append(("Configure Starship: " if path.name == "starship.toml" else "Configure zsh startup: ") + path.name)
             if not self.check:
-                # Append to personal configuration; never source Bash's rc in zsh.
+                # Preserve personal configuration and the existing file mode.
                 new_file = not path.exists()
-                with path.open("a") as output:
-                    output.write(("\n" if existing and not existing.endswith("\n\n") else "") + block)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(updated)
                 if new_file:
                     path.chmod(0o600)
         if not self.check:
@@ -248,10 +379,17 @@ class FeatureRunner:
             if selected == "zsh":
                 for name in ZSH_STARTUP:
                     native(["zsh", "-n", str(Path.home() / name)])
-                if native(["zsh", "-ic", '[[ -n "$OMARCHY_PATH" ]] && command -v omarchy >/dev/null'], check=False).returncode:
+                if native(["env", "DISABLE_AUTO_UPDATE=true", "zsh", "-ic", '[[ -n "$OMARCHY_PATH" ]] && command -v omarchy >/dev/null'], check=False).returncode:
                     raise FeatureError("Zsh cannot load Omarchy's native environment; login shell was not changed")
                 if self.installed("mise-bin"):
                     self.verify_zsh_activation()
+                probes = []
+                if self.config["oh_my_zsh"]:
+                    probes.append('(( $+functions[omz] ))')
+                if self.config["starship"]:
+                    probes.append('[[ "$STARSHIP_SHELL" == zsh ]] && (( ${precmd_functions[(I)*starship*]} > 0 ))')
+                if probes and native(["env", "DISABLE_AUTO_UPDATE=true", "zsh", "-ic", " && ".join(probes)], check=False).returncode:
+                    raise FeatureError("Selected Oh My Zsh/Starship startup integration is missing; login shell was not changed")
 
         if os.path.realpath(account.pw_shell) != os.path.realpath(desired):
             self.mutate(["sudo", "-n", "chsh", "-s", desired, "--", account.pw_name], "Set owner login shell: " + selected)
