@@ -22,7 +22,11 @@ OMARCHY_IMAGE_TRY_SOURCE ?=
 OMARCHY_IMAGE_TRY_COMMIT ?=
 OMARCHY_IMAGE_SIZE_GIB ?= 20
 OMARCHY_IMAGE_PLAN ?= no
-OMARCHY_FEATURES ?= workstation
+OMARCHY_FEATURES ?=
+OMARCHY_PROFILES ?=
+OMARCHY_SETUP_FILE ?=
+OMARCHY_CATALOGUE ?=
+OMARCHY_PLAYBOOK_RESOLVE ?= no
 OMARCHY_VARS_FILE ?=
 OMARCHY_PLAYBOOK_CHECK ?= no
 OMARCHY_PLAYBOOK_PLAN ?= no
@@ -32,19 +36,26 @@ OMARCHY_PLAYBOOK_PLAN ?= no
 help: ## Show available targets and overrides
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "%-24s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-.PHONY: apply-playbook apply-omarchy-playbook syntax-check
+.PHONY: apply-playbook apply-omarchy-playbook plan-omarchy-features syntax-check
 
 apply-playbook: ## Apply independently selected features through managed SSH
 	@python3 ./scripts/omarchy_playbook.py \
 		--cli-path "$(OMARCHY_VM_MANAGER_CLI)" \
 		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
-		--features "$(OMARCHY_FEATURES)" \
+		$(if $(OMARCHY_FEATURES),--features "$(OMARCHY_FEATURES)",) \
+		$(if $(OMARCHY_PROFILES),--profiles "$(OMARCHY_PROFILES)",) \
+		$(if $(OMARCHY_SETUP_FILE),--setup-file "$(OMARCHY_SETUP_FILE)",) \
+		$(if $(OMARCHY_CATALOGUE),--catalogue "$(OMARCHY_CATALOGUE)",) \
+		$(if $(filter yes true 1,$(OMARCHY_PLAYBOOK_RESOLVE)),--resolve,) \
 		$(if $(OMARCHY_VARS_FILE),--vars-file "$(OMARCHY_VARS_FILE)",) \
 		$(if $(filter yes true 1,$(OMARCHY_PLAYBOOK_CHECK)),--check,) \
 		$(if $(filter yes true 1,$(OMARCHY_PLAYBOOK_PLAN)),--plan,) \
 		$(if $(filter yes true 1,$(OMARCHY_VM_YES)),--yes,)
 
 apply-omarchy-playbook: apply-playbook ## Alias for the Omarchy feature playbook
+
+plan-omarchy-features: OMARCHY_PLAYBOOK_RESOLVE = yes
+plan-omarchy-features: apply-playbook ## Resolve profiles and local extensions without connecting to a VM
 
 syntax-check: ## Validate the Omarchy playbook without connecting to a guest
 	@ansible-playbook -i inventory.ini site.yml --syntax-check

@@ -14,6 +14,7 @@ bash -n omarchy/guest/apply-workstation.sh \
 PYTHONPYCACHEPREFIX=/tmp/dev-omarchy-pycache \
   python3 -m py_compile scripts/omarchy_vm_manager.py scripts/omarchy_playbook.py \
   scripts/omarchy_image.py omarchy/guest/apply-lean-developer.py omarchy/guest/apply-features.py \
+  scripts/omarchy_profiles.py scripts/omarchy_data.py omarchy/guest/feature_contract.py \
   omarchy/image/compatibility.py omarchy/image/check-provisioning.py
 bash -n omarchy/image/build-container.sh omarchy/image/preferences/first-login.sh \
   omarchy/image/preferences/preferences.install omarchy/image/preferences/PKGBUILD \
@@ -21,6 +22,14 @@ bash -n omarchy/image/build-container.sh omarchy/image/preferences/first-login.s
 make syntax-check
 make test-omarchy
 ```
+
+Feature definitions live in `omarchy/features/catalogue.json`. After changing
+them, regenerate editor schemas with
+`python3 scripts/omarchy_profiles.py --write-schemas`; tests detect schema drift.
+Use `make plan-omarchy-features OMARCHY_PROFILES=web` or
+`OMARCHY_SETUP_FILE="$PWD/omarchy/examples/team/setup.yml"` to exercise profile
+and extension resolution locally without contacting a VM. The resolver uses
+plain YAML/JSON; YAML can reuse the already installed Ansible Python runtime.
 
 When using Codex, run `make test-omarchy` outside the Codex sandbox so the
 Ansible tests can create their local Unix socket for controller RPC. The

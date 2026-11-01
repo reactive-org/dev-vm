@@ -15,19 +15,28 @@ import tempfile
 from pathlib import Path
 
 import omarchy_vm_manager as manager
+from omarchy_data import read_data
+from omarchy_profiles import Resolver, contract
 
 
 ROOT = Path(__file__).resolve().parent.parent
-FEATURES = ("workstation", "browsers", "docker", "languages", "agents", "credentials")
-OPTIONS = {
-    "omarchy_browsers", "omarchy_languages", "omarchy_agents", "omarchy_credential_packages",
-    "omarchy_foot_font_size", "omarchy_idle_mode", "omarchy_theme", "omarchy_layout_file", "omarchy_remove_layout",
+FEATURES = contract.FEATURES
+LEGACY_OPTIONS = {
+    "omarchy_browsers": ("browsers", "browsers"), "omarchy_languages": ("languages", "tools"),
+    "omarchy_agents": ("agents", "tools"), "omarchy_credential_packages": ("credentials", "packages"),
+    "omarchy_foot_font_size": ("workstation", "font_size"), "omarchy_idle_mode": ("workstation", "idle_mode"),
+    "omarchy_theme": ("workstation", "theme"), "omarchy_layout_file": ("workstation", "layout"),
+    "omarchy_remove_layout": ("workstation", "remove_layout"),
 }
+COMPOSITE_OPTIONS = {"omarchy_" + name: name for name in FEATURES
+                     if name not in {feature for feature, _ in LEGACY_OPTIONS.values()}}
+OPTIONS = set(LEGACY_OPTIONS) | set(COMPOSITE_OPTIONS)
 
 
 def features(value):
     result = value.split(",")
-    if not result or any(item not in FEATURES for item in result) or len(set(result)) != len(result):
+    if (not result or any(item not in FEATURES and not re.fullmatch(r"[a-z][a-z0-9_-]*\.[a-z][a-z0-9_-]*", item)
+                          for item in result) or len(set(result)) != len(result)):
         raise argparse.ArgumentTypeError("Select unique comma-separated names: " + ",".join(FEATURES))
     return result
 
@@ -59,27 +68,42 @@ def connection_values(guest, connection):
     }
 
 
-def read_options(path, executable, temporary):
+def read_options(path, executable=None, temporary=None):
     if not path:
         return {}
     path = manager.require_file(path, "Explicit feature variables")
-    inventory = temporary / "configuration-inventory.json"
-    write_private(inventory, {"all": {"hosts": {"configuration": {}}}})
-    result = subprocess.run(
-        [str(executable), "-i", str(inventory), "--playbook-dir", str(temporary),
-         "--list", "--extra-vars", "@" + str(path)],
-        check=True, capture_output=True, text=True, cwd=temporary,
-        env={**os.environ, "ANSIBLE_CONFIG": str(ROOT / "ansible.cfg"),
-             "ANSIBLE_LOCAL_TEMP": str(temporary / "ansible-local")},
-    )
-    try:
-        value = json.loads(result.stdout)["_meta"]["hostvars"]["configuration"]
-    except (ValueError, KeyError, TypeError) as error:
-        raise manager.WorkstationError("Unable to parse the explicit feature variables") from error
-    if isinstance(value, dict) and value.get("ansible_local") == {}:
-        value.pop("ansible_local")
+    value = read_data(path)
     if not isinstance(value, dict) or set(value) - OPTIONS:
         raise manager.WorkstationError("Feature variables may contain only documented omarchy_* options; connection and internal state overrides are refused")
+    return value
+
+
+def overrides(options):
+    result = {}
+    for variable, value in options.items():
+        if variable in LEGACY_OPTIONS:
+            feature, field = LEGACY_OPTIONS[variable]
+            if field == "font_size" and type(value) in (int, float):
+                value = str(value)
+            result.setdefault(feature, {})[field] = value
+        else:
+            result[COMPOSITE_OPTIONS[variable]] = value
+    return result
+
+
+def plan_variables(plan):
+    value = {"omarchy_features": plan["features"], "omarchy_extensions": [], "omarchy_resolved_plan": []}
+    for name, config in plan["options"].items():
+        extension = name not in FEATURES
+        value["omarchy_resolved_plan"].append({"feature": name, "config": config, "extension": extension})
+        if extension:
+            value["omarchy_extensions"].append({"name": name, "config": config})
+        elif name in COMPOSITE_OPTIONS.values():
+            value["omarchy_" + name] = config
+        else:
+            for variable, (feature, field) in LEGACY_OPTIONS.items():
+                if feature == name:
+                    value[variable] = config[field]
     return value
 
 
@@ -104,36 +128,48 @@ def ready_connection(args):
 
 
 def playbook(args):
+    # Resolve and validate local data before even inspecting a manager connection.
+    options = read_options(args.vars_file)
+    resolver = Resolver()
+    plan = resolver.resolve(profiles=getattr(args, "profiles", None), features=args.features,
+                            setup_file=getattr(args, "setup_file", None),
+                            catalogues=getattr(args, "catalogue", None), overrides=overrides(options))
+    if args.vars_file:
+        resolver.source(args.vars_file)
+    if getattr(args, "resolve", False):
+        print(json.dumps(plan, indent=2))
+        return
     if sys.platform != "darwin" or platform.machine() != "arm64":
         raise manager.WorkstationError("Run the playbook launcher on an Apple Silicon Mac")
     if not args.vm_name or len(args.vm_name.encode()) > 128 or any(ord(c) < 32 for c in args.vm_name):
         raise manager.WorkstationError("VM name must be a non-empty printable name")
     args.cli_path = manager.require_file(args.cli_path, "Omarchy VM Manager CLI", executable=True)
     ansible = shutil.which("ansible-playbook")
-    inventory_tool = shutil.which("ansible-inventory")
-    if not ansible or not inventory_tool:
-        raise manager.WorkstationError("Existing ansible-playbook and ansible-inventory commands are required; no host tools are installed")
+    if not ansible:
+        raise manager.WorkstationError("An existing ansible-playbook is required; no host tools are installed")
     with tempfile.TemporaryDirectory(prefix="dev-omarchy-ansible-") as folder:
         temporary = Path(folder)
-        options = read_options(args.vars_file, inventory_tool, temporary)
         guest, connection = ready_connection(args)
         fixed = connection_values(guest, connection)
         inventory = temporary / "inventory.json"
         variables = temporary / "features.json"
         write_private(inventory, {"all": {"children": {"omarchy": {"hosts": {"workstation": fixed}}}}})
-        write_private(variables, {**options, **fixed, "omarchy_features": args.features})
+        write_private(variables, {**plan_variables(plan), **fixed})
         command = [ansible, "-i", str(inventory), str(ROOT / "site.yml"),
-                   "--tags", ",".join(args.features), "--extra-vars", "@" + str(variables)]
+                   "--tags", ",".join(plan["features"]), "--extra-vars", "@" + str(variables)]
         if args.check:
             command.append("--check")
-        print(f"Guest: {args.vm_name}\nFeatures: {', '.join(args.features)}\n"
+        print("Resolved proposal:\n" + json.dumps(plan, indent=2), flush=True)
+        print(f"Guest: {args.vm_name}\nFeatures: {', '.join(plan['features'])}\n"
               f"Variables: {args.vars_file or 'repository defaults'}\n"
               f"Mode: {'check (temporary payload only)' if args.check else 'apply'}\n"
               "Connection: VM Manager's authenticated, pinned SSH\n"
               "VM lifecycle and resource settings: unchanged", flush=True)
-        if args.plan:
+        if args.plan or not plan["features"]:
             return
         manager.confirm(args)
+        for source in plan["sources"]:
+            resolver.verify_source(source)
         privileged = not args.check
         previous = {}
 
@@ -167,7 +203,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cli-path", type=Path, default=manager.DEFAULT_CLI)
     parser.add_argument("--vm-name", default="Dev Omarchy")
-    parser.add_argument("--features", type=features, default=["workstation"])
+    parser.add_argument("--features", type=features)
+    parser.add_argument("--profiles", type=lambda value: value.split(","))
+    parser.add_argument("--setup-file", type=Path)
+    parser.add_argument("--catalogue", type=Path, action="append")
+    parser.add_argument("--resolve", action="store_true", help="Print the resolved local plan without contacting a VM")
     parser.add_argument("--vars-file", type=Path)
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--plan", action="store_true")
@@ -175,7 +215,7 @@ def main():
     args = parser.parse_args()
     try:
         playbook(args)
-    except (OSError, subprocess.CalledProcessError, manager.WorkstationError) as error:
+    except (OSError, ValueError, subprocess.CalledProcessError, manager.WorkstationError) as error:
         print(f"Omarchy playbook failed: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

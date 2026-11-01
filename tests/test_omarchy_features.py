@@ -28,6 +28,10 @@ class Guest:
         self.service = False
         self.firewall = False
         self.ufw_active = True
+        # Observed on both live ARM64 factories; do not let fixtures silently
+        # validate a nonexistent ShellCheck repository package again.
+        self.unavailable = {"shellcheck"}
+        self.unknown_tools = set()
         if official:
             self.packages.update(["chromium", "mise-bin", "1password", "1password-cli", *FEATURE.DOCKER_PACKAGES])
             self.tools = {"node": "/tools/node/default", "claude": "/tools/claude/default"}
@@ -37,6 +41,8 @@ class Guest:
         self.calls.append(tuple(argv))
         if argv[:2] == ["pacman", "-Qq"]:
             return reply(0 if argv[-1] in self.packages else 1)
+        if argv[:2] == ["pacman", "-Si"]:
+            return reply(1 if argv[-1] in self.unavailable else 0)
         if argv == ["sudo", "-n", "true"]:
             return reply()
         raise AssertionError(argv)
@@ -53,6 +59,8 @@ class Guest:
             return reply()
         if argv[:2] == ["mise", "reshim"]:
             return reply()
+        if argv[:2] == ["mise", "registry"]:
+            return reply(1 if argv[-1] in self.unknown_tools else 0, "registry-backend")
         if argv[:2] == ["mise", "where"]:
             path = self.tools.get(argv[2])
             return reply(0 if path else 1, (path + "\n") if path else "")
@@ -91,13 +99,122 @@ class Guest:
 
 
 class FeatureTests(unittest.TestCase):
-    def apply(self, guest, feature, config, check=False):
+    def apply(self, guest, feature, config, check=False, extension=False):
         with mock.patch.object(FEATURE, "run", side_effect=guest.run), \
                 mock.patch.object(FEATURE, "native", side_effect=guest.native), \
                 mock.patch.object(FEATURE.platform, "system", return_value="Linux"), \
                 mock.patch.object(FEATURE.platform, "machine", return_value="aarch64"), \
                 mock.patch.object(FEATURE.os, "geteuid", return_value=1000):
-            return FEATURE.FeatureRunner(feature, config, check).apply()
+            return FEATURE.FeatureRunner(feature, config, check, extension=extension).apply()
+
+    def test_new_capabilities_are_selective_and_reapply_without_changes(self):
+        for name in ("cli", "vcs", "editors", "build", "databases", "api", "quality"):
+            for official in (False, True):
+                with self.subTest(feature=name, official=official):
+                    guest = Guest(official)
+                    config = FEATURE.CATALOGUE["features"][name]["defaults"]
+                    self.assertTrue(self.apply(guest, name, config)["changed"])
+                    self.assertFalse(self.apply(guest, name, config)["changed"])
+                    forbidden = ("git", "config", "--global"), ("git", "lfs", "install"), ("systemctl", "enable")
+                    for call in guest.calls:
+                        self.assertFalse(any(call[:len(prefix)] == prefix for prefix in forbidden))
+
+    def test_complete_profiles_apply_to_both_factory_fixtures_and_reapply_as_noop(self):
+        import sys
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from omarchy_profiles import Resolver
+        for profile in ("developer", "web", "python"):
+            for official in (False, True):
+                with self.subTest(profile=profile, official=official):
+                    guest = Guest(official)
+                    plan = Resolver().resolve(profiles=[profile])
+                    for feature in plan["features"]:
+                        self.apply(guest, feature, plan["options"][feature])
+                    for feature in plan["features"]:
+                        self.assertFalse(self.apply(guest, feature, plan["options"][feature])["changed"], feature)
+                    self.assertNotIn("1password-cli", set(plan["packages"]))
+                    if profile == "python":
+                        self.assertEqual(set(guest.tools) - ({"node", "claude"} if official else set()),
+                                         {"python", "python@3", "uv", "uv@latest", "shellcheck", "shellcheck@latest"})
+
+    def test_extension_tools_packages_check_mode_and_empty_selection(self):
+        guest = Guest()
+        config = {"packages": ["jq"], "tools": {"uv": ""}}
+        self.assertTrue(self.apply(guest, "example.api", config, check=True, extension=True)["changed"])
+        self.assertNotIn("jq", guest.packages)
+        self.assertTrue(self.apply(guest, "example.api", config, extension=True)["changed"])
+        self.assertFalse(self.apply(guest, "example.api", config, extension=True)["changed"])
+        self.assertFalse(self.apply(guest, "example.api", {"packages": [], "tools": {}}, extension=True)["changed"])
+        self.assertIn("jq", guest.packages)
+
+    def test_missing_package_preflight_stops_all_roles_before_any_installation(self):
+        guest = Guest()
+        guest.unavailable.add("nonexistent")
+        plan = [{"feature": "cli", "config": {"packages": ["jq"], "tools": {}}, "extension": False},
+                {"feature": "example.bad", "config": {"packages": ["nonexistent"], "tools": {}}, "extension": True}]
+        with mock.patch.object(FEATURE, "run", side_effect=guest.run), \
+                mock.patch.object(FEATURE, "native", side_effect=guest.native), \
+                mock.patch.object(FEATURE.platform, "system", return_value="Linux"), \
+                mock.patch.object(FEATURE.platform, "machine", return_value="aarch64"), \
+                mock.patch.object(FEATURE.os, "geteuid", return_value=1000):
+            with self.assertRaisesRegex(FEATURE.FeatureError, "unavailable"):
+                FEATURE.preflight_plan(plan)
+        self.assertNotIn("jq", guest.packages)
+        self.assertFalse(any(call[0] == "omarchy-pkg-add" for call in guest.calls))
+
+    def test_unknown_mise_tool_and_unsafe_extensions_are_rejected(self):
+        guest = Guest(official=True)
+        guest.unknown_tools.add("unknown-tool")
+        with self.assertRaisesRegex(FEATURE.FeatureError, "registry"):
+            self.apply(guest, "example.cli", {"packages": [], "tools": {"unknown-tool": ""}}, extension=True)
+        for name, config in [("builtin.bad", {"packages": [], "tools": {}}),
+                             ("example.bad", {"packages": ["--help"], "tools": {}}),
+                             ("example.bad", {"packages": [], "tools": {}, "command": "id"})]:
+            with self.assertRaises(FEATURE.FeatureError):
+                self.apply(guest, name, config, extension=True)
+
+    def test_native_mise_provider_is_reused_for_legacy_github_cli_selection(self):
+        guest = Guest(official=True)
+        guest.configured.add("gh")
+        self.assertTrue(self.apply(guest, "credentials", {"packages": ["github-cli"]})["changed"])
+        self.assertNotIn("github-cli", guest.packages)
+        self.assertIn(("mise", "install", "gh"), guest.calls)
+        self.assertFalse(self.apply(guest, "credentials", {"packages": ["github-cli"]})["changed"])
+
+    def test_extension_package_cannot_silently_shadow_an_existing_mise_tool(self):
+        guest = Guest(official=True)
+        guest.configured.add("gh")
+        with self.assertRaisesRegex(FEATURE.FeatureError, "competes"):
+            self.apply(guest, "example.cli", {"packages": ["github-cli"], "tools": {}}, extension=True)
+        self.assertNotIn("github-cli", guest.packages)
+
+    def test_expired_package_archive_reports_native_update_without_running_it(self):
+        guest = Guest()
+        original = guest.native
+
+        def expired(argv, **kwargs):
+            if argv[0] == "omarchy-pkg-add":
+                guest.calls.append(tuple(argv))
+                raise FEATURE.FeatureError("failed retrieving archive: 404")
+            return original(argv, **kwargs)
+
+        with mock.patch.object(FEATURE, "run", side_effect=guest.run), \
+                mock.patch.object(FEATURE, "native", side_effect=expired):
+            runner = FEATURE.FeatureRunner("cli", {"packages": ["jq"], "tools": {}})
+            with self.assertRaisesRegex(FEATURE.FeatureError, "omarchy update"):
+                runner.packages(["jq"])
+        self.assertFalse(any(call[0].startswith("omarchy-update") or call[:2] == ("omarchy", "update") for call in guest.calls))
+        self.assertFalse(any(call[0] == "pacman" and any(arg.startswith("-S") and arg != "-Si" for arg in call[1:]) for call in guest.calls))
+
+    def test_quality_uses_native_mise_shellcheck_when_arm_package_is_unavailable(self):
+        for official in (False, True):
+            with self.subTest(official=official):
+                guest = Guest(official)
+                config = FEATURE.CATALOGUE["features"]["quality"]["defaults"]
+                self.apply(guest, "quality", config)
+                self.assertIn("shellcheck", guest.tools)
+                self.assertNotIn("shellcheck", guest.packages)
+                self.assertFalse(self.apply(guest, "quality", config)["changed"])
 
     def test_browser_feature_works_on_official_and_lean_and_reapply_is_noop(self):
         for official in (False, True):

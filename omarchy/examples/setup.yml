@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../features/selection.schema.json
+---
+# Copy to omarchy/local/setup.yml, then use OMARCHY_SETUP_FILE.
+# Profiles select features; options only configure them.
+schema_version: 1
+profiles: [web]
+features:
+  enable: [agents]
+  disable: []
+options:
+  browsers:
+    browsers: [firefox]
+  languages:
+    tools:
+      node: "24"
+  agents:
+    tools:
+      codex: ""

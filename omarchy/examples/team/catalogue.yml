@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=../../features/catalogue.schema.json
+---
+schema_version: 1
+namespace: example
+features:
+  api-debug:
+    description: HTTP and JSON diagnostics for the team's APIs
+    requires: [api]
+    packages: [curl, jq]
+    mise: {}
+profiles:
+  backend:
+    extends: [builtin.web]
+    features: [example.api-debug]
+    options:
+      languages:
+        tools:
+          node: "24"
+      databases:
+        clients: [postgresql, sqlite]

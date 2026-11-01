@@ -29,6 +29,7 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 
 ## Validation records
 
+- [Developer, web and Python profile live acceptance](omarchy-profile-validation.md)
 - [Official-image trimming](omarchy-official-trimmed-validation.md)
 - [Official factory / manager 0.9.2 acceptance](omarchy-official-43-validation.md)
 - [Feature playbook acceptance](omarchy-playbook-validation.md)

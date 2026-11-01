@@ -6,27 +6,24 @@ import hashlib
 import json
 import os
 import platform
-import re
 import shlex
 import subprocess
 import sys
 from pathlib import Path
 
 
-FEATURES = ("workstation", "browsers", "docker", "languages", "agents", "credentials")
-BROWSERS = {"chromium": "chromium", "firefox": "firefox"}
-AGENTS = {"claude", "codex", "opencode", "pi", "copilot", "amp", "crush"}
-CREDENTIALS = {"1password", "1password-cli", "github-cli"}
-DOCKER_PACKAGES = ("docker", "docker-buildx", "docker-compose", "ufw-docker")
-WORKSTATION_PACKAGES = ("herdr", "udiskie", "socat", "imagemagick", "inotify-tools")
-LANGUAGE_PACKAGES = {
-    "ruby": ("base-devel", "libyaml", "openssl", "readline", "zlib", "libffi", "gmp"),
-    "python": ("base-devel", "openssl", "readline", "zlib", "libffi", "xz"),
-}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from feature_contract import (
+    CATALOGUE, FEATURES, FeatureError, requirements, selection, tools, validate_config,
+)
 
-class FeatureError(RuntimeError):
-    pass
+BROWSERS = CATALOGUE["features"]["browsers"]["choices"]
+AGENTS = set(CATALOGUE["features"]["agents"]["choices"])
+CREDENTIALS = set(CATALOGUE["features"]["credentials"]["choices"])
+DOCKER_PACKAGES = tuple(CATALOGUE["features"]["docker"]["packages"])
+WORKSTATION_PACKAGES = tuple(CATALOGUE["workstation_packages"])
+LANGUAGE_PACKAGES = CATALOGUE["language_packages"]
 
 
 def run(argv, *, check=True):
@@ -43,63 +40,11 @@ def native(argv, *, check=True):
     return run(["bash", "-lc", shlex.join([str(x) for x in argv])], check=check)
 
 
-def selection(value, allowed, name):
-    if not isinstance(value, list) or any(not isinstance(x, str) or x not in allowed for x in value):
-        raise FeatureError(f"{name} must be a list selected from {', '.join(sorted(allowed))}")
-    if len(value) != len(set(value)):
-        raise FeatureError(f"Duplicate {name}")
-    return value
-
-
-def tools(value, *, agents=False):
-    if not isinstance(value, dict):
-        raise FeatureError("Tools must be a mapping of mise short names to version selectors")
-    for tool, version in value.items():
-        if not isinstance(tool, str) or not re.fullmatch(r"[a-z][a-z0-9_-]*", tool):
-            raise FeatureError("Use a mise registry short name, without backend commands or paths")
-        if agents and tool not in AGENTS:
-            raise FeatureError(f"Unsupported coding agent: {tool}")
-        if not isinstance(version, str) or (version and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+\-]*", version)):
-            raise FeatureError(f"Invalid mise version selector for {tool}")
-    return value
-
-
-def validate_config(feature, value):
-    if not isinstance(value, dict):
-        raise FeatureError("Feature input must be an object")
-    expected = {
-        "browsers": {"browsers"}, "docker": set(), "languages": {"tools"},
-        "agents": {"tools"}, "credentials": {"packages"},
-        "workstation": {"font_size", "idle_mode", "theme", "layout", "remove_layout"},
-    }[feature]
-    if set(value) != expected:
-        raise FeatureError(f"Unexpected or missing fields for {feature}")
-    if feature == "browsers":
-        selection(value["browsers"], BROWSERS, "browsers")
-    elif feature in ("languages", "agents"):
-        tools(value["tools"], agents=feature == "agents")
-    elif feature == "credentials":
-        selection(value["packages"], CREDENTIALS, "credential packages")
-    elif feature == "workstation":
-        if not re.fullmatch(r"(?:[6-9]|[12][0-9]|3[0-2])(?:\.[0-9]+)?", str(value["font_size"])):
-            raise FeatureError("Foot font size must be between 6 and 32")
-        if value["idle_mode"] not in ("host", "guest", "keep"):
-            raise FeatureError("Idle mode must be host, guest or keep")
-        if not isinstance(value["theme"], str) or (value["theme"] and not re.fullmatch(
-            r"https://github\.com/[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_][A-Za-z0-9._+\-]*/?", value["theme"]
-        )):
-            raise FeatureError("Theme must be an HTTPS GitHub repository URL")
-        if type(value["remove_layout"]) is not bool or not isinstance(value["layout"], str):
-            raise FeatureError("Invalid layout selection")
-        if value["layout"] and value["remove_layout"]:
-            raise FeatureError("Choose a layout or removal, not both")
-    return value
-
-
 class FeatureRunner:
-    def __init__(self, feature, config, check=False):
+    def __init__(self, feature, config, check=False, *, extension=False):
         self.feature = feature
-        self.config = validate_config(feature, config)
+        self.config = validate_config(feature, config, extension=extension)
+        self.extension = extension
         self.check = check
         self.actions = []
         self.notes = []
@@ -128,8 +73,22 @@ class FeatureRunner:
 
     def packages(self, packages):
         missing = [name for name in packages if not self.installed(name)]
+        for name in missing:
+            if run(["pacman", "-Si", "--", name], check=False).returncode:
+                raise FeatureError(f"Package unavailable in configured ARM64 repositories: {name}; no repositories were added")
+            tool = CATALOGUE["package_tools"].get(name)
+            if tool and name != "python" and self.installed("mise-bin") and self.configured_tool(tool):
+                raise FeatureError(f"Package {name} competes with an existing mise declaration for {tool}; select one provider explicitly")
         if missing:
-            self.mutate(["omarchy-pkg-add", *missing], "Install packages: " + ", ".join(missing))
+            try:
+                self.mutate(["omarchy-pkg-add", *missing], "Install packages: " + ", ".join(missing))
+            except FeatureError as error:
+                if "404" in str(error):
+                    raise FeatureError(
+                        f"{error}\nThe guest package database may reference expired archives. "
+                        "Run 'omarchy update' in this guest, then retry. Feature application does not refresh databases or upgrade the guest."
+                    ) from error
+                raise
         return missing
 
     def browsers(self):
@@ -138,14 +97,15 @@ class FeatureRunner:
                 self.mutate(["omarchy-install-browser", browser], "Install browser: " + browser)
 
     def docker(self):
+        if not self.check:
+            status = native(["sudo", "-n", "ufw", "status"]).stdout
+            if not status.startswith("Status: active"):
+                raise FeatureError("Docker requires the existing Omarchy UFW policy to be active; no policy was replaced")
         self.packages(DOCKER_PACKAGES)
         if self.check:
             self.actions.append("Verify Docker firewall integration with the native sudo grant")
             self.notes.append("Firewall repair is conservatively reported in check mode; no privileged writes run")
         else:
-            status = native(["sudo", "-n", "ufw", "status"]).stdout
-            if not status.startswith("Status: active"):
-                raise FeatureError("Docker requires the existing Omarchy UFW policy to be active; no policy was replaced")
             paths = ("/etc/ufw/after.rules", "/etc/ufw/after6.rules", "/etc/ufw/user.rules", "/etc/ufw/user6.rules")
             before = native(["sudo", "-n", "sha256sum", *paths]).stdout
             native(["sudo", "-n", "ufw-docker", "install"])
@@ -184,8 +144,8 @@ class FeatureRunner:
             for row in rows
         )
 
-    def toolchain(self):
-        requested = self.config["tools"]
+    def toolchain(self, requested=None):
+        requested = self.config["tools"] if requested is None else requested
         if not requested:
             return
         missing_mise = bool(self.packages(["mise-bin"]))
@@ -193,6 +153,9 @@ class FeatureRunner:
             self.mutate(["mise", "reshim", "--system"], "Initialize Omarchy's lazy tool shims")
             self.mutate(["mise", "reshim"], "Initialize user tool shims")
         for tool, version in requested.items():
+            if not self.check or not missing_mise:
+                if native(["mise", "registry", tool], check=False).returncode:
+                    raise FeatureError(f"Unknown mise registry short name: {tool}")
             if self.feature == "languages":
                 self.packages(LANGUAGE_PACKAGES.get(tool, ()))
             selector = f"{tool}@{version}" if version else tool
@@ -270,25 +233,86 @@ class FeatureRunner:
 
     def apply(self):
         self.preflight()
-        if self.feature in ("agents", "languages"):
+        handler = "tools" if self.extension else CATALOGUE["features"][self.feature]["handler"]
+        if handler == "tools":
+            self.packages(self.config["packages"])
+            self.toolchain()
+        elif handler == "selection":
+            definition = CATALOGUE["features"][self.feature]
+            self.packages([definition["choices"][item] for item in self.config[definition["option"]]])
+        elif handler in ("agents", "languages"):
             self.toolchain()
         elif self.feature == "credentials":
-            self.packages(self.config["packages"])
+            packages = list(self.config["packages"])
+            # Preserve the legacy package choice, reusing Omarchy's declared CLI
+            # when it would otherwise compete with a newly installed package.
+            if ("github-cli" in packages and not self.installed("github-cli")
+                    and self.installed("mise-bin") and self.configured_tool("gh")):
+                packages.remove("github-cli")
+                self.toolchain({"gh": ""})
+            self.packages(packages)
         else:
             getattr(self, self.feature)()
         return {"changed": bool(self.actions), "actions": self.actions, "notes": self.notes,
                 "check_mode": self.check, "feature": self.feature}
 
 
+def preflight_plan(value, *, check=False):
+    """Check all missing repository packages before any selected role mutates."""
+    if not isinstance(value, list):
+        raise FeatureError("Preflight plan must be a list of feature operations")
+    requested_packages, requested_tools = {}, {}
+    for item in value:
+        if not isinstance(item, dict) or set(item) != {"feature", "config", "extension"} or type(item["extension"]) is not bool:
+            raise FeatureError("Invalid preflight operation")
+        runner = FeatureRunner(item["feature"], item["config"], check, extension=item["extension"])
+        runner.preflight()
+        packages, tool_versions = requirements(item["feature"], item["config"], extension=item["extension"])
+        for package in packages:
+            requested_packages.setdefault(package, set()).add(item["feature"])
+        for tool, selector in tool_versions.items():
+            if tool in requested_tools and requested_tools[tool] != selector:
+                raise FeatureError(f"Conflicting mise tool selections: {tool}")
+            requested_tools[tool] = selector
+    if not value:
+        return
+    for package in sorted(requested_packages):
+        tool = CATALOGUE["package_tools"].get(package)
+        if tool in requested_tools:
+            raise FeatureError(f"Competing package/mise providers: {package} and {tool}")
+        if (tool and package != "python" and not runner.installed(package) and runner.installed("mise-bin")
+                and runner.configured_tool(tool)):
+            credential_alias = package == "github-cli" and requested_packages[package] == {"credentials"}
+            if not credential_alias:
+                raise FeatureError(f"Package {package} competes with an existing mise declaration for {tool}")
+            requested_tools.setdefault(tool, "")
+            continue
+        if not runner.installed(package) and run(["pacman", "-Si", "--", package], check=False).returncode:
+            raise FeatureError(f"Package unavailable in configured ARM64 repositories: {package}")
+    if not check and any(item["feature"] == "docker" for item in value):
+        if not native(["sudo", "-n", "ufw", "status"]).stdout.startswith("Status: active"):
+            raise FeatureError("Docker requires the existing Omarchy UFW policy to be active; no policy was replaced")
+    if requested_tools and runner.installed("mise-bin"):
+        for tool in requested_tools:
+            if native(["mise", "registry", tool], check=False).returncode:
+                raise FeatureError(f"Unknown mise registry short name: {tool}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--feature", choices=FEATURES, required=True)
+    parser.add_argument("--feature")
+    parser.add_argument("--extension", action="store_true")
+    parser.add_argument("--preflight-plan", action="store_true")
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     runner = None
     try:
         config = json.load(sys.stdin)
-        runner = FeatureRunner(args.feature, config, args.check)
+        if args.preflight_plan:
+            preflight_plan(config, check=args.check)
+            print(json.dumps({"changed": False, "preflight": True}))
+            return 0
+        runner = FeatureRunner(args.feature, config, args.check, extension=args.extension)
         print(json.dumps(runner.apply()))
     except (OSError, ValueError, FeatureError) as error:
         print(json.dumps({"changed": bool(runner and runner.actions), "actions": runner.actions if runner else []}))

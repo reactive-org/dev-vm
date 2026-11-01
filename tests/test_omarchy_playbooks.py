@@ -170,6 +170,60 @@ print(json.dumps({'changed':False,'verified_check_flag':True}))
         self.assertIn('verified_check_flag', output)
         self.assertIn('changed=0', output)
 
+    def test_extension_tag_selects_only_the_requested_data_operation_in_check_mode(self):
+        helper = self.folder / "apply-features.py"
+        helper.write_text('''import sys,json
+assert '--check' in sys.argv and '--extension' in sys.argv
+assert sys.argv[sys.argv.index('--feature')+1] == 'example.api'
+assert json.load(sys.stdin) == {'packages':['jq'],'tools':{}}
+print(json.dumps({'changed':False,'extension_checked':True}))
+''')
+        play = self.folder / "extension.yml"
+        play.write_text('''---
+- hosts: omarchy
+  gather_facts: false
+  vars:
+    omarchy_payload:
+      path: "''' + str(self.folder) + '''"
+    omarchy_extensions:
+      - {name: example.api, config: {packages: [jq], tools: {}}}
+      - {name: example.other, config: {packages: [curl], tools: {}}}
+    omarchy_selected_features: [example.api, example.other]
+  tasks:
+    - ansible.builtin.include_tasks:
+        file: "''' + str(ROOT / 'roles/omarchy_extension/tasks/main.yml') + '''"
+        apply:
+          tags: "{{ omarchy_extension.name }}"
+      loop: "{{ omarchy_extensions }}"
+      loop_control:
+        loop_var: omarchy_extension
+      when: "'all' in ansible_run_tags or omarchy_extension.name in ansible_run_tags"
+      tags: [always]
+''')
+        output = self.ansible(play, "--tags", "example.api", "--check")
+        self.assertIn("extension_checked", output)
+        self.assertIn("changed=0", output)
+
+    def test_profile_plan_is_passed_to_an_actual_ansible_preflight(self):
+        plan = PLAYBOOK.Resolver().resolve(profiles=["python"])
+        variables = PLAYBOOK.plan_variables(plan)
+        variables["ansible_facts"] = {"system": "Linux", "architecture": "aarch64", "user_id": "fixture"}
+        commands = self.folder / "bin"
+        commands.mkdir()
+        executable = commands / "pacman"
+        executable.write_text("#!/bin/sh\nexit 0\n")
+        executable.chmod(0o755)
+        self.env["PATH"] = str(commands) + os.pathsep + self.env["PATH"]
+        self.env["TMPDIR"] = str(self.folder)
+        path = self.folder / "plan.json"
+        path.write_text(json.dumps(variables))
+        output = self.ansible(ROOT / "site.yml", "--tags", ",".join(plan["features"]), "--check",
+                              "--extra-vars", "@" + str(path), expected=2)
+        self.assertIn("Preflight all resolved feature requirements", output)
+        self.assertIn("Run as the non-root owner", output)
+        self.assertIn("Remove the temporary feature payload", output)
+        self.assertFalse(list(self.folder.glob("dev-omarchy-features.*")))
+
     def test_actual_site_cleans_payload_after_a_rejected_guest_helper(self):
         commands = self.folder / "bin"
         commands.mkdir()

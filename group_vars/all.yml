@@ -1,14 +1,22 @@
 ---
-omarchy_supported_features: [workstation, browsers, docker, languages, agents, credentials]
+omarchy_catalogue: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/omarchy/features/catalogue.json') | from_json }}"
+omarchy_supported_features: "{{ omarchy_catalogue.features.keys() | list }}"
 omarchy_features: [workstation]
-omarchy_browsers: [chromium]
-omarchy_languages:
-  node: ""
-omarchy_agents:
-  claude: ""
-omarchy_credential_packages: [1password, 1password-cli]
-omarchy_foot_font_size: "16"
-omarchy_idle_mode: host
-omarchy_theme: ""
-omarchy_layout_file: ""
-omarchy_remove_layout: false
+omarchy_extensions: []
+omarchy_resolved_plan: []
+omarchy_browsers: "{{ omarchy_catalogue.features.browsers.defaults.browsers }}"
+omarchy_languages: "{{ omarchy_catalogue.features.languages.defaults.tools }}"
+omarchy_agents: "{{ omarchy_catalogue.features.agents.defaults.tools }}"
+omarchy_credential_packages: "{{ omarchy_catalogue.features.credentials.defaults.packages }}"
+omarchy_foot_font_size: "{{ omarchy_catalogue.features.workstation.defaults.font_size }}"
+omarchy_idle_mode: "{{ omarchy_catalogue.features.workstation.defaults.idle_mode }}"
+omarchy_theme: "{{ omarchy_catalogue.features.workstation.defaults.theme }}"
+omarchy_layout_file: "{{ omarchy_catalogue.features.workstation.defaults.layout }}"
+omarchy_remove_layout: "{{ omarchy_catalogue.features.workstation.defaults.remove_layout }}"
+omarchy_cli: "{{ omarchy_catalogue.features.cli.defaults }}"
+omarchy_vcs: "{{ omarchy_catalogue.features.vcs.defaults }}"
+omarchy_editors: "{{ omarchy_catalogue.features.editors.defaults }}"
+omarchy_build: "{{ omarchy_catalogue.features.build.defaults }}"
+omarchy_databases: "{{ omarchy_catalogue.features.databases.defaults }}"
+omarchy_api: "{{ omarchy_catalogue.features.api.defaults }}"
+omarchy_quality: "{{ omarchy_catalogue.features.quality.defaults }}"

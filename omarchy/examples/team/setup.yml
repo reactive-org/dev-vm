@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=../../features/selection.schema.json
+---
+# Relative catalogue paths are resolved beside this selection file.
+schema_version: 1
+catalogues: [catalogue.yml]
+profiles: [example.backend]
+features:
+  disable: [editors]
+options:
+  browsers:
+    browsers: [firefox]

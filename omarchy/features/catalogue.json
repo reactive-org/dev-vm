@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "namespace": "builtin",
+  "features": {
+    "workstation": {
+      "description": "Foot, idle, theme and layout preferences; hardware rendering repair",
+      "handler": "workstation",
+      "defaults": {"font_size": "16", "idle_mode": "host", "theme": "", "layout": "", "remove_layout": false}
+    },
+    "browsers": {
+      "description": "Native Omarchy browser integration",
+      "handler": "browsers",
+      "defaults": {"browsers": ["chromium"]},
+      "choices": {"chromium": "chromium", "firefox": "firefox"}
+    },
+    "docker": {
+      "description": "Docker, Buildx, Compose and native UFW/socket integration",
+      "handler": "docker",
+      "defaults": {},
+      "packages": ["docker", "docker-buildx", "docker-compose", "ufw-docker"]
+    },
+    "languages": {
+      "description": "Selected mise runtimes and companion tools",
+      "handler": "languages",
+      "defaults": {"tools": {"node": ""}}
+    },
+    "agents": {
+      "description": "Explicit coding agent CLI selections; no authentication or trust changes",
+      "handler": "agents",
+      "defaults": {"tools": {"claude": ""}},
+      "choices": ["claude", "codex", "opencode", "pi", "copilot", "amp", "crush"]
+    },
+    "credentials": {
+      "description": "Credential clients only; no login or credential transfer",
+      "handler": "credentials",
+      "defaults": {"packages": ["1password", "1password-cli"]},
+      "choices": ["1password", "1password-cli", "github-cli"]
+    },
+    "cli": {
+      "description": "Search, navigation and JSON/YAML inspection",
+      "handler": "tools",
+      "defaults": {"packages": ["ripgrep", "fd", "fzf", "jq", "tree"], "tools": {}}
+    },
+    "vcs": {
+      "description": "Git, LFS, readable diffs and terminal repository UI",
+      "handler": "tools",
+      "defaults": {"packages": ["git", "git-lfs", "git-delta", "lazygit"], "tools": {}}
+    },
+    "editors": {
+      "description": "Selected editors; preserves settings, keybindings and extensions",
+      "handler": "selection",
+      "option": "editors",
+      "defaults": {"editors": ["neovim"]},
+      "choices": {"neovim": "neovim", "vscode": "visual-studio-code-bin"}
+    },
+    "build": {
+      "description": "Native compiler, headers, CMake, Ninja and GDB",
+      "handler": "tools",
+      "defaults": {"packages": ["base-devel", "pkgconf", "cmake", "ninja", "gdb"], "tools": {}}
+    },
+    "databases": {
+      "description": "Database clients; does not initialize databases or start services",
+      "handler": "selection",
+      "option": "clients",
+      "defaults": {"clients": ["sqlite"]},
+      "choices": {"sqlite": "sqlite", "postgresql": "postgresql-libs", "mysql": "mariadb-clients"}
+    },
+    "api": {
+      "description": "HTTP and TLS diagnostics",
+      "handler": "tools",
+      "defaults": {"packages": ["curl", "openssl", "httpie"], "tools": {}}
+    },
+    "quality": {
+      "description": "Shell/YAML checks and pre-commit executable; does not install project hooks",
+      "handler": "tools",
+      "defaults": {"packages": ["yamllint", "pre-commit"], "tools": {"shellcheck": ""}}
+    }
+  },
+  "profiles": {
+    "developer": {
+      "description": "Editor, CLI, Git and API diagnostics",
+      "features": ["workstation", "cli", "vcs", "editors", "api"]
+    },
+    "web": {
+      "description": "JS/TS workstation with Node, pnpm, browser, Compose and SQL clients",
+      "extends": ["developer"],
+      "features": ["browsers", "languages", "docker", "databases", "quality"],
+      "options": {"languages": {"tools": {"node": "lts", "pnpm": ""}}, "databases": {"clients": ["postgresql", "sqlite"]}}
+    },
+    "python": {
+      "description": "Python/uv workstation with native extension builds, SQLite and quality tools",
+      "extends": ["developer"],
+      "features": ["languages", "build", "databases", "quality"],
+      "options": {"languages": {"tools": {"python": "3", "uv": ""}}, "databases": {"clients": ["sqlite"]}}
+    }
+  },
+  "language_packages": {
+    "ruby": ["base-devel", "libyaml", "openssl", "readline", "zlib", "libffi", "gmp"],
+    "python": ["base-devel", "openssl", "readline", "zlib", "libffi", "xz"]
+  },
+  "workstation_packages": ["herdr", "udiskie", "socat", "imagemagick", "inotify-tools"],
+  "package_tools": {"github-cli": "gh", "1password-cli": "1password", "nodejs": "node", "npm": "node", "python": "python", "pnpm": "pnpm", "uv": "uv", "ruby": "ruby", "go": "go", "rust": "rust", "pre-commit": "pre-commit", "shellcheck": "shellcheck"}
+}
