@@ -1,0 +1,74 @@
+{
+  "capture_date": "2026-11-01",
+  "timezone": "Australia/Melbourne",
+  "manager_version": "0.9.3 (16)",
+  "guest_platform": "aarch64",
+  "factory": "lean",
+  "preparation": "Neutral Foot labels/prompts; native notification dismissal; Chromium focused for the overlapping preset.",
+  "encoding": {
+    "format": "WebP",
+    "quality": 86,
+    "method": 6,
+    "resampling": "Lanczos",
+    "crop": false
+  },
+  "images": [
+    {
+      "file": "four-terminals.webp",
+      "sha256": "68d12c888780b356d03c356618a5a272776d9faca0ef9eaaa0834ba8a829d962",
+      "bytes": 28534,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261101-four-terminals/four-terminals/desktop.png",
+      "source_sha256": "69656b27e01f1598e9720b1bde30371111316e0efb70c8d8fb1342f3b38a269e",
+      "source_width": 4960,
+      "source_height": 2790,
+      "display_scale": 2,
+      "layout": "omarchy/examples/layouts/four-terminals.lua",
+      "layout_sha256": "6289607b1be0fd8bd49c45449df0b69ba62e2ed2e0336c20be23f3b083ef96ad"
+    },
+    {
+      "file": "terminal-browser.webp",
+      "sha256": "e8417b39aea81dc025ce5bce68da56f2f3528194785b3814700679c856820e25",
+      "bytes": 27558,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261101-four-terminals/terminal-browser/desktop.png",
+      "source_sha256": "99879f0b34ef9e99f5cf28b3e0828afac23c9960fd2d48bdd0265d7afcdc4886",
+      "source_width": 4960,
+      "source_height": 2790,
+      "display_scale": 2,
+      "layout": "omarchy/examples/layouts/terminal-browser.lua",
+      "layout_sha256": "da18bb3a01c584ad35aaf7e96c423f1b7b1ba21189ca1725db8638bf457efac1"
+    },
+    {
+      "file": "vscode-browser.webp",
+      "sha256": "a27a726fad3769f19a6c16d4b64c3948983176cebcfa68860486ad7f0f4cb593",
+      "bytes": 42490,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261101-four-terminals/vscode-browser/desktop.png",
+      "source_sha256": "2d37b56f16e71bdbe0a694c3ef0ef856de31b39b6ae81f805aecbd6921517db2",
+      "source_width": 1920,
+      "source_height": 1080,
+      "display_scale": 1,
+      "layout": "omarchy/examples/layouts/vscode-browser.lua",
+      "layout_sha256": "67fd8bd91c2dc515142579dacbfe44aca2209a44761940511d81b7379f5812c3"
+    },
+    {
+      "file": "claude-two-terminals-browser.webp",
+      "sha256": "7f6ceff4dca172a13d513c390686480efe2da6a87e4bd2f47126c1717bbe1018",
+      "bytes": 31684,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261101-four-terminals/claude-two-terminals-browser/desktop.png",
+      "source_sha256": "568c2d3d8fe61e3e15b818d688d7676db88cbec0641571e677890616f7b9e302",
+      "source_width": 4960,
+      "source_height": 2790,
+      "display_scale": 2,
+      "layout": "omarchy/examples/layouts/claude-two-terminals-browser.lua",
+      "layout_sha256": "dd4bbad417a3c4c842275b2adc90941781ca289d6d3766b0231bd00c71592bca"
+    }
+  ],
+  "total_bytes": 130266
+}

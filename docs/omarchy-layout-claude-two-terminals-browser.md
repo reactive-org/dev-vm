@@ -4,6 +4,12 @@ Claude on the right (60%), two terminals stacked on the left (40%), and a
 floating Chromium window.
 Normal window switching controls which overlapping window is in front.
 
+![Two Foot terminals on the left, Claude on the right and an overlapping Chromium window](images/layouts/claude-two-terminals-browser.webp)
+
+Actual capture from a disposable lean ARM64 guest at native Retina scale 2.
+The terminal labels and neutral prompts are for the screenshot; Chromium is
+focused to show the overlapping window.
+
 Open VM Manager on your Apple Silicon Mac and save **Guest Defaults**. Run
 one of these commands from the repository root with an unused VM name.
 

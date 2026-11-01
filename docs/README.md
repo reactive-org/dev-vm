@@ -11,6 +11,7 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 
 - [Standard workstation](omarchy-vm-manager-runbook.md)
 - [Trimmed workstation](omarchy-official-trimmed-runbook.md)
+- [Four tiled Foot terminals](omarchy-layout-four-terminals.md)
 - [Terminal and browser](omarchy-layout-terminal-browser.md)
 - [VS Code and browser](omarchy-layout-vscode-browser.md)
 - [Claude, terminals and browser](omarchy-layout-claude-two-terminals-browser.md)

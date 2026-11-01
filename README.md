@@ -36,6 +36,7 @@ Every runbook shows both image choices with copy-and-paste commands.
 
 - [Standard workstation](docs/omarchy-vm-manager-runbook.md)
 - [Trim optional desktop apps](docs/omarchy-official-trimmed-runbook.md)
+- [Four tiled Foot terminals](docs/omarchy-layout-four-terminals.md)
 - [Terminal left 40%, browser right 60%](docs/omarchy-layout-terminal-browser.md)
 - [VS Code left 60%, browser right 40%](docs/omarchy-layout-vscode-browser.md)
 - [Claude, two terminals and a floating browser](docs/omarchy-layout-claude-two-terminals-browser.md)

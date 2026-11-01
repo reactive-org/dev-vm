@@ -2,6 +2,11 @@
 
 A terminal on the left (40%) and Chromium on the right (60%).
 
+![Foot terminal on the left and Chromium on the right](images/layouts/terminal-browser.webp)
+
+Actual capture from a disposable lean ARM64 guest at native Retina scale 2.
+The terminal label and neutral prompt are for the screenshot.
+
 Open VM Manager on your Apple Silicon Mac and save **Guest Defaults**. Run
 one of these commands from the repository root with an unused VM name.
 

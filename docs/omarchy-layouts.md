@@ -7,13 +7,19 @@ Chromium window. The `omarchy/examples/layouts/terminal-browser.lua` example
 places one Foot terminal on the left (40%) and Chromium on the right (60%).
 The `omarchy/examples/layouts/vscode-browser.lua` example places VS Code on
 the left (60%) and Chromium on the right (40%).
+The `omarchy/examples/layouts/four-terminals.lua` example arranges four Foot
+windows in an equal 2×2 grid on workspace 1, using a dedicated app ID for each
+corner and the same floating placement rules as the other presets.
 Install the desired applications before selecting a layout.
 
 Choose the official Try image or a BYO custom image path in the same
-bootstrap runbook: [terminal and browser](omarchy-layout-terminal-browser.md),
+bootstrap runbook: [four terminals](omarchy-layout-four-terminals.md),
+[terminal and browser](omarchy-layout-terminal-browser.md),
 [VS Code and browser](omarchy-layout-vscode-browser.md), or
 [Claude, two terminals and browser](omarchy-layout-claude-two-terminals-browser.md).
 Bootstrap installs their apps and applies the layout in the selected VM.
+Each layout runbook includes an actual guest screenshot; see the
+[capture notes](images/layouts/README.md) for preparation and provenance.
 For your own base image, [build your lean, mean coding image](omarchy-layout-factory.md).
 That optional image build contains no selected apps or app layout.
 
@@ -70,3 +76,64 @@ were stopped and retained; the three pre-existing guests matched their baseline.
 The final repository suite passed 134 tests, with the documented shell/Python
 syntax checks and `git diff --check`. Official-factory variants and the Standard
 and Trim runbooks were outside this test's selected scope.
+
+## Four-terminal validation — 1 November 2026
+
+The four-terminal preset passed live testing in one new disposable ARM64
+guest with VM Manager 0.9.3 (16), 8 CPUs, 20 GiB RAM and a 64 GiB disk.
+The current lean factory's complete published checksum inventory passed
+before creation. Native factory admission, unattended owner setup and pinned
+SSH remained enabled. The selected factory had disk SHA-256
+`7816326733d14d5367df810c684d1c540794240ff39d1086439a1c319c443494`
+and imported manifest SHA-256
+`6b49ae727ec1865e15c90bc990bb13d46b2747012d7ac5f4ceb93b2fe245e5bf`.
+
+The repository controller applied the exact tracked preset and restarted the
+guest. Reapplying it and restarting again produced exactly four Foot windows,
+each floating on workspace 1 with its dedicated app ID. The installed layout
+hash matched the source after both applications. On the native `4960×2790`
+display at scale 2, the observed logical geometry was:
+
+| Terminal | Position | Size |
+| --- | --- | --- |
+| Top left | `(12,38)` | `1222×667` |
+| Top right | `(1246,38)` | `1222×667` |
+| Bottom left | `(12,717)` | `1222×666` |
+| Bottom right | `(1246,717)` | `1222×666` |
+
+This gives 12-pixel inner gaps, 12-pixel side/bottom margins and clearance
+for the native panel. The one-pixel height difference is compositor rounding.
+Both restart checks passed accelerated `virgl (Apple M5 Max)`, preserved the
+default theme, reported no Hyprland configuration errors or failed system/user
+units, and had no active temporary sudo grant. Foot configuration, host idle
+preferences, clipboard-channel presence and a non-root C compile/link/run
+check also passed.
+
+This validation covered layout selection, reapplication and restart on the
+lean factory's installed packages. Full update/bootstrap, the official-factory
+variant, functional clipboard routing and moving between host displays remain
+separate checks. Factory build manifests were left unchanged.
+
+Raw checks, window geometry and screenshots are in the ignored
+`.artifacts/layout-validation/20261101-four-terminals/` directory.
+All four layout runbooks include screenshots captured from this same guest.
+After the four-terminal test, Chromium `156.0.8078.79-1`, VS Code `1.144.0-1`
+and Claude Desktop `4.4212.0-1` were installed through Omarchy's native commands
+using an operator-authorized temporary sudo grant, which was revoked after
+installation. Each preset's installed source hash, window classes and geometry
+were verified before capture. No application account was signed in.
+The four prepared WebP files total 130,266 bytes; their hashes, dimensions and
+display scales are recorded in the [capture notes and manifest](images/layouts/README.md).
+
+The manager refused an initial attempt to reopen an older disposable
+terminal/browser guest because its factory record belongs to a different
+runtime. Its native `factory-verification-failed` status remains visible and
+it is inactive; its disk was not changed. All captures continued in the new
+guest with factory admission checks intact. A concurrent guest's first boot
+also temporarily deferred one restart; work resumed after native SSH readiness.
+
+The new guest was restored to the four-terminal preset, passed final geometry,
+renderer and workstation checks, and was gracefully stopped and retained.
+All five pre-existing VM disk trees matched their complete file-stat baseline.
+Repository verification passed 160 tests, the documented Bash/Python checks,
+Ansible syntax, screenshot decoding/metadata checks and documentation links.
