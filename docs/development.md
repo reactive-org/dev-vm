@@ -28,3 +28,18 @@ sandbox blocks socket creation with `Operation not permitted`, which Ansible
 reports as `Local RPC server did not start`. Run from a normal Mac terminal
 or use Codex’s approved execution outside the sandbox. These tests use local
 fixtures and do not connect to a VM.
+
+## Continuous integration
+
+[GitHub Actions](https://github.com/reactive-org/dev-vm/actions/workflows/ci.yml)
+runs the shell, Python and Ansible syntax checks and `make test-omarchy` for
+pull requests and pushes to `main`. It can also be started manually from the
+Actions tab. The workflow uses an Apple Silicon macOS runner with Python 3.14
+and pinned `ansible-core` 2.21.5, including the local Ansible fixture tests.
+Action versions are pinned to reviewed commit hashes in
+`.github/workflows/ci.yml`; update those pins and the Ansible version there
+when upgrading CI dependencies.
+
+CI validates repository code and local fixtures. Factory builds and real-VM
+acceptance remain separate checks requiring the documented build environment
+and an explicitly selected disposable guest.

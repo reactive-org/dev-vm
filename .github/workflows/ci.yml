@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  omarchy-checks:
+    name: Omarchy checks (Apple Silicon)
+    runs-on: macos-15
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONPYCACHEPREFIX: ${{ runner.temp }}/dev-vm-pycache
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+          architecture: arm64
+
+      - name: Install Ansible for local validation
+        run: |
+          python -m pip install 'ansible-core==2.21.5'
+          ansible-playbook --version
+          ansible-inventory --version
+
+      - name: Verify supported host
+        run: |
+          test "$(uname -s)" = Darwin
+          test "$(uname -m)" = arm64
+
+      - name: Check shell syntax
+        run: |
+          bash -n omarchy/guest/apply-workstation.sh \
+            omarchy/guest/apply-theme.sh \
+            omarchy/guest/check-workstation.sh \
+            omarchy/guest/repair-try-omarchy-black-screen.sh
+          bash -n omarchy/image/build-container.sh omarchy/image/preferences/first-login.sh \
+            omarchy/image/preferences/preferences.install omarchy/image/preferences/PKGBUILD \
+            omarchy/image/check-user.sh
+
+      - name: Check Python syntax
+        run: python -m compileall -q scripts omarchy tests
+
+      - name: Check Ansible syntax
+        run: make syntax-check
+
+      - name: Run Omarchy tests
+        run: make test-omarchy
