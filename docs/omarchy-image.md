@@ -1,14 +1,45 @@
 # Minimal Omarchy factory
 
-`make build-omarchy-image` builds an opt-in ARM64 desktop foundation for Apple Silicon and Omarchy VM Manager. It never invokes the manager, launches QEMU, accesses a guest disk, replaces a factory cache or installs host software. Existing bootstrap commands continue to use the official factory.
+`make build-omarchy-image` builds an opt-in ARM64 desktop foundation for Apple Silicon and Omarchy VM Manager. It never invokes the manager, launches QEMU, accesses a guest disk, replaces a factory cache or installs host software. Bootstrap accepts its path in `OMARCHY_VM_FACTORY` and coordinates preparation/import through VM Manager; omission keeps the official default for new guests.
 
 ## Commands
+
+Build the shared minimal foundation once, then let bootstrap install each VM's
+selected applications, theme and layout. No optional apps or app layout are
+selected by the image builder.
+
+```bash
+make build-omarchy-image
+```
+
+Then create/configure the VM without copying a manifest hash:
+
+```bash
+make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest
+```
+
+The repository-owned `latest` symlink changes atomically only after a successful
+full build. Earlier artifacts remain intact; package-only checks, previews and
+failures do not change it. A specific build directory, its `.img.zst` path with
+companion metadata, or an existing prepared bundle may also be passed. Bootstrap
+checks a private snapshot, prepares the bundle with the manager's helper when
+needed, and imports through the native CLI only after proposal confirmation.
+
+Optional preview and package-only checks:
 
 ```bash
 make build-omarchy-image OMARCHY_IMAGE_PLAN=yes
 make check-omarchy-image
-make build-omarchy-image
 ```
+
+The default is the matching existing manager checkout's prepared
+`.build/runtime-source`, resolved to a real path, at `managed_try_commit` in
+`inputs.lock.json`. The builder verifies the clean checkout, exact commit,
+reviewed builder hash and baseline ancestry. It never prepares/downloads manager
+source automatically. Set `OMARCHY_VM_MANAGER_DIR` for another existing manager
+checkout. Use the [short build guide](omarchy-layout-factory.md) and
+[import/bootstrap handoff](omarchy-layout-factory-reference.md) for the complete flow.
 
 The preview validates a clean local Try checkout and prints the proposal without creating artifacts, running Docker or downloading anything. The compatibility check builds the versioned guest packages, executes the patched optional provisioning leaves with controlled commands, and checks the dependency closure against the live repositories. It runs without privileged Docker access or a disk. The image build repeats these checks and then runs the adapted upstream builder in a privileged ARM64 container for loop devices and mounts. Successful artifacts are published atomically into a new directory. Failed stages remain under `.artifacts/omarchy-image/.building-*` for inspection; they are never a successful factory.
 
@@ -16,7 +47,7 @@ Docker must already be installed and running with an ARM64 Linux engine. The fir
 
 The new sparse raw disk and filesystem work live in the unique host artifact stage mounted at `/factory-work`; source/package scratch uses the isolated Docker volume. This avoids filling Docker Desktop's virtual disk during Btrfs balance. The host artifact volume must have the requested disk size plus 4 GiB free, and Docker needs at least 3 GiB for source/package scratch. The workflow never prunes unrelated Docker data or changes Docker Desktop's settings.
 
-The default source is `../Omarchy VM Manager/Vendor/try-omarchy` at Try Omarchy v1.3.0. Overrides:
+The default source is the manager's prepared runtime checkout at the reviewed managed commit. Explicit source overrides:
 
 ```bash
 make build-omarchy-image \
@@ -58,6 +89,7 @@ Each successful build produces:
 | `omarchy-workstation-aarch64-edge.img.zst` | Compressed factory disk |
 | `factory.json` | Existing format 1, `upstream-shell-factory`, `aarch64`, `uefi-limine`; compressed/raw disk digests and size |
 | `packages.txt` | Actual installed package versions |
+| `base.packages`, `excluded.packages` | Effective required roots and exclusions for this build |
 | `packages/*.pkg.tar.zst` | Matched Omarchy runtime/settings, integration and workstation preferences |
 | `compatibility.json` | Installed owner script hashes, package closure and explicit validation status |
 | `source-compatibility.json` | Original/patched provisioning script hashes |
@@ -67,12 +99,12 @@ Each successful build produces:
 | `package-resolution.json` | Pre-disk dependency closure result |
 | `resolved-repository-packages.txt` | Pre-disk version resolution, including the four local packages |
 | `repositories/*.db` | Repository metadata used for pre-disk resolution |
-| `image-build.json` | Source/input identities, builder image digest and unproven compatibility flags |
+| `image-build.json` | Source/input identities, minimal package profile, builder image digest and unproven compatibility flags |
 | `SHA256SUMS` | Checksums for the complete output bundle |
 
 The package-only check produces the package/report subset and no `factory.json` or disk. Input-derived directory names are separated from the disk's actual digest. Rebuilding can produce another disk identity because filesystem IDs, keys and timestamps are generated. Omarchy source, recipes and offline Node are locked; Arch repositories and kernel/graphics packages remain live. Exact reconstruction additionally requires archiving all resolved binary packages. The recorded metadata does not promise a frozen repository or byte-identical builds.
 
-VM Manager supports explicit factory import/admission and creation-time selection. Version 0.9.2 retains the reviewed `lean-e4fffc6` owner contract alongside the preserved official contract and fixes completion reporting after host cleanup. For managed lean setup, build from integration commit `1ecd8499d271cd761e8b4be0e49747de96e57768`, producing package 43.1, then follow the manager's `docs/LeanOwnerSetup.md` flat-bundle preparation instructions with `--owner-contract lean-e4fffc6`. Use the resolved `.build/runtime-source` checkout, since the builder rejects symlink sources. The default stock-source build and older 36.1/41.1 artifacts are not substitutes. See the [43.1 acceptance record](omarchy-lean-43-validation.md) for observed results and remaining checks. Never substitute these bytes in the existing official cache or bypass kit verification with environment variables.
+VM Manager owns factory import/admission and creation-time selection. Version 0.9.2 retains the reviewed `lean-e4fffc6` owner contract alongside the preserved official contract and fixes completion reporting after host cleanup. Managed lean setup uses integration commit `1ecd8499d271cd761e8b4be0e49747de96e57768`, producing package 43.1. Path-based bootstrap invokes the existing manager preparation helper with `--owner-contract lean-e4fffc6`; the manual equivalent remains in the manager's `docs/LeanOwnerSetup.md`. Use the resolved `.build/runtime-source` checkout, since the builder rejects symlink sources. An explicit stock-source build or older 36.1/41.1 artifact is not a substitute for this managed source. See the [43.1 acceptance record](omarchy-lean-43-validation.md) for observed results and remaining checks. Never substitute these bytes in the existing official cache or bypass kit verification with environment variables.
 
 ## Acceptance and updates
 

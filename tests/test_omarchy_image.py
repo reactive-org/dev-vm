@@ -1,15 +1,16 @@
-import argparse
 import contextlib
 import importlib.util
 import io
 import json
 import os
 import shutil
+import shlex
 import subprocess
 import tempfile
 import tarfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 
@@ -131,6 +132,58 @@ class ImageCompatibilityTests(unittest.TestCase):
         self.assertTrue({"foot", "git", "python", "openssh", "mesa", "ufw"} <= base)
         self.assertTrue({"docker", "chromium", "mise-bin", "nodejs", "ghostty", "kitty", "1password"} <= excluded)
 
+    def test_foundation_profile_has_no_optional_apps_and_keeps_dependency_exclusions(self):
+        required, excluded = IMAGE.package_profile()
+        self.assertEqual(required, COMPAT.package_list(IMAGE.PROFILE / "base.packages"))
+        self.assertEqual(excluded, COMPAT.package_list(IMAGE.PROFILE / "excluded.packages"))
+        apps = {"chromium", "firefox", "visual-studio-code-bin", "code", "claude-desktop",
+                "docker", "mise-bin", "nodejs", "1password"}
+        self.assertFalse(apps & set(required))
+        self.assertTrue(apps <= set(excluded))
+        self.assertIn("foot", required)
+        COMPAT.check_package_set(required, required, excluded)
+        for app in apps:
+            with self.subTest(app=app), self.assertRaises(COMPAT.CompatibilityError):
+                COMPAT.check_package_set([*required, app], required, excluded)
+
+    def test_foundation_identity_records_only_the_minimal_package_profile(self):
+        _, provenance = IMAGE.input_identity(LOCK["managed_try_commit"], 20)
+        required, excluded = IMAGE.package_profile()
+        self.assertEqual(provenance["package_profile"], {
+            "name": "foundation", "required": required, "excluded": excluded,
+        })
+        self.assertFalse(any("/layouts/" in name for name in provenance["inputs"]))
+
+    def test_minimal_factory_uses_existing_reviewed_manager_source_without_preparing_it(self):
+        manager = self.root / "manager"
+        (manager / ".build").mkdir(parents=True)
+        source = self.root / "reviewed-source"
+        source.mkdir()
+        (manager / ".build/runtime-source").symlink_to(source, target_is_directory=True)
+        args = IMAGE.build_parser().parse_args(["--manager-dir", str(manager)])
+        with mock.patch.object(IMAGE, "run") as run:
+            selected, commit = IMAGE.source_selection(args, LOCK)
+        self.assertEqual(selected, source.resolve())
+        self.assertEqual(commit, LOCK["managed_try_commit"])
+        run.assert_not_called()
+        (manager / ".build/runtime-source").unlink()
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "prepared"):
+            IMAGE.source_selection(args, LOCK)
+        args.try_source = source
+        args.try_commit = LOCK["try_commit"]
+        self.assertEqual(IMAGE.source_selection(args, LOCK), (source, LOCK["try_commit"]))
+
+    def test_single_factory_make_target_preserves_plan_mode_and_rejects_layout_selection(self):
+        result = subprocess.run([
+            "make", "--no-print-directory", "-n", "build-omarchy-image", "OMARCHY_IMAGE_PLAN=yes",
+        ], cwd=ROOT, check=True, capture_output=True, text=True)
+        command = result.stdout.replace("\\\n", "").strip()
+        args = IMAGE.build_parser().parse_args(shlex.split(command)[2:])
+        self.assertTrue(args.plan)
+        self.assertIsNone(args.try_source)
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            IMAGE.build_parser().parse_args(["--layout", "terminal-browser"])
+
     def test_package_lists_reject_duplicates_empty_names_and_shell_input(self):
         path = self.root / "packages"
         for value in ("", "foot\nfoot\n", "$(touch nope)\n", "--root\n"):
@@ -213,14 +266,17 @@ class ImageCompatibilityTests(unittest.TestCase):
             IMAGE.adapt_builder(upstream.replace('target_install "$runtime_package"', "different"), LOCK)
 
     def test_plan_never_invokes_docker_downloads_or_creates_artifacts(self):
-        args = argparse.Namespace(try_source=self.root, try_commit=None, size_gib=20,
-                                  check_only=False, plan=True)
-        with mock.patch.object(IMAGE, "validate_source"), mock.patch.object(IMAGE, "download") as download, \
-                mock.patch.object(IMAGE, "run") as run, contextlib.redirect_stdout(io.StringIO()) as output:
+        args = IMAGE.build_parser().parse_args(["--try-source", str(self.root), "--plan"])
+        with mock.patch.object(IMAGE, "validate_source"), \
+                mock.patch.object(IMAGE, "download") as download, mock.patch.object(IMAGE, "run") as run, \
+                mock.patch.object(IMAGE, "ARTIFACTS", self.root / "artifacts"), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
             IMAGE.build(args)
         download.assert_not_called()
         run.assert_not_called()
+        self.assertFalse((self.root / "artifacts").exists())
         self.assertIn("no VM operations", output.getvalue())
+        self.assertIn("Optional applications: none", output.getvalue())
 
     def test_download_cache_checksum_and_symlinks_are_refused_without_network(self):
         cached = self.root / "cached"
@@ -260,6 +316,111 @@ class ImageCompatibilityTests(unittest.TestCase):
                 with self.assertRaisesRegex(COMPAT.CompatibilityError, "Unsafe upstream"):
                     IMAGE.stage_inputs(self.root, stage, LOCK)
             self.assertFalse((self.root / "escape").exists())
+
+    def test_staging_keeps_the_foundation_bare_and_configuration_inputs_unchanged(self):
+        recipe = self.integration_recipe()
+        original = {name: (IMAGE.PROFILE / name).read_bytes()
+                    for name in ("base.packages", "excluded.packages")}
+        run = IMAGE.run
+
+        def export(argv, **kwargs):
+            if argv[0] != "git":
+                return run(argv, **kwargs)
+            with tarfile.open(fileobj=kwargs["stdout"], mode="w") as archive:
+                archive.add(FIXTURES / "build-image.sh", arcname="guest/factory/build-image.sh")
+                archive.add(recipe, arcname="guest/package/try-omarchy")
+                archive.add(IMAGE.PROFILE / "UPSTREAM-LICENSE", arcname="LICENSE")
+
+        stage = self.root / "foundation"
+        stage.mkdir()
+        with mock.patch.object(IMAGE, "run", side_effect=export):
+            IMAGE.stage_inputs(self.root, stage, LOCK, LOCK["managed_try_commit"])
+        required, excluded = IMAGE.package_profile()
+        self.assertEqual(COMPAT.package_list(stage / "profile/base.packages"), required)
+        self.assertEqual(COMPAT.package_list(stage / "profile/resolved-base.packages"), required)
+        self.assertEqual(COMPAT.package_list(stage / "profile/excluded.packages"), excluded)
+        self.assertEqual((stage / "profile/preferences/first-login.sh").read_bytes(),
+                         (IMAGE.PROFILE / "preferences/first-login.sh").read_bytes())
+        self.assertFalse((stage / "profile/layout.lua").exists())
+        self.assertEqual(original, {name: (IMAGE.PROFILE / name).read_bytes() for name in original})
+
+    def test_foundation_artifacts_publish_checksums_and_unproven_validation_flags(self):
+        def stage_inputs(source, stage, lock, commit):
+            profile = stage / "profile"
+            profile.mkdir()
+            required, excluded = IMAGE.package_profile()
+            (profile / "base.packages").write_text("\n".join(required) + "\n")
+            (profile / "excluded.packages").write_text("\n".join(excluded) + "\n")
+
+        def container(argv, **kwargs):
+            if argv[:2] != ["docker", "run"]:
+                return
+            mount = next(str(arg) for arg in argv if str(arg).endswith(",dst=/output"))
+            output = Path(mount.removeprefix("type=bind,src=").removesuffix(",dst=/output"))
+            image = output / "omarchy-workstation-aarch64-edge.img.zst"
+            image.write_bytes(b"simulated-container-output")
+            (output / "factory.json").write_text(json.dumps({
+                "compressed": {"path": image.name, "sha256": COMPAT.digest(image)},
+                "disk": {"sha256": "a" * 64},
+            }))
+
+        for check_only in (False, True):
+            artifacts = self.root / str(check_only)
+            artifacts.mkdir()
+            args = IMAGE.build_parser().parse_args(["--try-source", str(self.root)] + (["--check-only"] if check_only else []))
+            with self.subTest(check_only=check_only), mock.patch.object(IMAGE, "ARTIFACTS", artifacts), \
+                    mock.patch.object(IMAGE, "validate_source"), mock.patch.object(IMAGE, "download"), \
+                    mock.patch.object(IMAGE.platform, "system", return_value="Darwin"), \
+                    mock.patch.object(IMAGE.platform, "machine", return_value="arm64"), \
+                    mock.patch.object(IMAGE.shutil, "which", return_value="/existing/docker"), \
+                    mock.patch.object(IMAGE.shutil, "disk_usage", return_value=SimpleNamespace(free=2**40)), \
+                    mock.patch.object(IMAGE.subprocess, "check_output", side_effect=["aarch64\n", "sha256:builder\n"]), \
+                    mock.patch.object(IMAGE, "stage_inputs", side_effect=stage_inputs), \
+                    mock.patch.object(IMAGE, "run", side_effect=container) as run, \
+                    contextlib.redirect_stdout(io.StringIO()):
+                IMAGE.build(args)
+            published, = (entry for entry in artifacts.iterdir() if not entry.is_symlink() and (entry / "image-build.json").is_file())
+            provenance = json.loads((published / "image-build.json").read_text())
+            self.assertEqual(provenance["package_profile"]["name"], "foundation")
+            self.assertFalse(provenance["guest_boot_tested"])
+            self.assertFalse(provenance["manager_admitted"])
+            self.assertEqual(provenance["package_profile"]["required"],
+                             COMPAT.package_list(published / "base.packages"))
+            self.assertEqual(provenance["package_profile"]["excluded"],
+                             COMPAT.package_list(published / "excluded.packages"))
+            self.assertFalse((published / "layout.lua").exists())
+            checksums = dict(line.split("  ", 1)[::-1] for line in (published / "SHA256SUMS").read_text().splitlines())
+            for name in ("base.packages", "excluded.packages", "image-build.json"):
+                self.assertEqual(checksums[name], COMPAT.digest(published / name))
+            self.assertTrue(all(call.args[0][0] == "docker" for call in run.call_args_list))
+            if check_only:
+                self.assertFalse((artifacts / "latest").exists())
+            else:
+                self.assertEqual((artifacts / "latest").resolve(), published.resolve())
+
+    def test_latest_link_preserves_prior_builds_and_refuses_unrelated_paths(self):
+        artifacts = self.root / "artifacts"
+        artifacts.mkdir()
+        first = artifacts / ("a" * 16 + "-" + "b" * 16)
+        second = artifacts / ("c" * 16 + "-" + "d" * 16)
+        first.mkdir()
+        second.mkdir()
+        with mock.patch.object(IMAGE, "ARTIFACTS", artifacts):
+            IMAGE.publish_latest(first)
+            self.assertEqual((artifacts / "latest").resolve(), first.resolve())
+            IMAGE.publish_latest(second)
+            self.assertEqual((artifacts / "latest").resolve(), second.resolve())
+            self.assertTrue(first.is_dir())
+            (artifacts / "latest").unlink()
+            (artifacts / "latest").write_text("unrelated")
+            with self.assertRaises(COMPAT.CompatibilityError):
+                IMAGE.publish_latest(first)
+            self.assertEqual((artifacts / "latest").read_text(), "unrelated")
+            (artifacts / "latest").unlink()
+            (artifacts / "latest").symlink_to("../unrelated")
+            with self.assertRaises(COMPAT.CompatibilityError):
+                IMAGE.publish_latest(first)
+            self.assertEqual(os.readlink(artifacts / "latest"), "../unrelated")
 
     def sealed_root(self):
         for name in ("etc/ssh", "etc/pacman.d", "var/lib/systemd", "var/cache/pacman/pkg"):

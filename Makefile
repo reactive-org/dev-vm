@@ -11,13 +11,14 @@ OMARCHY_VM_WAIT_TIMEOUT ?= 3600
 OMARCHY_VM_FOOT_FONT_SIZE ?= 16
 OMARCHY_VM_IDLE_MODE ?= host
 OMARCHY_VM_LAYOUT_FILE ?=
+OMARCHY_VM_FACTORY ?=
 OMARCHY_VM_THEME ?=
 OMARCHY_VM_THEME_MIN_STARS ?= 10
 OMARCHY_VM_YES ?= no
 OMARCHY_VM_PACKAGES ?=
 OMARCHY_VM_SKIP_APPS ?= no
 OMARCHY_VM_LEAN_DEVELOPER ?= no
-OMARCHY_IMAGE_TRY_SOURCE ?= $(OMARCHY_VM_MANAGER_DIR)/Vendor/try-omarchy
+OMARCHY_IMAGE_TRY_SOURCE ?=
 OMARCHY_IMAGE_TRY_COMMIT ?=
 OMARCHY_IMAGE_SIZE_GIB ?= 20
 OMARCHY_IMAGE_PLAN ?= no
@@ -52,14 +53,16 @@ syntax-check: ## Validate the Omarchy playbook without connecting to a guest
 
 build-omarchy-image: ## Build a minimal ARM64 Omarchy factory without operating a VM
 	@python3 ./scripts/omarchy_image.py \
-		--try-source "$(OMARCHY_IMAGE_TRY_SOURCE)" \
+		--manager-dir "$(OMARCHY_VM_MANAGER_DIR)" \
+		$(if $(OMARCHY_IMAGE_TRY_SOURCE),--try-source "$(OMARCHY_IMAGE_TRY_SOURCE)",) \
 		$(if $(OMARCHY_IMAGE_TRY_COMMIT),--try-commit "$(OMARCHY_IMAGE_TRY_COMMIT)",) \
 		--size-gib "$(OMARCHY_IMAGE_SIZE_GIB)" \
 		$(if $(filter yes true 1,$(OMARCHY_IMAGE_PLAN)),--plan,)
 
 check-omarchy-image: ## Build/check minimal provisioning packages without creating a disk
 	@python3 ./scripts/omarchy_image.py \
-		--try-source "$(OMARCHY_IMAGE_TRY_SOURCE)" \
+		--manager-dir "$(OMARCHY_VM_MANAGER_DIR)" \
+		$(if $(OMARCHY_IMAGE_TRY_SOURCE),--try-source "$(OMARCHY_IMAGE_TRY_SOURCE)",) \
 		$(if $(OMARCHY_IMAGE_TRY_COMMIT),--try-commit "$(OMARCHY_IMAGE_TRY_COMMIT)",) \
 		--size-gib "$(OMARCHY_IMAGE_SIZE_GIB)" --check-only \
 		$(if $(filter yes true 1,$(OMARCHY_IMAGE_PLAN)),--plan,)
@@ -70,7 +73,9 @@ omarchy-vm-list: ## List guests through Omarchy VM Manager
 bootstrap-omarchy-vm: ## Create or configure a managed Omarchy VM
 	@python3 ./scripts/omarchy_vm_manager.py \
 		--cli-path "$(OMARCHY_VM_MANAGER_CLI)" \
+		--manager-dir "$(OMARCHY_VM_MANAGER_DIR)" \
 		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
+		$(if $(OMARCHY_VM_FACTORY),--factory "$(OMARCHY_VM_FACTORY)",) \
 		--cpus "$(OMARCHY_VM_CPUS)" \
 		--memory-gib "$(OMARCHY_VM_MEMORY_GIB)" \
 		--disk-gib "$(OMARCHY_VM_DISK_GIB)" \

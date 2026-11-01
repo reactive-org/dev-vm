@@ -2,6 +2,8 @@
 chromium
 firefox
 google-chrome
+visual-studio-code-bin
+code
 docker
 docker-buildx
 docker-compose

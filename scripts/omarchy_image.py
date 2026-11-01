@@ -73,6 +73,49 @@ def download(url, destination, expected):
             partial.unlink()
 
 
+def package_profile():
+    required = compat.package_list(PROFILE / "base.packages")
+    excluded = compat.package_list(PROFILE / "excluded.packages")
+    if set(required) & set(excluded):
+        raise compat.CompatibilityError("Required and excluded package profiles overlap")
+    return required, excluded
+
+
+def source_selection(args, lock):
+    if args.try_source is not None:
+        source = args.try_source.expanduser().absolute()
+    else:
+        manager = args.manager_dir.expanduser().absolute()
+        prepared = manager / ".build/runtime-source"
+        if not prepared.is_dir():
+            raise compat.CompatibilityError(
+                "The minimal factory requires the matching manager's prepared .build/runtime-source; "
+                "see docs/omarchy-image.md. No source is downloaded or prepared automatically."
+            )
+        source = prepared.resolve(strict=True)
+    commit = args.try_commit or lock["managed_try_commit"]
+    return source, commit
+
+
+def check_latest_link():
+    latest = ARTIFACTS / "latest"
+    if latest.is_symlink():
+        if not re.fullmatch(r"[0-9a-f]{16}-[0-9a-f]{16}", os.readlink(latest)):
+            raise compat.CompatibilityError("The latest factory link is not a generated artifact reference; preserving it")
+    elif latest.exists():
+        raise compat.CompatibilityError("The latest factory path already contains unrelated data; preserving it")
+
+
+def publish_latest(destination):
+    check_latest_link()
+    temporary = ARTIFACTS / (".latest-" + uuid.uuid4().hex)
+    try:
+        temporary.symlink_to(destination.name, target_is_directory=True)
+        os.replace(temporary, ARTIFACTS / "latest")
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def input_identity(source_commit, size):
     hashes = {}
     paths = list(PROFILE.rglob("*")) + [Path(__file__)] + [
@@ -85,6 +128,8 @@ def input_identity(source_commit, size):
         if path.is_file() and "__pycache__" not in path.parts:
             hashes[path.relative_to(ROOT).as_posix()] = compat.digest(path)
     value = {"format": 1, "try_commit": source_commit, "size_gib": size, "inputs": hashes}
+    required, excluded = package_profile()
+    value["package_profile"] = {"name": "foundation", "required": required, "excluded": excluded}
     encoded = json.dumps(value, sort_keys=True).encode()
     return hashlib.sha256(encoded).hexdigest(), value
 
@@ -155,7 +200,10 @@ def stage_inputs(source, destination, lock, commit=None):
     compat.normalize_source_permissions(upstream)
     profile = destination / "profile"
     shutil.copytree(PROFILE, profile, ignore=shutil.ignore_patterns("__pycache__"))
-    (profile / "resolved-base.packages").write_text("\n".join(compat.package_list(PROFILE / "base.packages")) + "\n")
+    required, excluded = package_profile()
+    (profile / "base.packages").write_text("\n".join(required) + "\n")
+    (profile / "excluded.packages").write_text("\n".join(excluded) + "\n")
+    (profile / "resolved-base.packages").write_text("\n".join(required) + "\n")
     compat.prepare_integration(upstream / "guest/package/try-omarchy")
     builder = upstream / "guest/factory/build-image.sh"
     if compat.digest(builder) != lock["builder_sha256"]:
@@ -176,18 +224,15 @@ def stage_inputs(source, destination, lock, commit=None):
 
 def build(args):
     lock = json.loads((PROFILE / "inputs.lock.json").read_text())
-    source = args.try_source.expanduser().absolute()
-    commit = args.try_commit or lock["try_commit"]
+    source, commit = source_selection(args, lock)
     validate_source(source, commit, lock)
-    required = compat.package_list(PROFILE / "base.packages")
-    excluded = compat.package_list(PROFILE / "excluded.packages")
-    if set(required) & set(excluded):
-        raise compat.CompatibilityError("Required and excluded package profiles overlap")
+    required, _ = package_profile()
     identity, provenance = input_identity(commit, args.size_gib)
     print(f"Omarchy desktop-foundation {'compatibility check' if args.check_only else 'image build'}", flush=True)
     print(f"  Try source: {commit}\n  Omarchy: {lock['omarchy_version']}\n"
           f"  Platform: macOS Apple Silicon / aarch64 guest\n  Disk: {args.size_gib} GiB, UEFI/Limine, Btrfs\n"
           f"  Required packages: {len(required)} roots plus dependency closure\n"
+          "  Optional applications: none\n"
           f"  Output: {ARTIFACTS}\n  Operations: isolated guest containers; no VM operations", flush=True)
     if args.plan:
         return
@@ -206,6 +251,8 @@ def build(args):
         raise compat.CompatibilityError("Insufficient artifact-volume space for a new factory and compression")
     with (ARTIFACTS / "build.lock").open("a") as guard:
         fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if not args.check_only:
+            check_latest_link()
         downloads = ARTIFACTS / "downloads"
         downloads.mkdir(exist_ok=True)
         for repo, revision in (("omarchy", lock["omarchy_commit"]), ("omarchy-pkgs", lock["recipes_commit"])):
@@ -253,6 +300,8 @@ def build(args):
                            "validation": "container-only" if args.check_only else "sealed-image-static-checks",
                            "manager_admitted": False, "guest_boot_tested": False,
                            "live_arch_repositories": True})
+        for name in ("base.packages", "excluded.packages"):
+            shutil.copy2(stage / "profile" / name, output / name)
         (output / "image-build.json").write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n")
         sums = []
         for path in sorted(output.rglob("*")):
@@ -271,17 +320,28 @@ def build(args):
         if destination.exists():
             raise compat.CompatibilityError("Output identity already exists; refusing replacement")
         output.rename(destination)
+        if not args.check_only:
+            publish_latest(destination)
         shutil.rmtree(stage)
         print(f"Verified output: {destination}\nVM Manager admission and real GPU/first-boot checks remain required.", flush=True)
+        if not args.check_only:
+            print(f"Bootstrap factory path: {ARTIFACTS / 'latest'}", flush=True)
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--try-source", type=Path, default=ROOT.parent / "Omarchy VM Manager/Vendor/try-omarchy")
+    parser.add_argument("--manager-dir", type=Path, default=ROOT.parent / "Omarchy VM Manager",
+                        help="Existing manager checkout with the reviewed prepared runtime source")
+    parser.add_argument("--try-source", type=Path, help="Override the existing Try source checkout")
     parser.add_argument("--try-commit", help="Exact reviewed integration-source commit; defaults to the lock")
     parser.add_argument("--size-gib", type=int, default=20)
     parser.add_argument("--check-only", action="store_true", help="Build/check guest packages without loop devices or a factory disk")
     parser.add_argument("--plan", action="store_true", help="Check local inputs and print the proposal without Docker or downloads")
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
     if not 20 <= args.size_gib <= 128:
         parser.error("--size-gib must be between 20 and 128")

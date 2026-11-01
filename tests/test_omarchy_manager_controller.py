@@ -1,10 +1,12 @@
 import importlib.util
+import hashlib
 import io
 import json
 import subprocess
 import sys
 import os
 import shlex
+import tempfile
 import unittest
 from contextlib import ExitStack, redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -22,6 +24,38 @@ sys.modules[SPEC.name] = CONTROLLER
 SPEC.loader.exec_module(CONTROLLER)
 
 GUEST_ID = "B909099C-8965-4DC2-BE0E-0392269E798B"
+
+
+def factory_fixture(root, *, prepared=False):
+    source = root / "factory with spaces"
+    source.mkdir()
+    image = source / "omarchy-workstation-aarch64-edge.img.zst"
+    image.write_bytes(b"synthetic image for import orchestration tests")
+    (source / "factory.json").write_text(json.dumps({
+        "format": 1, "kind": "upstream-shell-factory", "platform": "aarch64", "boot": "uefi-limine",
+        "compressed": {"path": image.name, "sha256": hashlib.sha256(image.read_bytes()).hexdigest()},
+        "disk": {"path": "factory.img", "bytes": 20 * 1024**3, "sha256": "a" * 64},
+    }))
+    for name in ("compatibility.json", "image-build.json", "source-compatibility.json",
+                 "provisioning-check.json", "user-provisioning-check.json"):
+        (source / name).write_text("{}\n")
+    hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in source.iterdir()}
+    if prepared:
+        (source / "reviewed-factory.json").write_text(json.dumps({"files": hashes}))
+    else:
+        (source / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in hashes.items()))
+    manager = root / "manager"
+    helper = manager / "Scripts/prepare_factory_bundle.py"
+    helper.parent.mkdir(parents=True)
+    helper.write_text("# fixture; native helper is mocked in these unit tests\n")
+    return source, manager
+
+
+def prepare_fixture_bundle(argv, **kwargs):
+    bundle = Path(argv[2])
+    hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in bundle.iterdir()}
+    (bundle / "reviewed-factory.json").write_text(json.dumps({"files": hashes}))
+    return subprocess.CompletedProcess(argv, 0, "", "")
 
 
 def managed_guest(**overrides):
@@ -423,6 +457,258 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         )
         self.assertEqual(empty.packages, ())
 
+    def test_factory_selection_accepts_paths_or_native_selectors_and_defaults_to_preservation(self):
+        parser = CONTROLLER.build_parser()
+        self.assertIsNone(parser.parse_args(["bootstrap"]).factory)
+        for value in ("official", "a" * 64, "/tmp/image.img.zst", "./factory", "./a path/Prepared.factory"):
+            self.assertEqual(parser.parse_args(["--factory", value, "bootstrap"]).factory, value)
+        for value in ("", "latest", "A" * 64, "a" * 63, "--start", "./bad\npath"):
+            with self.subTest(value=value), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                parser.parse_args(["--factory=" + value, "bootstrap"])
+
+    def test_build_directory_and_image_path_are_checked_and_prepared_without_modifying_source(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source, manager = factory_fixture(Path(temporary))
+            before = {path.name: path.read_bytes() for path in source.iterdir()}
+            for selected in (source, source / "omarchy-workstation-aarch64-edge.img.zst"):
+                args = CONTROLLER.build_parser().parse_args(["--factory", str(selected), "--manager-dir", str(manager), "bootstrap"])
+                with self.subTest(selected=selected), mock.patch.object(CONTROLLER, "run", side_effect=prepare_fixture_bundle) as run:
+                    with CONTROLLER.prepare_factory_input(args) as factory:
+                        snapshot = factory.bundle
+                        self.assertEqual(factory.source, selected.resolve())
+                        self.assertEqual(factory.selector, hashlib.sha256((snapshot / "reviewed-factory.json").read_bytes()).hexdigest())
+                        self.assertNotIn("SHA256SUMS", {path.name for path in snapshot.iterdir()})
+                        self.assertIn("--owner-contract", run.call_args.args[0])
+                        self.assertIn("lean-e4fffc6", run.call_args.args[0])
+                    self.assertFalse(snapshot.exists())
+            self.assertEqual(before, {path.name: path.read_bytes() for path in source.iterdir()})
+
+    def test_prepared_bundle_is_snapshotted_verbatim_and_latest_is_pinned_once(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, manager = factory_fixture(root, prepared=True)
+            latest = root / "latest"
+            latest.symlink_to(source, target_is_directory=True)
+            args = CONTROLLER.build_parser().parse_args(["--factory", str(latest), "bootstrap"])
+            with mock.patch.object(CONTROLLER, "run") as run:
+                with CONTROLLER.prepare_factory_input(args) as factory:
+                    latest.unlink()
+                    latest.symlink_to("another-build", target_is_directory=True)
+                    self.assertEqual(factory.source, source.resolve())
+                    self.assertEqual((factory.bundle / "reviewed-factory.json").read_bytes(),
+                                     (source / "reviewed-factory.json").read_bytes())
+                    self.assertEqual({path.name for path in factory.bundle.iterdir()}, {path.name for path in source.iterdir()})
+            run.assert_not_called()
+
+    def test_bad_or_incomplete_images_never_reach_preparation_or_import(self):
+        for problem in ("corrupt", "missing-evidence", "linked-payload", "traversal", "missing-checksums"):
+            with self.subTest(problem=problem), tempfile.TemporaryDirectory() as temporary:
+                source, manager = factory_fixture(Path(temporary))
+                image = source / "omarchy-workstation-aarch64-edge.img.zst"
+                if problem == "corrupt":
+                    image.write_bytes(b"changed")
+                elif problem == "missing-evidence":
+                    (source / "compatibility.json").unlink()
+                elif problem == "linked-payload":
+                    image.unlink()
+                    image.symlink_to(source / "compatibility.json")
+                elif problem == "traversal":
+                    (source / "factory.json").write_text(json.dumps({"compressed": {"path": "../escape.img.zst"}}))
+                else:
+                    (source / "SHA256SUMS").unlink()
+                args = CONTROLLER.build_parser().parse_args(["--factory", str(source), "--manager-dir", str(manager), "bootstrap"])
+                with mock.patch.object(CONTROLLER, "run") as run, mock.patch.object(CONTROLLER, "cli_call") as cli:
+                    with self.assertRaises(CONTROLLER.WorkstationError):
+                        with CONTROLLER.prepare_factory_input(args):
+                            self.fail("Invalid factory was accepted")
+                run.assert_not_called()
+                cli.assert_not_called()
+
+    def test_prepared_bundle_rejects_undeclared_files_and_changed_payloads(self):
+        for problem in ("extra", "corrupt", "linked-manifest"):
+            with self.subTest(problem=problem), tempfile.TemporaryDirectory() as temporary:
+                source, _ = factory_fixture(Path(temporary), prepared=True)
+                if problem == "extra":
+                    (source / "extra").write_text("undeclared")
+                elif problem == "corrupt":
+                    (source / "compatibility.json").write_text("changed")
+                else:
+                    manifest = source / "reviewed-factory.json"
+                    manifest.unlink()
+                    manifest.symlink_to(source / "compatibility.json")
+                args = CONTROLLER.build_parser().parse_args(["--factory", str(source), "bootstrap"])
+                with self.assertRaises(CONTROLLER.WorkstationError):
+                    with CONTROLLER.prepare_factory_input(args):
+                        self.fail("Invalid prepared bundle was accepted")
+
+    def test_path_bootstrap_prepares_then_confirms_imports_and_creates_with_returned_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source, manager = factory_fixture(Path(temporary))
+            args = CONTROLLER.build_parser().parse_args(["--factory", str(source), "--manager-dir", str(manager), "bootstrap"])
+            events = []
+            imported = []
+            output = io.StringIO()
+
+            def prepare(argv, **kwargs):
+                events.append("prepare")
+                return prepare_fixture_bundle(argv, **kwargs)
+
+            def confirmed(_args):
+                events.append("confirm")
+                self.assertIn(str(source.resolve()), output.getvalue())
+                self.assertEqual(imported, [])
+
+            def cli(_args, command, *values):
+                events.append(command)
+                if command == "factory-import":
+                    manifest = Path(values[0]) / "reviewed-factory.json"
+                    digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+                    imported.append(digest)
+                    return {"factories": [{"kind": "custom", "manifestSHA256": digest}]}
+                self.assertEqual(command, "create")
+                self.assertEqual(values[1:3], ("--factory", imported[0]))
+                return {"guest": managed_guest(active=True, factory={"kind": "custom", "manifestSHA256": imported[0]})}
+
+            with mock.patch.object(CONTROLLER, "preflight", return_value="0.9.2"), \
+                    mock.patch.object(CONTROLLER, "list_guests", return_value=[]), \
+                    mock.patch.object(CONTROLLER, "run", side_effect=prepare), \
+                    mock.patch.object(CONTROLLER, "confirm", side_effect=confirmed), \
+                    mock.patch.object(CONTROLLER, "cli_call", side_effect=cli), redirect_stdout(output):
+                guest, _ = CONTROLLER.ready_guest(args)
+            self.assertEqual(events, ["prepare", "confirm", "factory-import", "create"])
+            self.assertEqual(CONTROLLER.guest_factory(guest), imported[0])
+
+    def test_cancellation_or_import_failure_never_creates_a_vm_or_falls_back(self):
+        for failure in ("cancel", "import", "wrong-identity"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
+                source, manager = factory_fixture(Path(temporary))
+                args = CONTROLLER.build_parser().parse_args(["--factory", str(source), "--manager-dir", str(manager), "bootstrap"])
+                with mock.patch.object(CONTROLLER, "preflight", return_value="0.9.2"), \
+                        mock.patch.object(CONTROLLER, "list_guests", return_value=[]), \
+                        mock.patch.object(CONTROLLER, "run", side_effect=prepare_fixture_bundle), \
+                        mock.patch.object(CONTROLLER, "print_proposal"), \
+                        mock.patch.object(CONTROLLER, "confirm", side_effect=CONTROLLER.WorkstationError("cancelled") if failure == "cancel" else None), \
+                        mock.patch.object(CONTROLLER, "cli_call", **(
+                            {"side_effect": CONTROLLER.WorkstationError("import failed")} if failure == "import" else
+                            {"return_value": {"factories": [{"kind": "custom", "manifestSHA256": "0" * 64}]}}
+                        )) as cli:
+                    with self.assertRaises(CONTROLLER.WorkstationError):
+                        CONTROLLER.ready_guest(args)
+                if failure == "cancel":
+                    cli.assert_not_called()
+                else:
+                    cli.assert_called_once()
+                    self.assertEqual(cli.call_args.args[1], "factory-import")
+
+    def test_preparation_failure_and_existing_factory_mismatch_stop_before_confirmation(self):
+        for failure in ("prepare", "existing"):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as temporary:
+                source, manager = factory_fixture(Path(temporary))
+                args = CONTROLLER.build_parser().parse_args(["--factory", str(source), "--manager-dir", str(manager), "bootstrap"])
+                guests = [managed_guest()] if failure == "existing" else []
+                with mock.patch.object(CONTROLLER, "preflight", return_value="0.9.2"), \
+                        mock.patch.object(CONTROLLER, "list_guests", return_value=guests), \
+                        mock.patch.object(CONTROLLER, "run", **(
+                            {"return_value": subprocess.CompletedProcess([], 1, "", "Incompatible runtime")}
+                            if failure == "prepare" else {"side_effect": prepare_fixture_bundle}
+                        )), mock.patch.object(CONTROLLER, "confirm") as confirm, \
+                        mock.patch.object(CONTROLLER, "cli_call") as cli:
+                    with self.assertRaises(CONTROLLER.WorkstationError):
+                        CONTROLLER.ready_guest(args)
+                confirm.assert_not_called()
+                cli.assert_not_called()
+
+    def test_make_bootstrap_hands_factory_apps_and_layout_to_the_controller(self):
+        digest = "a" * 64
+        layout = "omarchy/examples/layouts/terminal-browser.lua"
+        result = subprocess.run([
+            "make", "--no-print-directory", "-n", "bootstrap-omarchy-vm",
+            "OMARCHY_VM_FACTORY=" + digest, "OMARCHY_VM_PACKAGES=pkg:chromium",
+            "OMARCHY_VM_LAYOUT_FILE=" + layout,
+        ], cwd=REPOSITORY, check=True, capture_output=True, text=True)
+        argv = shlex.split(result.stdout.replace("\\\n", ""))[2:]
+        args = CONTROLLER.build_parser().parse_args(argv)
+        self.assertEqual(args.command, "bootstrap")
+        self.assertEqual(args.factory, digest)
+        self.assertEqual(args.packages, CONTROLLER.parse_packages("pkg:chromium"))
+        self.assertEqual(args.layout_file, Path(layout))
+
+    def test_custom_factory_creation_is_proposed_then_passed_to_native_create(self):
+        digest = "a" * 64
+        args = CONTROLLER.build_parser().parse_args(["--factory", digest, "bootstrap"])
+        guest = managed_guest(active=True, factory={"kind": "custom", "manifestSHA256": digest})
+        events = []
+        output = io.StringIO()
+
+        def confirmed(_args):
+            self.assertIn("Factory:         " + digest, output.getvalue())
+            events.append("confirm")
+
+        def create(_args, *values):
+            events.append("create")
+            self.assertEqual(values[:4], ("create", args.vm_name, "--factory", digest))
+            return {"guest": guest}
+
+        with mock.patch.object(CONTROLLER, "preflight", return_value="0.9.2"), \
+                mock.patch.object(CONTROLLER, "list_guests", return_value=[]), \
+                mock.patch.object(CONTROLLER, "confirm", side_effect=confirmed), \
+                mock.patch.object(CONTROLLER, "cli_call", side_effect=create) as call, redirect_stdout(output):
+            actual, _ = CONTROLLER.ready_guest(args)
+        self.assertEqual(actual, guest)
+        self.assertEqual(events, ["confirm", "create"])
+        call.assert_called_once()
+
+    def test_existing_factory_cannot_be_replaced_and_omission_preserves_custom_guests(self):
+        digest = "a" * 64
+        guest = managed_guest(active=True, factory={"kind": "custom", "manifestSHA256": digest},
+                              ssh={"enabled": True, "status": "ready"})
+        for selected in (None, digest, "official", "b" * 64):
+            args = CONTROLLER.build_parser().parse_args((["--factory", selected] if selected else []) + ["bootstrap"])
+            with self.subTest(selected=selected), \
+                    mock.patch.object(CONTROLLER, "preflight", return_value="0.9.2"), \
+                    mock.patch.object(CONTROLLER, "list_guests", return_value=[guest]), \
+                    mock.patch.object(CONTROLLER, "print_proposal"), \
+                    mock.patch.object(CONTROLLER, "confirm") as confirm, \
+                    mock.patch.object(CONTROLLER, "cli_call", return_value={"guest": guest}) as call:
+                if selected in (None, digest):
+                    CONTROLLER.ready_guest(args)
+                    self.assertEqual(call.call_args.args[1:], ("get", GUEST_ID))
+                    call.assert_called_once()
+                else:
+                    with self.assertRaisesRegex(CONTROLLER.WorkstationError, "creation-only"):
+                        CONTROLLER.ready_guest(args)
+                    confirm.assert_not_called()
+                    call.assert_not_called()
+
+    def test_custom_factory_errors_never_fall_back_to_official_or_repeat_creation(self):
+        args = CONTROLLER.build_parser().parse_args(["--factory", "a" * 64, "bootstrap"])
+        for reply in (CONTROLLER.WorkstationError("unknown-factory"), {"guest": managed_guest()}):
+            with self.subTest(reply=reply), \
+                    mock.patch.object(CONTROLLER, "preflight", return_value="0.9.2"), \
+                    mock.patch.object(CONTROLLER, "list_guests", return_value=[]), \
+                    mock.patch.object(CONTROLLER, "print_proposal"), mock.patch.object(CONTROLLER, "confirm"), \
+                    mock.patch.object(CONTROLLER, "cli_call", **(
+                        {"side_effect": reply} if isinstance(reply, Exception) else {"return_value": reply}
+                    )) as call:
+                with self.assertRaises(CONTROLLER.WorkstationError):
+                    CONTROLLER.ready_guest(args)
+                call.assert_called_once()
+                self.assertEqual(call.call_args.args[1], "create")
+
+    def test_missing_browsers_use_native_setup_and_installed_browsers_are_preserved(self):
+        connection = CONTROLLER.ManagedSSH(Path("/manager/config"), "managed-vm")
+        selection = CONTROLLER.parse_packages("pkg:chromium,pkg:firefox")
+        for installed in (False, True):
+            with self.subTest(installed=installed), \
+                    mock.patch.object(CONTROLLER, "package_installed", return_value=installed), \
+                    mock.patch.object(CONTROLLER, "guest_login_command") as login:
+                CONTROLLER.install_selected_software(connection, selection)
+                if installed:
+                    login.assert_not_called()
+                else:
+                    login.assert_called_once_with(connection,
+                        "omarchy install browser chromium && omarchy install browser firefox", tty=True)
+
     def test_lean_profile_defaults_off_and_proposal_names_the_removals(self):
         parser = CONTROLLER.build_parser()
         args = parser.parse_args(["bootstrap"])
@@ -688,6 +974,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
     def test_new_guest_creation_is_one_explicit_manager_mutation(self):
         args = SimpleNamespace(
             vm_name="Dev Omarchy",
+            factory=None,
             memory_gib=20,
             cpus=8,
             disk_gib=64,

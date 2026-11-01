@@ -1,6 +1,7 @@
 {
   "format": 1,
   "try_commit": "13d63df8da2947f833c04025ff5ade187d39ba81",
+  "managed_try_commit": "1ecd8499d271cd761e8b4be0e49747de96e57768",
   "builder_sha256": "05fd1ff21852719a413f6141a3f0f80789e7ff9e25b1da9bd8d7979915e83d39",
   "omarchy_commit": "e4fffc6e6b57cda15cdba400e021596d985f9dbf",
   "recipes_commit": "8490ac0993dcd65c9949f8c531263f4e76445488",

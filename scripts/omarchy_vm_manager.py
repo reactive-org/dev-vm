@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -12,9 +13,12 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
+import tempfile
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
@@ -248,6 +252,13 @@ class GuestSoftware:
         return f"{self.source}:{self.name}" if self.source else self.name
 
 
+@dataclass(frozen=True)
+class FactoryInput:
+    selector: Optional[str]
+    source: Optional[Path] = None
+    bundle: Optional[Path] = None
+
+
 def note(message: str) -> None:
     print(f"==> {message}", flush=True)
 
@@ -348,6 +359,149 @@ def find_guest(guests: Iterable[dict], name: str) -> Optional[dict]:
             f"Several managed guests are named {name!r}; use the manager to resolve them"
         )
     return matches[0] if matches else None
+
+
+def parse_factory(value: str) -> str:
+    if value == "official" or re.fullmatch(r"[0-9a-f]{64}", value):
+        return value
+    if (not value or len(value.encode()) > 4096 or any(ord(c) < 32 for c in value)
+            or value.startswith("-") or not (
+                "/" in value or value.startswith("~") or value.endswith((".img.zst", ".factory"))
+                or Path(value).expanduser().exists())):
+        raise argparse.ArgumentTypeError("Factory must be official, a factory path, or an imported manifest SHA-256")
+    return value
+
+
+def factory_metadata(path: Path, maximum=65536) -> bytes:
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as source:
+        info = os.fstat(source.fileno())
+        if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= maximum:
+            raise ValueError(f"Factory metadata must be a bounded regular file: {path.name}")
+        data = source.read(maximum + 1)
+        current = os.fstat(source.fileno())
+        if (len(data) != info.st_size or
+                (info.st_size, info.st_mtime_ns, info.st_ctime_ns) !=
+                (current.st_size, current.st_mtime_ns, current.st_ctime_ns)):
+            raise ValueError(f"Factory metadata changed while reading: {path.name}")
+        return data
+
+
+def factory_payload_name(value) -> bool:
+    return isinstance(value, str) and value not in (".", "..") and re.fullmatch(r"[A-Za-z0-9._-]{1,255}", value) is not None
+
+
+def snapshot_factory_file(source: Path, destination: Path, expected: str) -> None:
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
+        raise ValueError(f"Invalid factory checksum: {source.name}")
+    digest = hashlib.sha256()
+    descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as stream, destination.open("xb") as target:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError(f"Factory payload must be a regular file: {source.name}")
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+            target.write(chunk)
+        after = os.fstat(stream.fileno())
+    if ((before.st_size, before.st_mtime_ns, before.st_ctime_ns) !=
+            (after.st_size, after.st_mtime_ns, after.st_ctime_ns) or digest.hexdigest() != expected):
+        raise ValueError(f"Factory checksum mismatch or changed payload: {source.name}")
+
+
+@contextmanager
+def prepare_factory_input(args):
+    value = args.factory
+    if value is None or value == "official" or re.fullmatch(r"[0-9a-f]{64}", value):
+        yield FactoryInput(value)
+        return
+    try:
+        selected = Path(value).expanduser().resolve(strict=True)
+        image = selected if selected.is_file() else None
+        source = selected.parent if image else selected
+        if not source.is_dir():
+            raise ValueError("Choose a successful build directory, its .img.zst file, or a prepared factory bundle")
+        metadata = json.loads(factory_metadata(source / "factory.json"))
+        image_name = metadata.get("compressed", {}).get("path")
+        if not factory_payload_name(image_name) or not image_name.endswith(".img.zst"):
+            raise ValueError("factory.json must name a flat .img.zst payload")
+        if image and image.name != image_name:
+            raise ValueError("The selected image does not match its companion factory.json")
+        manifest_path = source / "reviewed-factory.json"
+        prepared = manifest_path.exists() or manifest_path.is_symlink()
+        if prepared:
+            manifest_bytes = factory_metadata(manifest_path)
+            files = json.loads(manifest_bytes).get("files")
+            if (not isinstance(files, dict) or not 2 <= len(files) <= 32
+                    or any(not factory_payload_name(name) or name == "reviewed-factory.json" for name in files)
+                    or set(path.name for path in source.iterdir()) != set(files) | {"reviewed-factory.json"}
+                    or "factory.json" not in files or image_name not in files):
+                raise ValueError("Prepared factory contents must match the flat manifest payload list")
+        else:
+            checksums = {}
+            for line in factory_metadata(source / "SHA256SUMS", 1024 * 1024).decode().splitlines():
+                digest, separator, name = line.partition("  ")
+                if (not separator or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                        or not name or Path(name).is_absolute() or ".." in Path(name).parts or name in checksums):
+                    raise ValueError("Invalid or duplicate entry in factory SHA256SUMS")
+                checksums[name] = digest
+            names = ("factory.json", image_name, "compatibility.json", "image-build.json",
+                     "source-compatibility.json", "provisioning-check.json", "user-provisioning-check.json")
+            if any(name not in checksums for name in names):
+                raise ValueError("A build image requires its checksums and companion provisioning evidence")
+            files = {name: checksums[name] for name in names}
+        with tempfile.TemporaryDirectory(prefix="dev-omarchy-factory-") as temporary:
+            bundle = Path(temporary).resolve()
+            for name, digest in files.items():
+                snapshot_factory_file(source / name, bundle / name, digest)
+            if prepared:
+                (bundle / "reviewed-factory.json").write_bytes(manifest_bytes)
+            else:
+                helper = require_file(args.manager_dir / "Scripts/prepare_factory_bundle.py", "Factory preparation helper")
+                result = run([
+                    sys.executable, helper, bundle, "--name", "Minimal Omarchy", "--owner-contract", "lean-e4fffc6",
+                    "--compatibility", "compatibility.json", "--image-build", "image-build.json",
+                    "--provisioning", "compatibility.json", "--provisioning", "image-build.json",
+                    "--provisioning", "source-compatibility.json", "--provisioning", "provisioning-check.json",
+                    "--provisioning", "user-provisioning-check.json",
+                ], check=False, capture=True)
+                if result.returncode:
+                    raise WorkstationError("Factory preparation failed: " + (result.stderr or "").strip())
+            digest = hashlib.sha256(factory_metadata(bundle / "reviewed-factory.json")).hexdigest()
+            yield FactoryInput(digest, selected, bundle)
+    except (OSError, ValueError, TypeError, AttributeError) as error:
+        raise WorkstationError(f"Cannot prepare custom factory: {error}") from error
+
+
+def import_factory_input(args, factory: FactoryInput) -> None:
+    if factory.bundle is None:
+        return
+    reply = cli_call(args, "factory-import", str(factory.bundle))
+    factories = reply.get("factories")
+    if (not isinstance(factories, list) or len(factories) != 1 or not isinstance(factories[0], dict)
+            or factories[0].get("kind") != "custom" or factories[0].get("manifestSHA256") != factory.selector):
+        raise WorkstationError("The imported factory does not match the prepared proposal; no VM was created")
+
+
+def guest_factory(guest: dict) -> str:
+    factory = guest.get("factory")
+    if factory is None:
+        return "official"  # Older official profiles did not record a factory field.
+    if isinstance(factory, dict):
+        if factory.get("kind") == "official":
+            return "official"
+        digest = factory.get("manifestSHA256")
+        if factory.get("kind") == "custom" and isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest):
+            return digest
+    raise WorkstationError("The manager returned an invalid guest factory identity")
+
+
+def check_factory(guest: dict, selected: Optional[str]) -> None:
+    if selected is not None and guest_factory(guest) != selected:
+        raise WorkstationError(
+            "The selected factory does not match this guest; factory selection is creation-only. "
+            "Choose a new VM name. The existing VM will not be replaced."
+        )
 
 
 def require_identifier(guest: dict) -> str:
@@ -572,6 +726,11 @@ def install_selected_software(
     commands = []
     package_names = {item.name for item in selected if item.source == "pkg"}
     handled_packages = set()
+    for browser in ("chromium", "firefox"):
+        if browser in package_names:
+            if not package_installed(connection, browser):
+                commands.append(f"omarchy install browser {browser}")
+            handled_packages.add(browser)
     if "claude-desktop" in package_names and not package_installed(
         connection, "claude-desktop"
     ):
@@ -699,6 +858,7 @@ def print_proposal(
     action: str,
     guest: Optional[dict],
     mutable_errors: Iterable[str],
+    factory_input: Optional[FactoryInput] = None,
 ) -> None:
     if args.remove_layout:
         layout = "remove the managed layout"
@@ -707,6 +867,8 @@ def print_proposal(
     else:
         layout = "preserve the current choice"
     identifier = guest.get("id") if guest else "assigned by the manager"
+    factory = (factory_input.selector if factory_input else args.factory) or (guest_factory(guest) if guest else "official")
+    factory_source = f"\n  Factory source:  {factory_input.source} (verify/import through VM Manager)" if factory_input and factory_input.source else ""
     corrections = list(mutable_errors)
     packages = ", ".join(item.display() for item in args.packages) or "none"
     correction_text = (
@@ -728,6 +890,7 @@ def print_proposal(
         f"  Manager CLI:     {manager} (command protocol 1)\n"
         f"  Managed VM:      {args.vm_name} ({identifier})\n"
         f"  VM action:       {action}\n"
+        f"  Factory:         {factory}{factory_source}\n"
         f"  Resources:       {args.cpus} CPUs, {args.memory_gib} GiB RAM, {args.disk_gib} GiB disk\n"
         "  Integration:     manager-owned NAT, Retina/VirGL, clipboard and SSH\n"
         "  VM storage:      manager-owned factory image and independent disk\n"
@@ -748,6 +911,13 @@ def print_proposal(
 def ready_guest(args) -> tuple[dict, str]:
     manager = preflight(args)
     guest = find_guest(list_guests(args), args.vm_name)
+    with prepare_factory_input(args) as factory:
+        return ready_guest_with_factory(args, manager, guest, factory)
+
+
+def ready_guest_with_factory(args, manager: str, guest: Optional[dict], factory: FactoryInput) -> tuple[dict, str]:
+    if guest is not None:
+        check_factory(guest, factory.selector)
     immutable_errors = immutable_guest_errors(guest) if guest else []
     if immutable_errors:
         raise WorkstationError(
@@ -779,14 +949,17 @@ def ready_guest(args) -> tuple[dict, str]:
         action=action,
         guest=guest,
         mutable_errors=mutable_errors,
+        factory_input=factory,
     )
     confirm(args)
+    import_factory_input(args, factory)
 
     if guest is None:
         reply = cli_call(
             args,
             "create",
             args.vm_name,
+            *(["--factory", factory.selector] if factory.selector else []),
             "--memory",
             f"{args.memory_gib}GiB",
             "--cpus",
@@ -852,6 +1025,7 @@ def ready_guest(args) -> tuple[dict, str]:
 
     if not isinstance(guest, dict):
         raise WorkstationError("The manager did not return the ready guest")
+    check_factory(guest, factory.selector)
     post_errors = immutable_guest_errors(guest) + mutable_guest_errors(args, guest)
     if post_errors:
         raise WorkstationError(
@@ -1005,7 +1179,11 @@ def check_command(args) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cli-path", type=Path, default=DEFAULT_CLI)
+    parser.add_argument("--manager-dir", type=Path, default=PROJECT_DIR.parent / "Omarchy VM Manager",
+                        help="Existing manager checkout containing the factory preparation helper")
     parser.add_argument("--vm-name", default="Dev Omarchy")
+    parser.add_argument("--factory", type=parse_factory, metavar="official|PATH|MANIFEST_SHA256",
+                        help="official, a build/image/bundle path to import, or an imported manifest; omission preserves an existing guest or uses official")
     parser.add_argument("--cpus", type=int, default=8)
     parser.add_argument("--memory-gib", type=int, default=20)
     parser.add_argument("--disk-gib", type=int, default=64)
