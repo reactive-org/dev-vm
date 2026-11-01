@@ -1,5 +1,5 @@
 -- Example per-VM layout: Claude on the right, two Foot terminals on the left,
--- and a floating Chromium window above them. Pass this file with
+-- and a floating Chromium window. Pass this file with
 -- OMARCHY_LAYOUT_FILE; it is not installed by default.
 
 local function workstation_window(class, size, move)
@@ -31,7 +31,7 @@ workstation_window(
   { 12, "(monitor_h*0.50+6)" }
 )
 
--- Chromium floats above the base layout and remembers manual resizing.
+-- Chromium overlaps the base layout and remembers manual resizing.
 workstation_window(
   "^omarchy-work-browser$",
   { "monitor_w*0.46", "monitor_h*0.62" },

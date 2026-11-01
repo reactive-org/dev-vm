@@ -2,6 +2,7 @@
 
 Claude on the right (60%), two terminals stacked on the left (40%), and a
 floating Chromium window.
+Normal window switching controls which overlapping window is in front.
 
 Open VM Manager on your Apple Silicon Mac and save **Guest Defaults**. Run
 one of these commands from the repository root with an unused VM name.
