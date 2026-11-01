@@ -21,3 +21,10 @@ bash -n omarchy/image/build-container.sh omarchy/image/preferences/first-login.s
 make syntax-check
 make test-omarchy
 ```
+
+When using Codex, run `make test-omarchy` outside the Codex sandbox so the
+Ansible tests can create their local Unix socket for controller RPC. The
+sandbox blocks socket creation with `Operation not permitted`, which Ansible
+reports as `Local RPC server did not start`. Run from a normal Mac terminal
+or use Codex’s approved execution outside the sandbox. These tests use local
+fixtures and do not connect to a VM.
