@@ -2,8 +2,8 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 VM_NAME ?=
-OMARCHY_VM_MANAGER_DIR ?= $(CURDIR)/../Omarchy VM Manager
-OMARCHY_VM_MANAGER_CLI ?= $(OMARCHY_VM_MANAGER_DIR)/bin/omarchy-vm
+OMARCHY_VM_MANAGER_CLI ?=
+OMARCHY_VM_MANAGER_APP ?=
 OMARCHY_VM_CPUS ?= 8
 OMARCHY_VM_MEMORY_GIB ?= 20
 OMARCHY_VM_DISK_GIB ?= 64
@@ -40,7 +40,8 @@ help: ## Show available targets and overrides
 
 apply-playbook: ## Apply independently selected features through managed SSH
 	@python3 ./scripts/omarchy_playbook.py \
-		--cli-path "$(OMARCHY_VM_MANAGER_CLI)" \
+		$(if $(OMARCHY_VM_MANAGER_CLI),--cli-path "$(OMARCHY_VM_MANAGER_CLI)",) \
+		$(if $(OMARCHY_VM_MANAGER_APP),--manager-app "$(OMARCHY_VM_MANAGER_APP)",) \
 		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
 		$(if $(OMARCHY_FEATURES),--features "$(OMARCHY_FEATURES)",) \
 		$(if $(OMARCHY_PROFILES),--profiles "$(OMARCHY_PROFILES)",) \
@@ -64,7 +65,6 @@ syntax-check: ## Validate the Omarchy playbook without connecting to a guest
 
 build-omarchy-image: ## Build a minimal ARM64 Omarchy factory without operating a VM
 	@python3 ./scripts/omarchy_image.py \
-		--manager-dir "$(OMARCHY_VM_MANAGER_DIR)" \
 		$(if $(OMARCHY_IMAGE_TRY_SOURCE),--try-source "$(OMARCHY_IMAGE_TRY_SOURCE)",) \
 		$(if $(OMARCHY_IMAGE_TRY_COMMIT),--try-commit "$(OMARCHY_IMAGE_TRY_COMMIT)",) \
 		--size-gib "$(OMARCHY_IMAGE_SIZE_GIB)" \
@@ -72,19 +72,20 @@ build-omarchy-image: ## Build a minimal ARM64 Omarchy factory without operating 
 
 check-omarchy-image: ## Build/check minimal provisioning packages without creating a disk
 	@python3 ./scripts/omarchy_image.py \
-		--manager-dir "$(OMARCHY_VM_MANAGER_DIR)" \
 		$(if $(OMARCHY_IMAGE_TRY_SOURCE),--try-source "$(OMARCHY_IMAGE_TRY_SOURCE)",) \
 		$(if $(OMARCHY_IMAGE_TRY_COMMIT),--try-commit "$(OMARCHY_IMAGE_TRY_COMMIT)",) \
 		--size-gib "$(OMARCHY_IMAGE_SIZE_GIB)" --check-only \
 		$(if $(filter yes true 1,$(OMARCHY_IMAGE_PLAN)),--plan,)
 
 omarchy-vm-list: ## List guests through Omarchy VM Manager
-	@"$(OMARCHY_VM_MANAGER_CLI)" list
+	@python3 ./scripts/omarchy_vm_manager.py \
+		$(if $(OMARCHY_VM_MANAGER_CLI),--cli-path "$(OMARCHY_VM_MANAGER_CLI)",) \
+		$(if $(OMARCHY_VM_MANAGER_APP),--manager-app "$(OMARCHY_VM_MANAGER_APP)",) list
 
 bootstrap-omarchy-vm: ## Create or configure a managed Omarchy VM
 	@python3 ./scripts/omarchy_vm_manager.py \
-		--cli-path "$(OMARCHY_VM_MANAGER_CLI)" \
-		--manager-dir "$(OMARCHY_VM_MANAGER_DIR)" \
+		$(if $(OMARCHY_VM_MANAGER_CLI),--cli-path "$(OMARCHY_VM_MANAGER_CLI)",) \
+		$(if $(OMARCHY_VM_MANAGER_APP),--manager-app "$(OMARCHY_VM_MANAGER_APP)",) \
 		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
 		$(if $(OMARCHY_VM_FACTORY),--factory "$(OMARCHY_VM_FACTORY)",) \
 		--cpus "$(OMARCHY_VM_CPUS)" \
@@ -107,7 +108,8 @@ apply-omarchy-vm-guest: ## Apply workstation preferences inside a managed guest
 
 check-omarchy-vm: ## Validate a running managed Omarchy VM
 	@python3 ./scripts/omarchy_vm_manager.py \
-		--cli-path "$(OMARCHY_VM_MANAGER_CLI)" \
+		$(if $(OMARCHY_VM_MANAGER_CLI),--cli-path "$(OMARCHY_VM_MANAGER_CLI)",) \
+		$(if $(OMARCHY_VM_MANAGER_APP),--manager-app "$(OMARCHY_VM_MANAGER_APP)",) \
 		--vm-name "$(if $(VM_NAME),$(VM_NAME),Dev Omarchy)" \
 		--cpus "$(OMARCHY_VM_CPUS)" \
 		--memory-gib "$(OMARCHY_VM_MEMORY_GIB)" \

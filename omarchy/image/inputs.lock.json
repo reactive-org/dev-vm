@@ -1,7 +1,7 @@
 {
   "format": 1,
   "try_commit": "13d63df8da2947f833c04025ff5ade187d39ba81",
-  "managed_try_commit": "1ecd8499d271cd761e8b4be0e49747de96e57768",
+  "managed_try_commit": "85f5e561e5a277ccec08d7725c8714cb090c9011",
   "builder_sha256": "05fd1ff21852719a413f6141a3f0f80789e7ff9e25b1da9bd8d7979915e83d39",
   "omarchy_commit": "e4fffc6e6b57cda15cdba400e021596d985f9dbf",
   "recipes_commit": "8490ac0993dcd65c9949f8c531263f4e76445488",
@@ -19,5 +19,10 @@
     "bin/omarchy-provision-user": "995e33939c0aca98d7c3576d23f10cc0e38e56cc18f2008fbc8feede8a8c278e"
   },
   "node_file": "node-v26.13.0-linux-arm64.tar.gz",
-  "node_sha256": "439e9c438acdf6a6ffe47418da709153d66c4bed812e30a473faacb107dd2791"
+  "node_sha256": "439e9c438acdf6a6ffe47418da709153d66c4bed812e30a473faacb107dd2791",
+  "guest_source": {
+    "archive": "try-guest-source.tar.gz",
+    "sha256": "2a1970cf3768383f575b36f01dc385782f7433e21e46a5ac1b3cafbe99639940",
+    "guest_tree": "aa461dab54d5d6625537ef506259d4e5155c83ba"
+  }
 }

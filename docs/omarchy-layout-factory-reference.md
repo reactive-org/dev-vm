@@ -7,7 +7,7 @@ installs the selected apps, theme and layout.
 ## Build and bootstrap
 
 Use an Apple Silicon Mac with existing Git, Python 3.10+, make, an ARM64 Linux
-Docker engine and the matching VM Manager app/CLI checkout. Allow the requested
+Docker engine and the installed VM Manager app/CLI. Allow the requested
 factory capacity plus 4 GiB on the artifact volume and at least 3 GiB of Docker
 scratch. Bootstrap's private snapshot also needs room for the compressed payload.
 
@@ -17,15 +17,16 @@ make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
   OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest
 ```
 
-The builder reads the manager checkout's prepared `.build/runtime-source`,
-resolves its real path and checks `managed_try_commit` in
-`omarchy/image/inputs.lock.json`. The reviewed source is
-`1ecd8499d271cd761e8b4be0e49747de96e57768`, producing package 43.1 for the
-matching 0.9.2 manager and `lean-e4fffc6` owner contract. See the manager's
-`docs/LeanOwnerSetup.md` if source preparation is needed. Host tools and manager
-sources are never downloaded/prepared automatically.
+The builder uses `omarchy/image/try-guest-source.tar.gz`, a guest-only source
+snapshot whose archive checksum, guest tree and integration commit are pinned
+in `omarchy/image/inputs.lock.json`. It contains no host runtime or manager code.
+The current source is `85f5e561e5a277ccec08d7725c8714cb090c9011`, producing
+package 43.1 for the installed 0.9.3 manager and `lean-e4fffc6` owner contract.
+Its guest tree is identical to the previous 0.9.2 build input. The builder does
+not need a manager checkout, download host software or operate a VM.
 
-`OMARCHY_VM_MANAGER_DIR` selects another existing manager checkout. Advanced
+The [bootstrap reference](omarchy-bootstrap.md) describes installed CLI discovery
+and `OMARCHY_VM_MANAGER_APP` / `OMARCHY_VM_MANAGER_CLI` overrides. Advanced
 `OMARCHY_IMAGE_TRY_SOURCE` and `OMARCHY_IMAGE_TRY_COMMIT` overrides retain the
 clean-source, exact-commit, ancestry and builder-hash checks. Disk size defaults
 to 20 GiB via `OMARCHY_IMAGE_SIZE_GIB`.
@@ -59,9 +60,10 @@ relabels an unbooted image as validated.
 
 For repository outputs, bootstrap checks the selected payloads against
 `SHA256SUMS`, copies the image and required evidence to a private temporary bundle,
-and runs the matching manager checkout's existing `prepare_factory_bundle.py`
-with `lean-e4fffc6`. That native helper checks owner programs, integration version,
-source and runtime compatibility. Existing prepared bundles are copied verbatim;
+and writes the bundle descriptor from the installed app's runtime inventory
+and reviewed lean owner contract. The source commit, integration package and
+owner-program hashes must match that app before the proposal is shown.
+Existing prepared bundles are copied verbatim;
 their descriptor is preserved. Payloads must be regular files with matching hashes;
 undeclared files, links and unsafe names are refused in prepared bundles.
 

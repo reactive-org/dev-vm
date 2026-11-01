@@ -143,7 +143,10 @@ def playbook(args):
         raise manager.WorkstationError("Run the playbook launcher on an Apple Silicon Mac")
     if not args.vm_name or len(args.vm_name.encode()) > 128 or any(ord(c) < 32 for c in args.vm_name):
         raise manager.WorkstationError("VM name must be a non-empty printable name")
-    args.cli_path = manager.require_file(args.cli_path, "Omarchy VM Manager CLI", executable=True)
+    args.cli_path = manager.require_file(
+        manager.installed_cli(args.cli_path, getattr(args, "manager_app", None)),
+        "Omarchy VM Manager CLI", executable=True,
+    )
     ansible = shutil.which("ansible-playbook")
     if not ansible:
         raise manager.WorkstationError("An existing ansible-playbook is required; no host tools are installed")
@@ -202,6 +205,7 @@ def playbook(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cli-path", type=Path, default=manager.DEFAULT_CLI)
+    parser.add_argument("--manager-app", type=Path, help="Installed manager .app containing the CLI")
     parser.add_argument("--vm-name", default="Dev Omarchy")
     parser.add_argument("--features", type=features)
     parser.add_argument("--profiles", type=lambda value: value.split(","))

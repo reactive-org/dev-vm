@@ -28,7 +28,7 @@ from urllib.request import Request, urlopen
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_CLI = PROJECT_DIR.parent / "Omarchy VM Manager" / "bin" / "omarchy-vm"
+DEFAULT_CLI = None  # Resolve the installed CLI when a command runs, not at import time.
 MINIMUM_MANAGER_VERSION = (0, 6, 0)
 GUEST_REPAIR = PROJECT_DIR / "omarchy" / "guest" / "repair-try-omarchy-black-screen.sh"
 GUEST_APPLY = PROJECT_DIR / "omarchy" / "guest" / "apply-workstation.sh"
@@ -46,6 +46,37 @@ PACKAGE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+@/-]*")
 
 class WorkstationError(RuntimeError):
     pass
+
+
+def installed_cli(cli_path=None, manager_app=None) -> Path:
+    if cli_path is not None:
+        return Path(cli_path).expanduser()
+    if manager_app is not None:
+        return Path(manager_app).expanduser() / "Contents/MacOS/omarchy-vm"
+    executable = shutil.which("omarchy-vm")
+    if executable:
+        return Path(executable)
+    for directory in (Path.home() / "Applications", Path("/Applications")):
+        executable = directory / "Omarchy VM Manager.app/Contents/MacOS/omarchy-vm"
+        if executable.is_file() and os.access(executable, os.X_OK):
+            return executable
+    raise WorkstationError(
+        "Install Omarchy VM Manager separately, or set OMARCHY_VM_MANAGER_CLI to its existing CLI"
+    )
+
+
+def installed_app(args) -> Path:
+    cli = installed_cli(args.cli_path, getattr(args, "manager_app", None)).resolve()
+    inferred = cli.parents[2] if cli.parent.name == "MacOS" and cli.parent.parent.name == "Contents" else None
+    explicit = getattr(args, "manager_app", None)
+    app = Path(explicit).expanduser().resolve() if explicit else inferred
+    if app is None or app.suffix != ".app" or not app.is_dir():
+        raise WorkstationError(
+            "Factory preparation needs the installed app; set OMARCHY_VM_MANAGER_APP when using a CLI wrapper"
+        )
+    if inferred is not None and inferred != app:
+        raise WorkstationError("The selected CLI and factory metadata must belong to the same manager app")
+    return app
 
 
 def theme_repo_url(value: str) -> str:
@@ -409,6 +440,65 @@ def snapshot_factory_file(source: Path, destination: Path, expected: str) -> Non
         raise ValueError(f"Factory checksum mismatch or changed payload: {source.name}")
 
 
+def prepare_factory_descriptor(args, bundle: Path, files: dict) -> None:
+    """Describe a verified snapshot using installed metadata; the manager admits it."""
+    # Descriptor format follows Omarchy VM Manager's MIT-licensed preparation tool.
+    # Copyright and license: omarchy/image/MANAGER-LICENSE.
+    resources = installed_app(args) / "Contents/Resources"
+    lock = json.loads(factory_metadata(resources / "TryOmarchyRuntime.lock.json"))
+    capabilities = ("customFactoryVersion", "managedSSHVersion", "managedSetupVersion",
+                    "ownerSetupReportVersion", "ownerSetupContractsVersion")
+    if any(type(lock.get(key)) is not int or lock[key] != 1 for key in capabilities):
+        raise ValueError("The installed manager lacks the required factory and owner-contract capabilities")
+    runtime = lock.get("files")
+    package = "Contents/Resources/guest-packages/try-omarchy-0.1.0-43-aarch64.pkg.tar.zst"
+    required = {package, "Contents/MacOS/omarchy-vm-helper", "Contents/Resources/runtime/bin/Try Omarchy",
+                "Contents/Resources/firmware/edk2-aarch64-code.fd", "Contents/Resources/scripts/run-qemu-gpu.sh",
+                "Contents/Resources/owner-setup-provenance.json"}
+    if (not isinstance(runtime, dict) or not required <= runtime.keys() or len(runtime) > 256
+            or any(not isinstance(path, str) or not path.startswith("Contents/")
+                   or any(part in ("", ".", "..") for part in path.split("/"))
+                   or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                   for path, digest in runtime.items())):
+        raise ValueError("The installed manager runtime inventory is incompatible with this lean image")
+    contract_bytes = factory_metadata(resources / (
+        "OmarchyVMManager_OmarchyVMManagerCore.bundle/Contents/Resources/LeanOwnerSetupContract.json"))
+    contract = json.loads(contract_bytes)
+    expected = dict(contract["programs"])
+    del expected["/usr/share/omarchy/install/provisioning/progress-icon.sh"]
+    evidence = json.loads(factory_metadata(bundle / "compatibility.json"))
+    build = json.loads(factory_metadata(bundle / "image-build.json"))
+    commit = build.get("try_commit")
+    if (evidence.get("owner_programs") != expected
+            or evidence.get("packages", {}).get("try-omarchy") != "0.1.0-43.1"
+            or not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit)
+            or commit != lock.get("patchCommit")):
+        raise ValueError("Lean image source, owner programs or integration package differ from the installed manager; rebuild with compatible pinned inputs")
+    image = json.loads(factory_metadata(bundle / "factory.json"))
+    disk = image.get("disk", {})
+    if (type(image.get("format")) is not int or image["format"] != 1
+            or (image.get("kind"), image.get("platform"), image.get("boot")) !=
+               ("upstream-shell-factory", "aarch64", "uefi-limine")
+            or files.get(image["compressed"]["path"]) != image["compressed"].get("sha256")
+            or not factory_payload_name(disk.get("path")) or not disk["path"].endswith(".img")
+            or type(disk.get("bytes")) is not int or not 0 < disk["bytes"] <= 8192 * 1024**3
+            or not isinstance(disk.get("sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", disk["sha256"])):
+        raise ValueError("The factory must describe a valid aarch64 Omarchy UEFI/Limine disk")
+    descriptor = {
+        "format": 1, "name": "Minimal Omarchy", "architecture": "aarch64", "boot": "uefi-limine",
+        **{key: 1 for key in capabilities if key != "ownerSetupContractsVersion"},
+        "integrationPackageSHA256": runtime[package],
+        "ownerSetupContractSHA256": hashlib.sha256(contract_bytes).hexdigest(),
+        "runtimeFiles": runtime, "files": files,
+        "provisioning": {name: digest for name, digest in files.items() if name not in
+                         ("factory.json", image["compressed"]["path"])},
+        "ownerSetupEvidence": "compatibility.json", "imageBuildEvidence": "image-build.json",
+        "imageIntegrationVersion": "0.1.0-43.1", "imageIntegrationSourceCommit": commit,
+    }
+    with (bundle / "reviewed-factory.json").open("x") as output:
+        output.write(json.dumps(descriptor, indent=2, sort_keys=True) + "\n")
+
+
 @contextmanager
 def prepare_factory_input(args):
     value = args.factory
@@ -457,19 +547,10 @@ def prepare_factory_input(args):
             if prepared:
                 (bundle / "reviewed-factory.json").write_bytes(manifest_bytes)
             else:
-                helper = require_file(args.manager_dir / "Scripts/prepare_factory_bundle.py", "Factory preparation helper")
-                result = run([
-                    sys.executable, helper, bundle, "--name", "Minimal Omarchy", "--owner-contract", "lean-e4fffc6",
-                    "--compatibility", "compatibility.json", "--image-build", "image-build.json",
-                    "--provisioning", "compatibility.json", "--provisioning", "image-build.json",
-                    "--provisioning", "source-compatibility.json", "--provisioning", "provisioning-check.json",
-                    "--provisioning", "user-provisioning-check.json",
-                ], check=False, capture=True)
-                if result.returncode:
-                    raise WorkstationError("Factory preparation failed: " + (result.stderr or "").strip())
+                prepare_factory_descriptor(args, bundle, files)
             digest = hashlib.sha256(factory_metadata(bundle / "reviewed-factory.json")).hexdigest()
             yield FactoryInput(digest, selected, bundle)
-    except (OSError, ValueError, TypeError, AttributeError) as error:
+    except (OSError, ValueError, TypeError, AttributeError, KeyError) as error:
         raise WorkstationError(f"Cannot prepare custom factory: {error}") from error
 
 
@@ -827,7 +908,7 @@ def preflight(args) -> str:
     if sys.platform != "darwin" or platform.machine() != "arm64":
         raise WorkstationError("Run this controller on an Apple Silicon Mac host")
     args.cli_path = require_file(
-        args.cli_path, "Omarchy VM Manager CLI", executable=True
+        installed_cli(args.cli_path, getattr(args, "manager_app", None)), "Omarchy VM Manager CLI", executable=True
     )
     if (
         not args.vm_name
@@ -1179,8 +1260,8 @@ def check_command(args) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cli-path", type=Path, default=DEFAULT_CLI)
-    parser.add_argument("--manager-dir", type=Path, default=PROJECT_DIR.parent / "Omarchy VM Manager",
-                        help="Existing manager checkout containing the factory preparation helper")
+    parser.add_argument("--manager-app", type=Path,
+                        help="Installed manager .app; inferred from the selected bundled CLI by default")
     parser.add_argument("--vm-name", default="Dev Omarchy")
     parser.add_argument("--factory", type=parse_factory, metavar="official|PATH|MANIFEST_SHA256",
                         help="official, a build/image/bundle path to import, or an imported manifest; omission preserves an existing guest or uses official")
@@ -1219,7 +1300,7 @@ def build_parser() -> argparse.ArgumentParser:
             "omarchy-pkg-add"
         ),
     )
-    parser.add_argument("command", choices=("bootstrap", "check"))
+    parser.add_argument("command", choices=("bootstrap", "check", "list"))
     return parser
 
 
@@ -1228,6 +1309,9 @@ def main() -> int:
     try:
         if args.command == "bootstrap":
             bootstrap_command(args)
+        elif args.command == "list":
+            preflight(args)
+            print(json.dumps(cli_call(args, "list"), indent=2))
         else:
             check_command(args)
     except WorkstationError as error:

@@ -1,22 +1,20 @@
 # Bootstrap reference
 
-The [quick starts](README.md#setup-runbooks) assume an existing manager app/CLI,
+The [quick starts](../README.md#quick-start) assume an existing manager app/CLI,
 Git, Python 3 and make on an Apple Silicon Mac. Ansible is required for the
 optional feature playbooks. Host tools are installed separately.
 
-If preparing an existing sibling manager source checkout, build and verify it
-without installing it globally:
+Open the installed **Omarchy VM Manager.app** and save **Guest Defaults** for
+the owner account, password, keyboard, timezone and hostname prefix. The password
+remains in the Mac login Keychain. Run setup commands from the dev-vm repository
+root. No VM Manager source checkout or local app build is required.
 
-```bash
-cd "../Omarchy VM Manager"
-make app verify-app
-```
-
-Open `dist/Omarchy VM Manager.app` and save **Guest Defaults** for the owner
-account, password, keyboard, timezone and hostname prefix. The password remains
-in the Mac login Keychain. Return to the dev-vm repository root before running
-the setup commands. The default CLI is the sibling checkout's
-`bin/omarchy-vm`; its path can be overridden as described below.
+The controller finds `omarchy-vm` on `PATH`, then the bundled CLI in
+`~/Applications/Omarchy VM Manager.app` or `/Applications/Omarchy VM Manager.app`.
+Set `OMARCHY_VM_MANAGER_APP=/absolute/path/Omarchy VM Manager.app` for another
+installed location, or `OMARCHY_VM_MANAGER_CLI=/absolute/path/to/omarchy-vm` for
+an explicit CLI. When that CLI is a wrapper rather than the bundled executable
+or a symlink to it, also set `OMARCHY_VM_MANAGER_APP` for lean factory preparation.
 
 ## Choose a starting image
 
@@ -41,12 +39,13 @@ For another compatible image, set `OMARCHY_VM_FACTORY=/path/to/factory.img.zst`
 and provisioning evidence is insufficient. Keep the image and companion files
 together. Existing prepared bundles retain their exact descriptor and hashes.
 
-Bootstrap verifies a private snapshot and uses the manager checkout's existing
-`Scripts/prepare_factory_bundle.py` for repository build outputs. After showing
-the source/identity in the proposal and receiving confirmation, it invokes native
-`factory-import`, checks the returned identity, then creates the VM. No hash
-copying or manual import is required. `OMARCHY_VM_MANAGER_DIR` selects the existing
-manager checkout containing the preparation helper when it lives elsewhere.
+Bootstrap verifies a private snapshot and describes repository build outputs
+using the installed app's runtime inventory and reviewed lean owner contract.
+The image's integration source, package and owner-program hashes must match that
+app. After showing the source/identity in the proposal and receiving
+confirmation, bootstrap invokes native `factory-import`, checks the returned
+identity, then creates the VM. No hash copying or manual import is required.
+The manager remains responsible for factory admission and runtime verification.
 
 Already-imported manifest SHA-256 selectors are still accepted. Add the same app,
 theme and layout options to either image choice; those are per-VM selections.
@@ -168,8 +167,6 @@ Bootstrap adds no optional software by default. After the guest is ready, use
 credential applications independently. This keeps creation of a lean workstation
 separate from its developer-specific software selection.
 
-The default CLI path is the sibling checkout at
-`../Omarchy VM Manager/bin/omarchy-vm`. Override
-`OMARCHY_VM_MANAGER_CLI=/absolute/path/to/omarchy-vm` when the manager lives
-elsewhere. Shared folders and general port forwarding are not currently part
-of the manager's CLI contract.
+CLI discovery and explicit installed-app/CLI paths are described above.
+Shared folders and general port forwarding are not currently part of the
+manager's CLI contract.

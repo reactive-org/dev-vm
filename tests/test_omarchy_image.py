@@ -154,24 +154,32 @@ class ImageCompatibilityTests(unittest.TestCase):
         })
         self.assertFalse(any("/layouts/" in name for name in provenance["inputs"]))
 
-    def test_minimal_factory_uses_existing_reviewed_manager_source_without_preparing_it(self):
-        manager = self.root / "manager"
-        (manager / ".build").mkdir(parents=True)
-        source = self.root / "reviewed-source"
-        source.mkdir()
-        (manager / ".build/runtime-source").symlink_to(source, target_is_directory=True)
-        args = IMAGE.build_parser().parse_args(["--manager-dir", str(manager)])
-        with mock.patch.object(IMAGE, "run") as run:
-            selected, commit = IMAGE.source_selection(args, LOCK)
-        self.assertEqual(selected, source.resolve())
+    def test_bundled_guest_source_is_pinned_and_works_without_a_manager_checkout(self):
+        args = IMAGE.build_parser().parse_args([])
+        source, commit = IMAGE.source_selection(args, LOCK)
         self.assertEqual(commit, LOCK["managed_try_commit"])
-        run.assert_not_called()
-        (manager / ".build/runtime-source").unlink()
-        with self.assertRaisesRegex(COMPAT.CompatibilityError, "prepared"):
-            IMAGE.source_selection(args, LOCK)
-        args.try_source = source
+        self.assertEqual(source, IMAGE.PROFILE / LOCK["guest_source"]["archive"])
+        IMAGE.validate_source(source, commit, LOCK)
+        with mock.patch.object(IMAGE, "run", wraps=IMAGE.run) as run:
+            IMAGE.stage_inputs(source, self.root, LOCK, commit)
+        self.assertTrue((self.root / "upstream/guest/factory/Containerfile").is_file())
+        self.assertTrue(all(call.args[0][0] == "bash" for call in run.call_args_list))
+        corrupt = self.root / "corrupt.tar.gz"
+        corrupt.write_bytes(source.read_bytes() + b"changed")
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "pinned"):
+            IMAGE.validate_source(corrupt, commit, LOCK)
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "pinned"):
+            IMAGE.validate_source(source, LOCK["try_commit"], LOCK)
+        changed_stage = self.root / "changed-stage"
+        changed_stage.mkdir()
+        def changed_copy(_source, destination):
+            destination.write_bytes(b"changed during staging")
+        with mock.patch.object(IMAGE.shutil, "copyfile", side_effect=changed_copy):
+            with self.assertRaisesRegex(COMPAT.CompatibilityError, "changed while staging"):
+                IMAGE.stage_inputs(source, changed_stage, LOCK, commit)
+        args.try_source = self.root
         args.try_commit = LOCK["try_commit"]
-        self.assertEqual(IMAGE.source_selection(args, LOCK), (source, LOCK["try_commit"]))
+        self.assertEqual(IMAGE.source_selection(args, LOCK), (self.root, LOCK["try_commit"]))
 
     def test_single_factory_make_target_preserves_plan_mode_and_rejects_layout_selection(self):
         result = subprocess.run([

@@ -47,8 +47,8 @@ The repository-owned `latest` symlink changes atomically only after a successful
 full build. Earlier artifacts remain intact; package-only checks, previews and
 failures do not change it. A specific build directory, its `.img.zst` path with
 companion metadata, or an existing prepared bundle may also be passed. Bootstrap
-checks a private snapshot, prepares the bundle with the manager's helper when
-needed, and imports through the native CLI only after proposal confirmation.
+checks a private snapshot, prepares its descriptor from installed app metadata
+when needed, and imports through the native CLI only after proposal confirmation.
 
 Optional preview and package-only checks:
 
@@ -57,21 +57,19 @@ make build-omarchy-image OMARCHY_IMAGE_PLAN=yes
 make check-omarchy-image
 ```
 
-The default is the matching existing manager checkout's prepared
-`.build/runtime-source`, resolved to a real path, at `managed_try_commit` in
-`inputs.lock.json`. The builder verifies the clean checkout, exact commit,
-reviewed builder hash and baseline ancestry. It never prepares/downloads manager
-source automatically. Set `OMARCHY_VM_MANAGER_DIR` for another existing manager
-checkout. Use the [short build guide](omarchy-layout-factory.md) and
-[import/bootstrap handoff](omarchy-layout-factory-reference.md) for the complete flow.
+The default source is the bundled guest-only archive
+`omarchy/image/try-guest-source.tar.gz`. Its SHA-256, guest tree identity and
+integration commit are pinned in `inputs.lock.json`. No manager checkout or
+source preparation is required. Use the [short build guide](omarchy-layout-factory.md)
+and [import/bootstrap handoff](omarchy-layout-factory-reference.md) for the complete flow.
 
-The preview validates a clean local Try checkout and prints the proposal without creating artifacts, running Docker or downloading anything. The compatibility check builds the versioned guest packages, executes the patched optional provisioning leaves with controlled commands, and checks the dependency closure against the live repositories. It runs without privileged Docker access or a disk. The image build repeats these checks and then runs the adapted upstream builder in a privileged ARM64 container for loop devices and mounts. Successful artifacts are published atomically into a new directory. Failed stages remain under `.artifacts/omarchy-image/.building-*` for inspection; they are never a successful factory.
+The preview validates the pinned guest archive (or an explicit clean Try checkout) and prints the proposal without creating artifacts, running Docker or downloading anything. The compatibility check builds the versioned guest packages, executes the patched optional provisioning leaves with controlled commands, and checks the dependency closure against the live repositories. It runs without privileged Docker access or a disk. The image build repeats these checks and then runs the adapted upstream builder in a privileged ARM64 container for loop devices and mounts. Successful artifacts are published atomically into a new directory. Failed stages remain under `.artifacts/omarchy-image/.building-*` for inspection; they are never a successful factory.
 
 Docker must already be installed and running with an ARM64 Linux engine. The first build downloads checksum-pinned guest source archives and an offline ARM64 Node payload, then creates a guest build container. Subsequent runs reuse verified source downloads, Docker's build cache and guest package archives under `.artifacts/omarchy-image/package-cache/`; pacman still verifies signatures. Each run uses a uniquely named, repository-labeled work volume, removed after its own container exits. No other Docker volume or container is removed. Builds in this repository are serialized.
 
 The new sparse raw disk and filesystem work live in the unique host artifact stage mounted at `/factory-work`; source/package scratch uses the isolated Docker volume. This avoids filling Docker Desktop's virtual disk during Btrfs balance. The host artifact volume must have the requested disk size plus 4 GiB free, and Docker needs at least 3 GiB for source/package scratch. The workflow never prunes unrelated Docker data or changes Docker Desktop's settings.
 
-The default source is the manager's prepared runtime checkout at the reviewed managed commit. Explicit source overrides:
+Advanced users can replace the bundled guest source with an explicit reviewed checkout:
 
 ```bash
 make build-omarchy-image \
@@ -80,7 +78,7 @@ make build-omarchy-image \
   OMARCHY_IMAGE_SIZE_GIB=20
 ```
 
-An alternate integration checkout must be clean, descend from the pinned v1.3.0 commit and retain the exact reviewed factory builder. This supports the manager's separately reviewed integration sources without modifying that checkout. The chosen integration commit is recorded. The workflow changes only an isolated exported copy. It bumps the integration package release, removes the Ghostty/Kitty software-rendering launch paths and rejects remaining forced software settings. VM Manager 0.9.2 supplies package 43; its reviewed source produces the newer hardware-policy variant 43.1, which the native package installer preserves. A later integration update still requires revalidation.
+An alternate integration checkout must be clean, descend from the pinned v1.3.0 commit and retain the exact reviewed factory builder. This supports the manager's separately reviewed integration sources without modifying that checkout. The chosen integration commit is recorded. The workflow changes only an isolated exported copy. It bumps the integration package release, removes the Ghostty/Kitty software-rendering launch paths and rejects remaining forced software settings. VM Manager 0.9.3 supplies package 43; its reviewed guest source produces the newer hardware-policy variant 43.1, which the native package installer preserves. A later integration update still requires revalidation.
 
 Git source exports and downloaded archives are normalized to checkout permissions before packaging: directories and executable files use 0755, other files use 0644, and symlink targets are left alone. Git archives can contain group-writable modes; recipes using `cp -a` would otherwise preserve them into the guest. The image audit rejects writable, foreign-owned or linked canonical owner programs, and writable/non-directory parents. Manager integration adapters and contract files receive the same checks when present. Program bytes and their reviewed hashes remain unchanged.
 
@@ -136,7 +134,9 @@ Each successful build produces:
 
 The package-only check produces the package/report subset and no `factory.json` or disk. Input-derived directory names are separated from the disk's actual digest. Rebuilding can produce another disk identity because filesystem IDs, keys and timestamps are generated. Omarchy source, recipes and offline Node are locked; Arch repositories and kernel/graphics packages remain live. Exact reconstruction additionally requires archiving all resolved binary packages. The recorded metadata does not promise a frozen repository or byte-identical builds.
 
-VM Manager owns factory import/admission and creation-time selection. Version 0.9.2 retains the reviewed `lean-e4fffc6` owner contract alongside the preserved official contract and fixes completion reporting after host cleanup. Managed lean setup uses integration commit `1ecd8499d271cd761e8b4be0e49747de96e57768`, producing package 43.1. Path-based bootstrap invokes the existing manager preparation helper with `--owner-contract lean-e4fffc6`; the manual equivalent remains in the manager's `docs/LeanOwnerSetup.md`. Use the resolved `.build/runtime-source` checkout, since the builder rejects symlink sources. An explicit stock-source build or older 36.1/41.1 artifact is not a substitute for this managed source. See the [43.1 acceptance record](omarchy-lean-43-validation.md) for observed results and remaining checks. Never substitute these bytes in the existing official cache or bypass kit verification with environment variables.
+VM Manager owns factory import/admission and creation-time selection. The current pinned integration commit is `85f5e561e5a277ccec08d7725c8714cb090c9011`, compatible with the installed 0.9.3 manager and its reviewed `lean-e4fffc6` owner contract. Path-based bootstrap reads the installed app's runtime lock and lean contract to describe a verified private snapshot, then invokes native `factory-import` only after proposal confirmation. A source/package/owner-program mismatch stops preparation; imported manifests remain subject to the manager's full runtime and admission checks. Older artifacts are preserved and may require rebuilding for the installed runtime. The [43.1 acceptance record](omarchy-lean-43-validation.md) covers the earlier 0.9.2 source pin; the current pinned image's installed-app validation is recorded below. Never substitute these bytes in the official cache or bypass kit verification with environment variables.
+
+The bundled archive exports only `guest/` and `LICENSE` from the recorded integration commit, under the included MIT license. Its guest tree (`aa461dab54d5d6625537ef506259d4e5155c83ba`) is identical to the earlier `1ecd8499d271cd761e8b4be0e49747de96e57768` input. Maintainers updating it must review the guest changes, export those paths with `git archive --format=tar.gz COMMIT guest LICENSE`, and update the commit, archive SHA-256 and guest tree in `inputs.lock.json`. Host runtime sources and binaries are excluded. Normal users need neither that checkout nor Git to consume the bundled build source.
 
 ## Acceptance and updates
 
@@ -165,6 +165,48 @@ bash -n omarchy/image/build-container.sh omarchy/image/preferences/first-login.s
 The source fixtures in `tests/fixtures/omarchy-image/` come from the exact upstream revisions in `inputs.lock.json` (Try's builder, its pinned Hyprland integration policy and Omarchy's six provisioning files). Their MIT licenses are reproduced at `omarchy/image/UPSTREAM-LICENSE` and `omarchy/image/OMARCHY-LICENSE`.
 
 Build-only validation on 1 November 2026 on Apple Silicon: 134 repository tests, the documented shell/Python syntax checks, the package-only compatibility target and a complete host-backed factory build passed. The build contains 568 installed packages and compresses to approximately 1.61 GiB. System provisioning, strict user-finalization log checks, preference reapplication, Foot configuration, AUR tool availability, a non-root C compile/link/run check, exclusions and identity sealing passed. A PCI hardware probe reports the expected missing Docker-kernel module resources in the chroot; hardware validation remains a real-VM requirement. That build launched no VM and changed no VM Manager state.
+
+## Installed-app image acceptance — 1 November 2026
+
+The full build completed in 132 seconds with reads from the VM Manager checkout
+and prepared runtime-source directories denied by a sandbox. All 24 published
+checksums passed, as did independent decompression, byte-count and SHA-256
+verification of the 20 GiB disk. The artifact is
+`.artifacts/omarchy-image/3ca761375f6db785-20cac2aa99021d9c`.
+
+| Identity | SHA-256 |
+| --- | --- |
+| Raw disk | `20cac2aa99021d9cdb2bf5b6f85692334e03f70662569ff783287be5e3f66ac7` |
+| Compressed image | `da31a3b8a737cab7f9aa84b195bd46e90259be5b1f6f4f3e0f6e890806b9dc9b` |
+| Imported manifest | `714ea1cdb9d0321f52fcbc6c26ec1b5807b6d07e35d86f11f43a498a83e02dfc` |
+
+The installed 0.9.3 (16) app/CLI admitted the factory and booted exactly one new
+disposable guest with saved owner defaults, 4 CPUs, 4 GiB RAM and a 64 GiB disk.
+Unattended owner setup, pinned SSH, root growth, native first-boot services and
+the repository workstation check passed without guest updates or optional app
+installation. GLX reported accelerated `virgl (Apple M5 Max)`; Hyprland and
+Quickshell had no forced software-rendering environment. System and user
+failed-unit counts were zero.
+
+Native macOS window zoom changed the guest resolution from 2688×1512 to
+3600×2196 while retaining scale 2. The operator manually verified clipboard
+copy/paste in both directions after automated clipboard probes were
+inconclusive. DNS and HTTPS passed. A manager-owned restart produced new
+kernel/runtime sessions and retained SSH pins, package inventory and preference
+hashes; renderer, Retina, networking and service checks passed again.
+
+The disposable guest was gracefully stopped and moved to the manager's
+recoverable Trash. Its runtime processes were gone, and all five pre-existing
+VMs retained their configurations and active states. The imported factory
+remains available. Evidence is under the ignored
+`.artifacts/omarchy-image/checkout-free-50m9w4ij/live-vm/` directory, with
+`acceptance.json` recording scope and limits. Original build manifests and
+checksums remain unchanged; live acceptance is recorded separately.
+
+Audio/camera bridge services and devices were present, but playback/capture,
+an independent Quickshell QRhi trace, movement between host displays, factory
+reset, manual owner setup, sleep/wake and forced-interruption tests were not
+performed.
 
 ## Live developer bootstrap — 1 November 2026
 

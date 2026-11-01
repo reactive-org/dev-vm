@@ -4,6 +4,30 @@
 
 Get a ready-to-code ARM64 workstation on your Apple Silicon Mac with
 [Omarchy VM Manager](https://github.com/reactive-org/omarchy-vm-manager).
+
+## Prerequisites
+
+Use an **Apple Silicon Mac** with the following host tools already available.
+Install missing host tools separately; this repository does not install them.
+
+| Dependency | When required |
+| --- | --- |
+| Git | Cloning this repository; also required for advanced image builds using an explicit source checkout. Default image builds use bundled guest sources. |
+| Python 3.10+ (`python3`) and make | Running the repository's bootstrap, image-build, feature and validation targets. CI uses Python 3.14. |
+| macOS Bash and OpenSSH (`ssh`, `scp`, `sftp`) | Shell scripts and guest access through VM Manager's managed SSH connection. |
+| Omarchy VM Manager app and CLI | Creating, configuring and checking VMs from either factory. Save **Guest Defaults** in the app first. The CLI is discovered on `PATH`, then in `~/Applications` or `/Applications`. Lean image import also reads the installed app’s compatibility metadata. See [manager setup and CLI paths](docs/omarchy-bootstrap.md). |
+| Docker CLI and a running ARM64 Linux engine | `make build-omarchy-image` and `make check-omarchy-image`. Full image builds require privileged containers. The official factory and image previews (`OMARCHY_IMAGE_PLAN=yes`) do not require host Docker. |
+| Ansible (`ansible-playbook`, `ansible-inventory`) | Optional feature playbooks (`make apply-playbook`), `make syntax-check` and the complete `make test-omarchy` suite. CI pins `ansible-core` 2.21.5. Standard bootstrap does not require Ansible. |
+| PyYAML | Reading YAML setup, catalogue or variables files. The loader can reuse the existing Ansible Python runtime; JSON files do not need PyYAML. |
+| Authenticated GitHub CLI (`gh`) or `GH_TOKEN`/`GITHUB_TOKEN` | Optional theme selection by GitHub stars. See [theme selection](docs/omarchy-themes.md). |
+
+Guest applications, Docker, mise and language runtimes are managed inside the VM
+through Omarchy and the selected [features](docs/omarchy-features.md).
+See [image build requirements](docs/omarchy-image.md) for disk-space allowances
+and [repository checks](docs/development.md) for validation details.
+
+## Quick start
+
 Open the existing manager app and save **Guest Defaults**. Run from this
 repository's root with an unused VM name.
 

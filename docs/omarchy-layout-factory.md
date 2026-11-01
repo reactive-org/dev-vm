@@ -2,8 +2,9 @@
 
 Start with a smaller, reusable base and add only the apps and developer tools you need.
 
-Use an existing ARM64 Docker engine and the matching VM Manager checkout's
-prepared runtime source. From the repository root:
+Use an existing ARM64 Docker engine and the installed VM Manager app/CLI.
+Guest build sources are bundled and checksum-pinned in this repository.
+From the repository root:
 
 ```bash
 make build-omarchy-image

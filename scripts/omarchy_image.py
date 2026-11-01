@@ -38,6 +38,10 @@ def git(source, *args):
 def validate_source(source, commit, lock):
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise compat.CompatibilityError("Try source requires an exact 40-character commit")
+    if source.is_file() and not source.is_symlink():
+        if commit != lock["managed_try_commit"] or compat.digest(source) != lock["guest_source"]["sha256"]:
+            raise compat.CompatibilityError("Bundled guest source differs from the pinned archive or commit")
+        return
     if not source.is_dir() or source.is_symlink():
         raise compat.CompatibilityError("Try source must be an existing checkout directory")
     if git(source, "rev-parse", "HEAD") != commit or git(source, "status", "--porcelain"):
@@ -85,14 +89,7 @@ def source_selection(args, lock):
     if args.try_source is not None:
         source = args.try_source.expanduser().absolute()
     else:
-        manager = args.manager_dir.expanduser().absolute()
-        prepared = manager / ".build/runtime-source"
-        if not prepared.is_dir():
-            raise compat.CompatibilityError(
-                "The minimal factory requires the matching manager's prepared .build/runtime-source; "
-                "see docs/omarchy-image.md. No source is downloaded or prepared automatically."
-            )
-        source = prepared.resolve(strict=True)
+        source = PROFILE / lock["guest_source"]["archive"]
     commit = args.try_commit or lock["managed_try_commit"]
     return source, commit
 
@@ -188,8 +185,14 @@ def stage_inputs(source, destination, lock, commit=None):
     upstream = destination / "upstream"
     upstream.mkdir()
     archive = destination / "try-source.tar"
-    with archive.open("wb") as stream:
-        run(["git", "-C", source, "archive", commit or lock["try_commit"], "guest", "LICENSE"], stdout=stream)
+    if source.is_file():
+        validate_source(source, commit or lock["managed_try_commit"], lock)
+        shutil.copyfile(source, archive)
+        if compat.digest(archive) != lock["guest_source"]["sha256"]:
+            raise compat.CompatibilityError("Bundled guest source changed while staging")
+    else:
+        with archive.open("wb") as stream:
+            run(["git", "-C", source, "archive", commit or lock["try_commit"], "guest", "LICENSE"], stdout=stream)
     with tarfile.open(archive) as stream:
         for member in stream.getmembers():
             if (member.name.startswith("/") or ".." in Path(member.name).parts
@@ -330,9 +333,7 @@ def build(args):
 
 def build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manager-dir", type=Path, default=ROOT.parent / "Omarchy VM Manager",
-                        help="Existing manager checkout with the reviewed prepared runtime source")
-    parser.add_argument("--try-source", type=Path, help="Override the existing Try source checkout")
+    parser.add_argument("--try-source", type=Path, help="Override the bundled guest source with an existing reviewed Try checkout")
     parser.add_argument("--try-commit", help="Exact reviewed integration-source commit; defaults to the lock")
     parser.add_argument("--size-gib", type=int, default=20)
     parser.add_argument("--check-only", action="store_true", help="Build/check guest packages without loop devices or a factory disk")
