@@ -19,7 +19,7 @@ Install missing host tools separately; this repository does not install them.
 | Docker CLI and a running ARM64 Linux engine | `make build-omarchy-image` and `make check-omarchy-image`. Full image builds require privileged containers. The official factory and image previews (`OMARCHY_IMAGE_PLAN=yes`) do not require host Docker. |
 | Ansible (`ansible-playbook`, `ansible-inventory`) | Optional feature playbooks (`make apply-playbook`), `make syntax-check` and the complete `make test-omarchy` suite. CI pins `ansible-core` 2.21.5. Standard bootstrap does not require Ansible. |
 | PyYAML | Reading YAML setup, catalogue or variables files. The loader can reuse the existing Ansible Python runtime; JSON files do not need PyYAML. |
-| Python 3.11+ | Providing optional `starship_config` TOML in feature playbooks; validation uses the standard-library TOML parser. |
+| Python 3.11+ | Developer-profile compact prompts or custom `starship_config` TOML; validation uses the standard-library TOML parser. |
 | Authenticated GitHub CLI (`gh`) or `GH_TOKEN`/`GITHUB_TOKEN` | Optional theme selection by GitHub stars. See [theme selection](docs/omarchy-themes.md). |
 
 Guest applications, Docker, mise and language runtimes are managed inside the VM

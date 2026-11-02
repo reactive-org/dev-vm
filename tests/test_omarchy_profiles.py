@@ -105,6 +105,38 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(default["oh_my_zsh_update_mode"], "reminder")
         self.assertEqual(default["starship_config"], "")
 
+    def test_developer_profiles_inherit_the_compact_prompt_without_extra_configuration(self):
+        expected = read_data(ROOT / "omarchy/examples/setup.yml")["options"]["workstation"]["starship_config"]
+        for profile in ("developer", "web", "python", "project-managed"):
+            with self.subTest(profile=profile):
+                plan = Resolver().resolve(profiles=[profile])
+                self.assertEqual(plan["options"]["workstation"]["starship_config"], expected)
+                self.assertEqual(launcher.plan_variables(plan)["omarchy_starship_config"], expected)
+                self.assertTrue(any(".config/dev-vm/starship.toml" in path for path in plan["effects"]["files"]))
+                unrelated = Resolver().resolve(profiles=[profile], overrides={"workstation": {"font_size": "13"}})
+                self.assertEqual(unrelated["options"]["workstation"]["starship_config"], expected)
+        project = Resolver().resolve(setup_file=ROOT / "omarchy/examples/project-managed.yml")
+        self.assertEqual(project["options"]["workstation"]["starship_config"], expected)
+        self.assertEqual(Resolver().resolve()["options"]["workstation"]["starship_config"], "")
+
+    def test_developer_prompt_can_be_replaced_emptied_or_disabled_with_legacy_precedence(self):
+        custom = "format = '$character'\n"
+        for profile in ("developer", "web", "python", "project-managed"):
+            for text in (custom, ""):
+                with self.subTest(profile=profile, custom=text):
+                    path = self.setup(options={"workstation": {"starship_config": text}})
+                    plan = Resolver().resolve(profiles=[profile], setup_file=path)
+                    self.assertEqual(plan["options"]["workstation"]["starship_config"], text)
+                    self.assertEqual(any(".config/dev-vm/starship.toml" in p for p in plan["effects"]["files"]), bool(text))
+            disabled = Resolver().resolve(profiles=[profile], overrides={"workstation": {"starship": False}})
+            self.assertNotIn("starship", disabled["packages"])
+            self.assertFalse(any(".config/dev-vm/starship.toml" in p for p in disabled["effects"]["files"]))
+            for text in (custom, ""):
+                plan = Resolver().resolve(profiles=[profile], setup_file=self.setup(
+                    options={"workstation": {"starship_config": "format = '$directory$character'"}}),
+                    overrides=launcher.overrides({"omarchy_starship_config": text}))
+                self.assertEqual(plan["options"]["workstation"]["starship_config"], text)
+
     def test_shell_configuration_rejects_invalid_names_modes_and_toml_locally(self):
         invalid = [{"oh_my_zsh_plugins": value} for value in
                    ("git", ["git", "git"], ["../git"], ["$(id)"], ["git;id"], ["git\nwhoami"], [1])]
@@ -119,6 +151,22 @@ class ProfileTests(unittest.TestCase):
             self.assertEqual(Resolver().resolve()["options"]["workstation"]["starship_config"], "")
             with self.assertRaisesRegex(ProfileError, "Python 3.11"):
                 Resolver().resolve(overrides={"workstation": {"starship_config": "add_newline = false"}})
+            with self.assertRaisesRegex(ProfileError, "Python 3.11"):
+                Resolver().resolve(profiles=["developer"])
+            opted_out = Resolver().resolve(profiles=["developer"], overrides={"workstation": {"starship_config": ""}})
+            self.assertEqual(opted_out["options"]["workstation"]["starship_config"], "")
+            for config in ({"starship": False}, {"shell": "bash"}, {"shell": "keep"}):
+                plan = Resolver().resolve(profiles=["developer"], overrides={"workstation": config})
+                self.assertNotIn("starship", plan["packages"])
+
+    def test_selected_profile_prompt_toml_is_validated_after_overrides(self):
+        path = self.catalogue(profiles={"bad": {"extends": ["builtin.developer"],
+                                              "options": {"workstation": {"starship_config": "bad = ["}}}})
+        with self.assertRaisesRegex(ProfileError, "Invalid starship_config TOML"):
+            Resolver().resolve(profiles=["example.bad"], catalogues=[path])
+        repaired = Resolver().resolve(profiles=["example.bad"], catalogues=[path],
+                                      overrides={"workstation": {"starship_config": ""}})
+        self.assertEqual(repaired["options"]["workstation"]["starship_config"], "")
 
     def test_profiles_have_complete_separate_toolchains_and_no_credentials(self):
         for name in ("developer", "web", "python"):

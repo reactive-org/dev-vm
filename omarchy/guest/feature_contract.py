@@ -46,7 +46,7 @@ def tools(value, *, agents=False):
     return value
 
 
-def validate_config(feature, value, *, extension=False):
+def validate_config(feature, value, *, extension=False, validate_toml=True):
     if not isinstance(value, dict):
         raise FeatureError("Feature input must be an object")
     if extension:
@@ -86,7 +86,7 @@ def validate_config(feature, value, *, extension=False):
             raise FeatureError("Oh My Zsh update mode must be empty, prompt, auto, reminder or disabled")
         if not isinstance(value["starship_config"], str) or len(value["starship_config"].encode()) > 65536:
             raise FeatureError("starship_config must be TOML text of at most 64 KiB")
-        if value["starship_config"]:
+        if value["starship_config"] and validate_toml and value["starship"] and value["shell"] == "zsh":
             try:
                 import tomllib
             except ImportError as error:

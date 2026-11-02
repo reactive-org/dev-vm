@@ -118,7 +118,7 @@ class Resolver:
                     self.profiles[identifier] = copy.deepcopy(definition)
         self.source(path)
 
-    def options(self, value):
+    def options(self, value, *, validate_toml=True):
         if not isinstance(value, dict):
             raise ProfileError("Options must be a feature-to-options mapping")
         result = {}
@@ -128,20 +128,20 @@ class Resolver:
                 raise ProfileError(f"Unknown, duplicate or invalid feature options: {name}")
             # A supplied option field replaces that field's baseline. Inheritance
             # and personal overrides merge tool maps before this materialization.
-            self.configuration(name, options)
+            self.configuration(name, options, validate_toml=validate_toml)
             result[name] = copy.deepcopy(options)
         return result
 
-    def configuration(self, name, options):
+    def configuration(self, name, options, *, validate_toml=True):
         config = {**copy.deepcopy(self.features[name]["defaults"]), **options}
         if isinstance(config.get("tools"), dict):
             # Null is an override tombstone, never a mise version. Validate its
             # tool name before dropping it from the executable configuration.
             checked = {**config, "tools": {tool: "" if selector is None else selector
                                            for tool, selector in config["tools"].items()}}
-            contract.validate_config(name, checked, extension=name not in contract.FEATURES)
+            contract.validate_config(name, checked, extension=name not in contract.FEATURES, validate_toml=validate_toml)
             config["tools"] = {tool: selector for tool, selector in config["tools"].items() if selector is not None}
-        contract.validate_config(name, config, extension=name not in contract.FEATURES)
+        contract.validate_config(name, config, extension=name not in contract.FEATURES, validate_toml=validate_toml)
         return config
 
     def validate(self):
@@ -156,7 +156,9 @@ class Resolver:
                 raise ProfileError("Profile description must be a string")
             profile["extends"] = self.refs(profile.get("extends", []), "profile parents")
             profile["features"] = self.refs(profile.get("features", []), "profile features")
-            profile["options"] = self.options(profile.get("options", {}))
+            # Parse TOML after profile selection and user overrides. Unselected
+            # prompt defaults must not require a TOML parser for other workflows.
+            profile["options"] = self.options(profile.get("options", {}), validate_toml=False)
             if set(profile["extends"]) - set(self.profiles) or set(profile["features"]) - set(self.features):
                 raise ProfileError(f"Unknown parent or feature in profile {name}")
         self.acyclic(self.features, "requires")

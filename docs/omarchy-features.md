@@ -166,14 +166,22 @@ or download third-party plugins. `oh_my_zsh_update_mode` defaults to `reminder`;
 other modes are `prompt`, `auto` or `disabled`. An empty string leaves existing
 native update policy alone.
 
-`starship_config` defaults to an empty string, leaving native personal settings
-active. Supplied text is validated as TOML before connecting to the guest, written
-to `~/.config/dev-vm/starship.toml`, and selected with `STARSHIP_CONFIG` in the
+`developer`, `web`, `python` and `project-managed` profiles default to the compact
+two-line prompt shown above: one directory component with long names shortened
+to 20 characters plus `…`, branches shortened to 24 plus `…`, and compact command
+duration. Standalone `workstation` defaults to an empty string, leaving personal
+settings active. Override `options.workstation.starship_config` with your own TOML,
+or `""` to use personal settings; legacy `omarchy_starship_config` overrides take
+precedence. `starship: false` disables the prompt integration.
+
+When zsh and Starship are enabled, selected text is validated as TOML before
+connecting to the guest, written to `~/.config/dev-vm/starship.toml`, and selected
+with `STARSHIP_CONFIG` in the
 managed startup block. TOML validation requires an existing Python 3.11+ on the
 controller; other workflows still support Python 3.10. Starship owns module and
 format semantics. Edit the playbook to update this managed configuration;
-personal edits to managed files/blocks stop application for review. Omitting or
-emptying the setting removes our `STARSHIP_CONFIG` export and retains the unused
+personal edits to managed files/blocks stop application for review. An explicit
+empty string removes our `STARSHIP_CONFIG` export and retains the unused
 managed file. Personal Starship files, aliases and other startup content remain
 intact. These settings apply only when their respective zsh add-on is enabled.
 

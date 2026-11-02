@@ -14,7 +14,7 @@ options:
     oh_my_zsh_plugins: [git, docker, docker-compose] # null preserves existing plugins; [] enables none.
     oh_my_zsh_update_mode: reminder # prompt, auto, reminder, disabled; empty preserves native policy.
     starship: true # Used only with zsh; prompt, with the Oh My Zsh theme disabled.
-    starship_config: | # Omit or use "" to preserve personal Starship configuration.
+    starship_config: | # Overrides the developer-profile prompt; "" selects personal settings.
       add_newline = false
       format = '$directory$git_branch$git_status$cmd_duration$line_break$character'
 
