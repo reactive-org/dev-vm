@@ -66,3 +66,10 @@ records inherited HMAC control, exact original-worker fencing, conservative miss
 helper state and local packaged-helper fixtures. This is a manager-only handoff;
 shared engine/pins are unchanged and operational job/terminal integration remains
 pending.
+
+
+[Manager admitted helper launch and registration](../README.md#manager-admitted-helper-launch-and-registration--3-november-2026)
+records signed-package/owned-child admission, journal-before-spawn original-owner
+pins and authenticated inert worker reservation. Shared source/pins are unchanged;
+operational job dispatch, full manager restart and live terminal integration remain
+pending.

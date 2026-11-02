@@ -746,3 +746,67 @@ real helper/guest crashes, remote cleanup and hard kernel-stall behavior, plus
 terminal/CLI integration and real guest acceptance. A private capability/live
 registry supports coordinator reopen, not adoption of a VM after manager restart.
 The missing-helper case remains cleanup-required rather than assumed safe.
+
+
+## Manager admitted helper launch and registration — 3 November 2026
+
+The next manager milestone-3 slice adds an admitted helper launch factory and
+inert worker registration. This supersedes the earlier pending launch/registration
+status. This worktree has a documentation-only handoff: shared code/resources,
+Python commands and the manager's base-plus-durable-patch source pin are unchanged.
+
+The manager admits its exact package/helper, strict outer/nested signatures and
+retained executable identity. Default policy requires non-ad-hoc matching app/
+helper Team IDs; an explicit internal ad-hoc fixture policy is separate. Before
+handing over the private launch capability, Security.framework verifies the owned
+running child's admitted cdhash. Transient PID lookup is never saved/adopted or a
+substitute for the authenticated inherited connection. Spawn uses fixed argv,
+private cwd/HOME/TMPDIR, empty tool PATH, null diagnostics, bootstrap pipe and one
+control fd with CLOEXEC-default handling. A waitable owned child is retained until
+matching exit; there is no arbitrary PID kill or automatic helper replacement.
+
+Bootstrap 2 reserves one metadata-only worker and sends an authenticated receipt
+for the exact registration digest before reconciliation. The reservation contains
+plan/input/mode and original job/VM/session/payload/worker/review/engine/dependency/
+binding/checkpoint/helper identities, never source contents, guest credentials,
+process invocations or terminal bytes. It has no operational runner/activation
+API. Fencing permanently retires the not-started reservation. Bootstrap 1 still
+has an empty registry and reports unknown for lost workers.
+
+The coordinator now persists schema-3 owner pins and a pending registration marker
+before launch, checks fresh admission around the receipt, and leaves a queued job
+with no engine task and a conservative cleanup hold. Duplicate submissions cannot
+automatically dispatch it. Schemas 1/2 preserve risk without inventing owners;
+unknown/partial owner fields fail closed. Errors after owner publication retain
+that exact owner, close only its channel and keep cleanup required. Recovery
+requires the same surviving service/channel plus fresh original-scope proof.
+Confirmed shared-engine remote cleanup releases that helper channel while its
+owned child observer waits for exit. Matching VM `.exited` still controls guest
+resources; no VM storage or lifecycle is added to this package.
+
+The manager adds a debug-only Swift launch-fixture product, excluded from app
+staging and disabled in release. It exercises the real factory with an ad-hoc
+sealed/read-only disposable app. Fake-runtime tests cover ordering and failure;
+no host software is installed and no real SSH/Ansible or guest is executed.
+The Setup-tab screenshot remains the later terminal UI reference.
+
+**VERIFIED — manager local fixtures:** `make test` passes 284 manager Swift test
+functions/42 suites (9 new registration/coordinator/journal functions), 49 script
+tests and expanded relocated/read-only signed package fixtures. Fakes cover
+journal-before-spawn and owner retention, receipt/admission/session failures,
+duplicates, schema migration and same-service recovery after coordinator reopen.
+The real factory's debug-only fixture rejects ad-hoc code under production policy,
+rejects resource tampering and same-byte executable replacement, then admits an
+explicit ad-hoc fixture, verifies its owned child's loaded code, registers/fences
+its inert worker and observes matching reaped exit. Control directories stay empty;
+capabilities never enter output/files. Existing protocol/signature/tamper checks
+pass. Local sockets/mock-auth fixtures use the existing sandbox exception, without
+real signing credentials, auth UI, host installs, SSH/Ansible or VM operations.
+Shared code/pins are unchanged and were not retested by this docs-only handoff.
+
+**TO PROVE:** product wiring, operational engine/job/backend dispatch, positive
+release signer/Team policy, full manager restart/reconnect and reviewed session
+rebinding, real helper/guest crashes and remote grant cleanup, hard kernel stalls,
+retention, SSH waits, terminal streams/input leases and UI/CLI. Existing setup
+execution gates stay disabled; this slice does not start an operational Swift
+provisioning job or complete milestone 3.
