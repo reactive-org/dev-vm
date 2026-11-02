@@ -97,7 +97,8 @@ The root SwiftPM package targets Swift 6 and macOS 15+. It exports
 `DevVMProvisioningCore` and the migration-stage `dev-vm` executable. The package now provides
 strict manifests, feature/profile resolution, immutable source snapshots and
 offline proposals. A concrete SSH/Ansible command adapter is available behind an
-injected process runner; no live process runner, PTY or VM backend is shipped.
+injected process runner. An opt-in local runner and PTY backend now have
+disposable-fixture coverage; no operational Swift setup or VM backend is enabled.
 The transport continuations below describe the implemented boundaries. The legacy Python commands
 above remain the operational entry points until an explicit cutover.
 
@@ -259,7 +260,8 @@ manager execution gates remain disabled. Concrete transports and production exec
 **Historical boundary at `f807104`:** `ProvisioningGuestAdapter` was a typed
 async port implemented only by the in-memory `FakeGuest` in tests. Concrete
 command construction and payload materialization are added in the continuation
-below; a live process runner, PTY, guest discovery and lifecycle controller remain deferred.
+below. The later local-runner section adds pipe/PTY execution; guest discovery,
+operational integration and lifecycle control remain deferred.
 `ProvisioningSequencer` is a single-use actor for reviewed apply/check attempts
 and cleanup-only recovery. The CLI still exposes offline validation/planning
 only, and proposals still report `execution_available: false`.
@@ -360,8 +362,9 @@ disabled.
 **IMPLEMENTED — milestone 2 continuation, 2 November 2026:**
 `SSHAnsibleGuestAdapter` constructs exact SSH/SCP/Ansible invocations, materializes
 frozen inputs and interprets bounded results. `ProvisioningProcessRunner` is an
-injected port, with only an in-memory fake supplied. There is no host process
-launcher or operational Swift apply/check command. CLI proposals still declare
+injected port. At `9ebaf17`, only an in-memory fake was supplied; the local
+runner continuation below adds a process/PTY backend. There is still no operational
+Swift apply/check command. CLI proposals still declare
 execution unavailable; manager integration and execution gates are unchanged.
 
 The connection accepts an explicit loopback endpoint, manager VM/session/owner
@@ -422,3 +425,88 @@ cancellation, PTY/password echo and terminal delivery, persistent recovery,
 standalone cutover, manager/helper integration and signed relocation. Earlier
 fake-adapter evidence remains historical; concrete command generation and local
 materialization now exist, without real-guest acceptance.
+
+
+## Local process runner and PTY — 3 November 2026
+
+**IMPLEMENTED — milestone 2 continuation:** `LocalProvisioningProcessRunner` is
+an explicitly injected local backend. It executes an exact absolute program/argv,
+working directory and supplied environment, with no shell expansion, tool lookup
+or inherited credentials/environment. Pipe mode keeps stdout/stderr separate,
+closes unused stdin, limits supplied stdin to 64 KiB and combines captured output
+under 32 KiB. Overflow and I/O errors are failures even if the child exits zero.
+Streaming mode publishes actual bytes and leaves structured stdout/stderr empty.
+The standalone CLI remains offline only; no real SSH/Ansible transport is wired
+up, and manager execution gates are unchanged.
+
+`CDevVMProcess` is a small Darwin syscall bridge around `posix_spawn`, PTY,
+wait and process-group queries. It creates a new session with inherited file
+descriptors closed by default and explicit signal state. For PTYs, supply an
+explicit `ProvisioningExecutablePin` for the compiled `dev-vm-process-host`
+launcher. Darwin establishes the session after spawn file actions; the launcher
+claims its controlling terminal then `execve`s the target, retaining the same
+owned PID. It does no tool discovery, shell parsing or credential retrieval.
+It needs to be admitted/packaged with the future manager helper, not installed
+from Homebrew. No fork runs inside the Swift runtime. The separate C executable
+under `tests/ProcessFixture` is test-only and is never an installed runtime asset.
+The ordering is checked against [Apple's spawn implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_exec.c)
+and exercised by the controlling-terminal fixture.
+
+Ownership is registered before spawn. Cancellation targets only the matching
+invocation; deadlines/cancellation send TERM then KILL after 150 ms. The waitable
+leader reserves its PID/group until no live group members remain and output
+reaches EOF; then the runner reaps that exact child. Normal parent exit with live
+children is a failure requiring group cleanup. A 250 ms post-exit drain grace and
+2-second cleanup window prevent an inherited pipe from silently hanging success.
+Unconfirmed cleanup returns `cleanupUnconfirmed`, retains ownership/descriptors
+and blocks the same VM/session across fresh runner instances in this process.
+Exact-ID `reconcileLocalCleanup` can retry without launching commands. If a caller
+drops an uncertain runner, a retained local reaper keeps that ownership; lost
+wait ownership stays blocked rather than risking PID reuse. This registry is
+in-memory, not cross-process or crash recovery.
+
+**LOCAL TERMINAL CONTRACT:** `ProvisioningTerminal` provides pull-based raw byte
+frames tagged by invocation/channel/sequence, with redacted descriptions. Storage
+is bounded to a configured 8 KiB–1 MiB and at most 1,024 frames; snapshots are at
+most 64 KiB and report gaps. No viewer callback can stall the drain loop. It does
+not reconstruct an arbitrary terminal screen after a gap; the future renderer
+must indicate/reset/resynchronize it. ANSI, carriage returns and split UTF-8 bytes
+are preserved, not interpreted. There is no UI emulator or IPC attach endpoint.
+
+Input is explicitly granted from a reviewed request (or exact job context), bound
+to job/VM/session/dependencies/mode and one lease. Input/resize messages require
+an active invocation, exact owner, monotonic sequence and bounds (4 KiB per input,
+64 KiB queued, 1–500 rows and 1–1,000 columns). PTYs start raw/no-echo; each input
+flush preserves those local settings. Writes and revocation are serialized, so
+pending input cannot survive revocation. Detach/revoke does not cancel the job;
+an unanswered prompt reaches its deadline. Leases cannot be reused, and a live
+command does not permit silent ownership transfer. Input is never published or
+persisted. Programs can deliberately print secrets; this is not automatic output
+redaction. Remote SSH/sudo echo remains unverified.
+
+**VERIFIED — disposable local fixtures only:** make build and all 64 Swift test
+functions pass (14 new local runner functions), plus 18 parser and 66 complete
+planning oracle fixtures. All 64 also pass with `PATH=/nonexistent` using the
+absolute Swift toolchain and already-built fixtures. Tests copy compiled fixture
+and launcher binaries into private UUID temp directories; they cover literal
+argv/environment, stdin/EOF, separate capture, floods/gaps, split UTF-8/ANSI,
+controlling terminal/foreground group, SIGWINCH sizing, synthetic no-echo input,
+lease revocation/replay, descriptor inheritance, stale/early/concurrent
+cancellation, TERM-resistant descendants, parent exit, missing/changed launchers
+and uncertain-pipe reconciliation/admission. Tests assert no live fixture
+children after cleanup (orphan zombies are reaped by launchd). PTY checks need
+`/dev/tty` outside the workspace filesystem sandbox: restricted runs failed that
+fixture access; the full local suite passes outside that restriction. A one-off
+direct Swift invocation without the repository's module-cache environment also
+failed its sandboxed cache write; make-based checks use the local cache normally.
+No real SSH/SCP/SFTP/Ansible executable, host tool install, credential access, UI
+or VM operation is used. Legacy tests that execute Ansible are not rerun.
+
+**TO PROVE:** real SSH/Ansible and nested PTY/remote password behavior, guest
+scope/quiescence/auth cleanup, hostile deliberate session/group escape, opaque
+kernel stalls and foreign SIGCHLD reapers, cross-process/crash/persistent recovery,
+helper launcher signature/admission/relocation, terminal renderer/escape policy,
+IPC/viewer resynchronization and operational CLI/manager integration. Process
+groups are not a sandbox: deliberately detached code can outlive its parent,
+especially if it closes inherited pipes. Local exit proves only the owned group
+and descriptors; it never proves guest quiescence or a VM `.exited` boundary.

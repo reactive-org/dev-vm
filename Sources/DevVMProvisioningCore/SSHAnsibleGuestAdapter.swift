@@ -1,7 +1,7 @@
 import Foundation
 
 /// Concrete command construction, materialization and result interpretation.
-/// It cannot launch anything without an injected runner; none is shipped.
+/// Launch requires an explicitly injected runner; CLI execution stays disabled.
 public actor SSHAnsibleGuestAdapter: ProvisioningGuestAdapter {
     private let connection: ProvisioningSSHConnection
     private let tools: ProvisioningTransportTools
@@ -152,11 +152,12 @@ public actor SSHAnsibleGuestAdapter: ProvisioningGuestAdapter {
         guard result.invocationID == invocation.id, result.stdout.count + result.stderr.count <= invocation.maximumCapturedBytes else { throw SequencingFailure.protocolViolation }
         if case .terminalStream = output, !result.stdout.isEmpty || !result.stderr.isEmpty { throw SequencingFailure.protocolViolation }
         switch result.termination {
-        case .notStarted: throw SequencingFailure.adapterFailed
+        case .notStarted, .cleanupUnconfirmed: throw SequencingFailure.adapterFailed
         case .exited(let status, let reason):
             switch reason {
             case .cancelled: throw SequencingFailure.cancelled
             case .timedOut: throw SequencingFailure.timedOut
+            case .outputLimit, .ioFailure: throw SequencingFailure.adapterFailed
             case .normal: guard accepted.contains(status) else { throw SequencingFailure.adapterFailed }
             }
         }

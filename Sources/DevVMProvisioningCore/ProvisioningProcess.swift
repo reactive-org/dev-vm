@@ -25,10 +25,13 @@ public struct ProvisioningProcessInvocation: Sendable, CustomStringConvertible, 
     public var description: String { "ProvisioningProcessInvocation(\(purpose.rawValue), redacted)" }
     public var debugDescription: String { description }
 }
-public enum ProvisioningExitReason: Sendable { case normal, cancelled, timedOut }
+public enum ProvisioningExitReason: Sendable { case normal, cancelled, timedOut, outputLimit, ioFailure }
 public enum ProvisioningProcessTermination: Sendable {
-    /// Includes all owned local descendants. Diagnostics are not a termination.
+    /// Matching leader reaped and no live members of its owned process group.
+    /// Deliberately detached sessions are not contained by a process group.
     case exited(status: Int32, reason: ProvisioningExitReason)
+    /// Ownership is retained by the runner; do not infer exit or launch again.
+    case cleanupUnconfirmed
     case notStarted
 }
 public struct ProvisioningProcessResult: Sendable, CustomStringConvertible, CustomDebugStringConvertible {
@@ -42,9 +45,9 @@ public struct ProvisioningProcessResult: Sendable, CustomStringConvertible, Cust
     public var description: String { "ProvisioningProcessResult(redacted)" }
     public var debugDescription: String { description }
 }
-/// No system runner is supplied. A runner must register ownership before launch,
+/// A runner must register ownership before launch,
 /// enforce output/deadline/PTY rules, and return only after matching local exit
-/// and descendant cleanup (or definite failure before starting). Interrupt is
+/// and owned group cleanup, report uncertainty, or fail before starting. Interrupt is
 /// scoped to the invocation ID; it never means the guest job has stopped.
 public protocol ProvisioningProcessRunner: Sendable {
     func run(_ invocation: ProvisioningProcessInvocation) async -> ProvisioningProcessResult

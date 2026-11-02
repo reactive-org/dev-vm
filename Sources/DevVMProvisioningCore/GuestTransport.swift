@@ -147,10 +147,10 @@ public struct GuestReply: Sendable {
     }
 }
 
-/// The concrete SSH/Ansible adapter requires an injected process runner. No live
-/// runner, PTY or lifecycle implementation is shipped here.
+/// The concrete SSH/Ansible adapter requires an explicitly injected process
+/// runner. Local pipe/PTY support does not enable CLI or VM lifecycle actions.
 /// An adapter must honor deadlines, bind every operation to the expected pins,
-/// and finish its local command before returning/throwing. Local completion is
+/// and confirm local exit or retain/report uncertain cleanup. Local completion is
 /// not proof that remote descendants stopped: cleanup requires a separate proof.
 public protocol ProvisioningGuestAdapter: Sendable {
     func perform(_ command: GuestCommand) async throws -> GuestReply
