@@ -73,3 +73,10 @@ records signed-package/owned-child admission, journal-before-spawn original-owne
 pins and authenticated inert worker reservation. Shared source/pins are unchanged;
 operational job dispatch, full manager restart and live terminal integration remain
 pending.
+
+
+[Manager helper-side engine dispatch](../README.md#manager-helper-side-engine-dispatch--3-november-2026)
+records one-shot activation, shared-sequencer helper tasks, authenticated status/
+cancellation, durable no-replay markers and fake/signed-process fixture coverage.
+Shared sources/pins are unchanged; production contexts/backends, full restart and
+live terminal integration remain pending.

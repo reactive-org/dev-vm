@@ -810,3 +810,65 @@ rebinding, real helper/guest crashes and remote grant cleanup, hard kernel stall
 retention, SSH waits, terminal streams/input leases and UI/CLI. Existing setup
 execution gates stay disabled; this slice does not start an operational Swift
 provisioning job or complete milestone 3.
+
+
+## Manager helper-side engine dispatch — 3 November 2026
+
+The manager continuation activates a registered helper worker and invokes this
+package's shared sequencer with injected fake adapters. This supersedes the earlier
+no-dispatch status. This worktree changes documentation only: shared code/resources,
+Python commands and the manager's immutable engine/source pin remain unchanged.
+
+Authenticated activate/status/cancel messages name an exact original registration,
+activation ID/digest and owner/review/plan/input/engine/dependency/session scope.
+They carry acknowledgement booleans, never executable plans, arbitrary paths,
+credentials or terminal bytes. The helper ANDs acknowledgements with its locally
+prepared approval. One activation owns one task/sequencer, and duplicates return
+status without preparing or running again. Changed activation conflicts; fencing
+never reopens. A local context factory must prepare without guest/process work and
+provide the matching reviewed request/approval, authority, exclusive runner and
+adapter. The product helper has no such factory and refuses activation.
+
+The helper task survives viewer/RPC detach. It revalidates command/binding/mode,
+package/body and session/dependency authority, stops body on known disconnect or
+cancellation, and permits original-target shared-sequencer cleanup without input.
+Typed bounded status contains operation/result/failure metadata, not terminal,
+source values or raw errors. Final local runner uncertainty overrides a clean guest
+result. Disconnect retains owned tasks/cleanup instead of treating EOF as exit or
+grant revocation. No guest authorization or Ansible rules are reimplemented.
+
+Manager schema 4 persists activation identity and cleanup risk before dispatch,
+checks authenticated monotonic results and retains lifecycle holds on lost replies,
+disk/status failure or VM/session/dependency change. Accepted activations are never
+automatically replayed after coordinator reopen. Explicit original-owner cleanup
+still requires fresh authority; helper-child exit and matching VM `.exited` remain
+separate. Ordinary shutdown preserves cancellation/cleanup ordering.
+
+A separate temporary ad-hoc-signed fixture app replaces only its helper slot with
+the excluded debug fixture binary. That binary hosts the synthetic factory and
+fixed local manifest, so actual admitted helper-process dispatch/cancellation can
+be tested without putting a fake backend in the normal helper. No runtime flag,
+environment override or RPC can enable a product backend. No real SSH/SCP/SFTP/
+Ansible, host install, manager UI or VM operation is performed. The Setup screenshot
+stays the future terminal UI reference; raw streams/input remain later work.
+
+**VERIFIED — manager fake/local fixtures:** `make test` passes 297 manager Swift
+functions/43 suites (13 new engine/coordinator/journal functions), 49 script tests
+and expanded signed package checks. Tests cover one-shot apply/check, activation
+consent/context/source checks, cancellation/fencing/disconnect, physical uncertainty,
+journal-before-RPC, viewer detach, shutdown, malformed/lost replies, no replay after
+reopen, runtime/dependency invalidation and strict schema preservation. The regular
+helper refuses activation without a factory. A distinct temporary ad-hoc-signed
+helper fixture runs the actual shared sequencer with synthetic adapters, completes
+and cancels/cleans correctly, and exits through the admitted owned launcher.
+Existing identity/protocol/signature/tamper checks pass. No fake backend is put in
+the normal helper/app, and no real signing credential, authentication UI, transport,
+installation or VM is used. Existing socket/mock-auth sandbox exceptions apply.
+Shared sources/pins are unchanged; their prior tests/oracles are not rerun here.
+
+**TO PROVE:** production frozen-context/consent delivery, exclusive real backend
+construction and manager-aware per-command session authority, product wiring,
+full manager/helper restart/reconnect and reviewed rebinding, release signatures,
+real guest/auth/echo/remote cleanup/crash/kernel behavior, terminal/PTY/input/UI/CLI.
+Current fixture acceptance does not establish guest behavior or enable operational
+setup. No shared package/oracle rerun is claimed for this docs-only handoff.
