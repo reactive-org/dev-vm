@@ -9,16 +9,17 @@ vm:
   disk_gib: 64
   packages: [pkg:claude-desktop, pkg:chromium]
 setup:
-  catalogues: [catalogue.yml]
   profiles: [project-managed]
   features:
-    enable: [agents, credentials, personal.keyring]
+    enable: [agents, credentials]
   options:
     workstation:
       oh_my_zsh_plugins: [git, docker, docker-compose]
       layout: layouts/coding.lua
     toolchain:
       prerequisites: [ruby]
+    keyring:
+      seahorse: true
     agents:
       tools:
         claude: ""

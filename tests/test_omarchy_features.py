@@ -308,6 +308,31 @@ class FeatureTests(unittest.TestCase):
         self.assertFalse(self.apply(guest, "credentials", {"packages": ["1password-cli"]})["changed"])
         self.assertFalse(any("login" in call or "signin" in call or "setsid" in call for call in guest.calls))
 
+    def test_keyring_ensures_native_packages_and_only_explicit_seahorse(self):
+        for preinstalled in (False, True):
+            with self.subTest(preinstalled=preinstalled):
+                guest = Guest()
+                if preinstalled:
+                    guest.packages.update(("gnome-keyring", "libsecret"))
+                self.assertEqual(self.apply(guest, "keyring", {"seahorse": False})["changed"], not preinstalled)
+                self.assertTrue({"gnome-keyring", "libsecret"} <= guest.packages)
+                self.assertNotIn("seahorse", guest.packages)
+                self.assertFalse(self.apply(guest, "keyring", {"seahorse": False})["changed"])
+                self.assertTrue(self.apply(guest, "keyring", {"seahorse": True})["changed"])
+                self.assertIn(("omarchy-pkg-add", "seahorse"), guest.calls)
+                self.assertFalse(self.apply(guest, "keyring", {"seahorse": True})["changed"])
+                self.assertFalse(self.apply(guest, "keyring", {"seahorse": False})["changed"])
+                self.assertIn("seahorse", guest.packages)
+                self.assertEqual({call[0] for call in guest.calls}, {"command", "pacman", "sudo", "omarchy-pkg-add"})
+
+    def test_keyring_check_reports_missing_packages_without_installing_or_unlocking(self):
+        guest = Guest()
+        before = set(guest.packages)
+        result = self.apply(guest, "keyring", {"seahorse": True}, check=True)
+        self.assertTrue(result["changed"])
+        self.assertEqual(guest.packages, before)
+        self.assertEqual({call[0] for call in guest.calls}, {"command", "pacman"})
+
     def test_mise_is_added_to_lean_image_without_installing_unselected_tools(self):
         guest = Guest()
         result = self.apply(guest, "languages", {"tools": {"node": ""}})

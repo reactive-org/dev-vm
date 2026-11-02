@@ -12,6 +12,7 @@ omarchy_docker: "{{ omarchy_catalogue.features.docker.defaults }}"
 omarchy_defer_docker_access: false
 omarchy_agents: "{{ omarchy_catalogue.features.agents.defaults.tools }}"
 omarchy_credential_packages: "{{ omarchy_catalogue.features.credentials.defaults.packages }}"
+omarchy_keyring: "{{ omarchy_catalogue.features.keyring.defaults }}"
 omarchy_shell: "{{ omarchy_catalogue.features.workstation.defaults.shell }}"
 omarchy_oh_my_zsh: "{{ omarchy_catalogue.features.workstation.defaults.oh_my_zsh }}"
 omarchy_oh_my_zsh_plugins: "{{ omarchy_catalogue.features.workstation.defaults.oh_my_zsh_plugins }}"

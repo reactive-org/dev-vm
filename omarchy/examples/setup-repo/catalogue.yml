@@ -1,8 +1,0 @@
----
-schema_version: 1
-namespace: personal
-features:
-  keyring:
-    description: Desktop keyring applications without importing credentials
-    packages: [gnome-keyring, libsecret, seahorse]
-    mise: {}

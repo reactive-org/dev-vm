@@ -439,6 +439,26 @@
                 "required": [],
                 "additionalProperties": false
               },
+              "keyring": {
+                "type": "object",
+                "properties": {
+                  "seahorse": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              },
+              "builtin.keyring": {
+                "type": "object",
+                "properties": {
+                  "seahorse": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [],
+                "additionalProperties": false
+              },
               "cli": {
                 "type": "object",
                 "properties": {

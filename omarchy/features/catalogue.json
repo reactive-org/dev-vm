@@ -43,6 +43,13 @@
       "defaults": {"packages": ["1password", "1password-cli"]},
       "choices": ["1password", "1password-cli", "github-cli"]
     },
+    "keyring": {
+      "description": "Desktop secret-storage packages; native session startup and unlocking remain unchanged",
+      "handler": "keyring",
+      "defaults": {"seahorse": false},
+      "packages": ["gnome-keyring", "libsecret"],
+      "choices": {"seahorse": "seahorse"}
+    },
     "cli": {
       "description": "Search, navigation and JSON/YAML inspection",
       "handler": "tools",
@@ -85,8 +92,8 @@
   },
   "profiles": {
     "developer": {
-      "description": "Editor, CLI, Git and API diagnostics",
-      "features": ["workstation", "cli", "vcs", "editors", "api"],
+      "description": "Editor, CLI, Git, API diagnostics and desktop keyring support",
+      "features": ["workstation", "cli", "vcs", "editors", "api", "keyring"],
       "options": {
         "docker": {"access": "sudoless"},
         "workstation": {"starship_config": "add_newline = false\nformat = '$directory$git_branch$git_status$cmd_duration$line_break$character'\n\n[directory]\ntruncation_length = 1\nsubstitutions = [\n  { from = '([^/]{20})[^/]+', to = '${1}…', regex = true },\n]\n\n[git_branch]\nformat = '[$symbol$branch]($style) '\ntruncation_length = 24\ntruncation_symbol = '…'\n\n[cmd_duration]\nformat = '[$duration]($style) '\n\n[character]\nsuccess_symbol = '[❯](bold green)'\nerror_symbol = '[❯](bold red)'\n"}

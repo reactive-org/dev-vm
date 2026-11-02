@@ -11,6 +11,7 @@ omarchy_agents:
   codex: ""
   opencode: ""
 omarchy_credential_packages: [1password, 1password-cli]
+omarchy_keyring: {seahorse: false} # Optional keyring manager; the feature always ensures GNOME Keyring and libsecret.
 omarchy_shell: zsh # zsh, bash, or keep the current login shell
 omarchy_oh_my_zsh: true # Optional zsh completion/plugins
 omarchy_oh_my_zsh_plugins: null # Preserve existing plugins, default [git] on a fresh shell; [] enables none.

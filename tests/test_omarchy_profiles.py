@@ -184,6 +184,29 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn("docker", python["features"])
         self.assertEqual(python["packages"]["base-devel"], ["languages", "build"])
 
+    def test_keyring_is_inherited_by_developer_profiles_with_seahorse_opt_in(self):
+        for profile in ("developer", "web", "python", "project-managed"):
+            with self.subTest(profile=profile):
+                plan = Resolver().resolve(profiles=[profile])
+                self.assertIn("keyring", plan["features"])
+                self.assertEqual(plan["options"]["keyring"], {"seahorse": False})
+                self.assertEqual(launcher.plan_variables(plan)["omarchy_keyring"], {"seahorse": False})
+                self.assertTrue({"gnome-keyring", "libsecret"} <= set(plan["packages"]))
+                self.assertNotIn("seahorse", plan["packages"])
+                self.assertNotIn("credentials", plan["features"])
+        selected = Resolver().resolve(features=["keyring"], overrides={"keyring": {"seahorse": True}})
+        self.assertEqual(selected["features"], ["keyring"])
+        self.assertEqual(set(selected["packages"]), {"gnome-keyring", "libsecret", "seahorse"})
+        self.assertEqual(selected["mise"], {})
+        disabled = Resolver().resolve(profiles=["developer"], setup_file=self.setup(features={"disable": ["keyring"]}))
+        self.assertNotIn("keyring", disabled["features"])
+        self.assertFalse({"gnome-keyring", "libsecret", "seahorse"} & set(disabled["packages"]))
+
+    def test_keyring_rejects_non_boolean_seahorse_options(self):
+        for value in ("false", 0, 1, None, [], {}):
+            with self.subTest(value=value), self.assertRaises(ProfileError):
+                Resolver().resolve(features=["keyring"], overrides={"keyring": {"seahorse": value}})
+
     def test_project_managed_profile_leaves_versions_to_projects(self):
         plan = Resolver().resolve(profiles=["project-managed"])
         self.assertEqual(plan["mise"], {})

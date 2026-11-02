@@ -94,6 +94,9 @@ configure selected features; they do not enable them. Profile merging,
 dependency/conflict checks and deselection semantics are unchanged.
 `project-managed` prepares mise/native build tools without global runtimes.
 Projects retain ownership of dependencies, service stacks and runtime versions.
+All developer profiles include the built-in `keyring` feature. Set
+`setup.options.keyring.seahorse: true` to add its optional graphical manager;
+no downstream catalogue is needed for desktop keyring packages.
 
 VM defaults are 8 CPUs, 20 GiB RAM and a grow-only 64 GiB disk. `vm.name` defaults
 to `Dev Omarchy`. `vm.lean_developer` defaults to false and enables the existing

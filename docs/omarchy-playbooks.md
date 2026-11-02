@@ -14,7 +14,7 @@ make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_FEATURES=languages,agents \
   OMARCHY_VARS_FILE="$PWD/omarchy/local/features.yml"
 ```
 
-`OMARCHY_FEATURES` selects independent features. With no selection the default is `workstation`. The original six names remain supported; `cli`, `vcs`, `editors`, `build`, `databases`, `api` and `quality` are also available. `OMARCHY_PROFILES=developer`, `web` or `python` selects a workflow, with explicit features added to it. Every built-in role and namespaced data extension has its own tag. Direct Ansible runs can select built-in tags using their own inventory based on VM Manager's managed SSH connection. Profiles and extension registration resolve through the supported launcher, which generates the private inventory and passes the resolved tags and variables.
+`OMARCHY_FEATURES` selects independent features. With no selection the default is `workstation`. The original six names remain supported; `cli`, `vcs`, `editors`, `build`, `databases`, `api`, `quality` and `keyring` are also available. `OMARCHY_PROFILES=developer`, `web`, `python` or `project-managed` selects a workflow, with explicit features added to it. Every built-in role and namespaced data extension has its own tag. Direct Ansible runs can select built-in tags using their own inventory based on VM Manager's managed SSH connection. Profiles and extension registration resolve through the supported launcher, which generates the private inventory and passes the resolved tags and variables.
 
 ```bash
 make plan-omarchy-features OMARCHY_PROFILES=web
@@ -34,6 +34,7 @@ Configure legacy lists and version mappings using `omarchy/examples/features.yml
 | Languages | Reuse installed active versions and Omarchy's declarations | Install mise and selected runtime prerequisites before selecting tools |
 | Agents | Install only selected lazy tools that are missing | Install mise and only selected coding agents |
 | Credentials | Reuse installed tools without changing login state | Add selected packages without importing credentials |
+| Keyring | Reuse GNOME Keyring/libsecret; add Seahorse only when requested | Ensure the same packages through Omarchy; preserve native session startup and unlocking |
 | CLI/VCS/build/API/quality | Reuse selected packages/tools without replacing personal configuration | Add only the selected guest packages/mise tools; no project hooks or services |
 | Editors/database clients | Preserve settings, installed alternatives and database contents | Install selected editor/client packages; no extensions, database initialization or server activation |
 

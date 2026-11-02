@@ -497,6 +497,8 @@ class FeatureRunner:
             self.toolchain()
         elif handler == "toolchain":
             self.project_toolchain()
+        elif handler == "keyring":
+            self.packages(requirements(self.feature, self.config)[0])
         elif self.feature == "credentials":
             packages = list(self.config["packages"])
             # Preserve the legacy package choice, reusing Omarchy's declared CLI

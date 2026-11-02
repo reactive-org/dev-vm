@@ -72,6 +72,9 @@ def validate_config(feature, value, *, extension=False, validate_toml=True):
         selection(value["prerequisites"], CATALOGUE["language_packages"], "toolchain prerequisites")
     elif handler == "credentials":
         selection(value["packages"], definition["choices"], "credential packages")
+    elif handler == "keyring":
+        if type(value["seahorse"]) is not bool:
+            raise FeatureError("Keyring seahorse must be boolean")
     elif handler == "docker":
         if not isinstance(value["access"], str) or value["access"] not in ("native", "sudoless"):
             raise FeatureError("Docker access must be native or sudoless")
@@ -124,6 +127,10 @@ def requirements(feature, config, *, extension=False):
         packages.extend(definition["packages"])
     elif handler == "credentials":
         packages.extend(config["packages"])
+    elif handler == "keyring":
+        packages.extend(definition["packages"])
+        if config["seahorse"]:
+            packages.append(definition["choices"]["seahorse"])
     elif handler == "workstation":
         packages.extend(CATALOGUE["workstation_packages"])
         if config["shell"] != "keep":

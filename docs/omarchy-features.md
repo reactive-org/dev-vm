@@ -29,7 +29,7 @@ make apply-playbook VM_NAME="Dev Omarchy" OMARCHY_PROFILES=web
 
 | Profile | Features | Included selections |
 | --- | --- | --- |
-| `developer` | `workstation,cli,vcs,editors,api` | zsh, Foot/idle preferences, code search/navigation, Git/LFS/diff tools, Neovim and HTTP/TLS diagnostics |
+| `developer` | `workstation,cli,vcs,editors,api,keyring` | zsh, Foot/idle preferences, code search/navigation, Git/LFS/diff tools, Neovim, HTTP/TLS diagnostics and desktop keyring support |
 | `web` | `developer` + `browsers,languages,docker,databases,quality` | Chromium, Node `lts`, pnpm, Docker/Buildx/Compose, PostgreSQL client, SQLite, shell/YAML checks and pre-commit |
 | `python` | `developer` + `languages,build,databases,quality` | Python `3`, uv, native extension build prerequisites, CMake/Ninja/GDB, SQLite, shell/YAML checks and pre-commit |
 | `project-managed` | `developer` + `toolchain,browsers,build,docker,databases` | mise with Bash/zsh activation, Chromium, build tools, Docker/Compose, PostgreSQL and SQLite clients; no global runtime selections |
@@ -77,12 +77,32 @@ leave existing software and settings alone; deselection never uninstalls tools.
 | `quality` | ShellCheck through mise; yamllint and pre-commit guest packages | `packages` and `tools`; no changes to existing repositories |
 | `agents` | Claude CLI using its native declaration | `tools`: `claude`, `codex`, `opencode`, `pi`, `copilot`, `amp`, `crush` |
 | `credentials` | 1Password desktop app and CLI | `packages`: `1password`, `1password-cli`, `github-cli`; no sign-in or credential copying |
+| `keyring` | GNOME Keyring and libsecret | `seahorse`: boolean, default `false`; optionally installs the graphical keyring manager |
 
 The source of built-in definitions is [catalogue.json](../omarchy/features/catalogue.json).
 The launcher, Ansible defaults and guest validator use that same catalogue.
 Built-in roles remain directly taggable. For the new composite variables, a
 legacy file can set, for example, `omarchy_cli: {packages: [jq], tools: {}}` or
 `omarchy_databases: {clients: [sqlite]}`. Existing variable names are unchanged.
+
+### Desktop keyring support
+
+The `developer` profile enables `keyring`, inherited by `web`, `python` and
+`project-managed`. It remains independently selectable with
+`OMARCHY_FEATURES=keyring` and independently taggable as `keyring`. Disabling it
+through `features.disable: [keyring]` preserves installed software.
+
+GNOME Keyring and libsecret supply desktop secret-storage packages independently
+of the optional `credentials` clients. Seahorse is an optional management UI:
+set `options.keyring.seahorse: true` in a selection file, or
+`setup.options.keyring.seahorse: true` in an external setup manifest. The legacy
+or direct-Ansible variable is `omarchy_keyring: {seahorse: true}`.
+
+The feature ensures packages through Omarchy and leaves native session startup,
+PAM configuration and keyring creation/unlocking unchanged. Package presence
+does not establish that a graphical application can use an unlocked keyring.
+An application's warning needs separate session-level verification; see
+[GNOME's daemon startup documentation](https://wiki.gnome.org/Projects/GnomeKeyring/RunningDaemon).
 
 An empty mise selector reuses an existing declaration, installing its tool if
 needed. With no declaration, it selects `latest` at user level. Explicit selectors

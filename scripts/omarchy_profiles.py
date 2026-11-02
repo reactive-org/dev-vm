@@ -347,6 +347,8 @@ def schemas():
                                    "items": {"enum": list(definition["choices"])}}})
         elif handler == "docker":
             config = obj({"access": {"enum": ["native", "sudoless"]}})
+        elif handler == "keyring":
+            config = obj({"seahorse": {"type": "boolean"}})
         elif handler == "toolchain":
             config = obj({"prerequisites": {"type": "array", "uniqueItems": True,
                                            "items": {"enum": list(contract.CATALOGUE["language_packages"])}}})

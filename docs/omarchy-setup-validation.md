@@ -1,11 +1,14 @@
 # External setup repository acceptance — 2 November 2026
 
-This record covers the version-1 external setup workflow in the current working
-tree, using the installed, signature-verified Omarchy VM Manager 0.10.0 (23).
+This record covers the version-1 external setup workflow as tested, using the
+installed, signature-verified Omarchy VM Manager 0.10.0 (23).
 The dev-vm base revision was `1d1b50dd589e9a1f1319552a2d55fecb354dc3ea`;
 the external-setup implementation and live corrections were uncommitted.
 Exact runner source hashes and selected input hashes are recorded in each
 successful guest's setup provenance and the ignored evidence directory.
+The later built-in keyring feature and profile default have local fixture
+coverage only. No VM was contacted to validate that change or Claude's keyring
+startup warning.
 
 ## Status
 

@@ -18,7 +18,6 @@ To preview the committed example directly, use
 executes no tasks. `make apply-omarchy-setup` reapplies to a running guest.
 
 - `vm.yml`: resources, app selections, project-managed profile and file mappings.
-- `catalogue.yml`: independently selectable keyring packages.
 - `layouts/coding.lua`: Claude right, two terminals left and a floating browser.
 - `dotfiles/`: Git preferences without identity and an optional Neovim module.
 - `tasks/projects.yml`: idempotent guest directory creation.
@@ -26,6 +25,8 @@ executes no tasks. `make apply-omarchy-setup` reapplies to a running guest.
 - `tasks/editor.yml` and `templates/`: rendering a separate sample editor snippet.
 
 The Git task preserves Omarchy's existing Git configuration and identity.
+The profile includes the built-in `keyring` feature; this example also explicitly
+selects the optional Seahorse manager with `setup.options.keyring.seahorse: true`.
 The editor snippet leaves installed editor settings alone. Load the Neovim
 module from your own configuration when desired. No global language runtimes
 are selected. Customize these examples for your applications.

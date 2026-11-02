@@ -134,6 +134,12 @@
           when: "'credentials' in omarchy_selected_features"
           tags: [credentials]
 
+        - name: Apply keyring feature
+          ansible.builtin.import_role:
+            name: omarchy_keyring
+          when: "'keyring' in omarchy_selected_features"
+          tags: [keyring]
+
         - name: Apply cli feature
           ansible.builtin.import_role:
             name: omarchy_cli

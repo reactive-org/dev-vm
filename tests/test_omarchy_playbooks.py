@@ -220,6 +220,31 @@ print(json.dumps({'changed':False,'verified_check_flag':True}))
         self.assertIn('verified_check_flag', output)
         self.assertIn('changed=0', output)
 
+    def test_keyring_role_receives_seahorse_selection_in_check_mode(self):
+        helper = self.folder / "apply-features.py"
+        play = self.folder / "keyring.yml"
+        play.write_text('''---
+- hosts: omarchy
+  gather_facts: false
+  tasks:
+    - ansible.builtin.import_role:
+        name: omarchy_keyring
+''')
+        parameters = self.folder / "keyring.json"
+        for seahorse in (False, True):
+            plan = PLAYBOOK.Resolver().resolve(features=["keyring"], overrides={"keyring": {"seahorse": seahorse}})
+            helper.write_text("import sys,json\nassert '--check' in sys.argv\n"
+                              "assert sys.argv[sys.argv.index('--feature')+1]=='keyring'\n"
+                              "assert json.load(sys.stdin)==" + repr({"seahorse": seahorse}) + "\n"
+                              "print(json.dumps({'changed':False,'keyring_checked':True}))\n")
+            values = PLAYBOOK.plan_variables(plan)
+            values["omarchy_payload"] = {"path": str(self.folder)}
+            parameters.write_text(json.dumps(values))
+            with self.subTest(seahorse=seahorse):
+                output = self.ansible(play, "--check", "--extra-vars", "@" + str(parameters))
+                self.assertIn("keyring_checked", output)
+                self.assertIn("changed=0", output)
+
     def test_workstation_role_receives_default_and_overridden_shell_in_check_mode(self):
         play = self.folder / "shell.yml"
         play.write_text('''---
