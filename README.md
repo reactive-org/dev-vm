@@ -605,3 +605,81 @@ recovery formats, SSH waits/restart rebinding, job/terminal UI and CLI, retentio
 migration and real guest/helper crash/authorization/echo/quiescence behavior. The
 manager execution surfaces remain disabled. This is the start of milestone 3,
 not full job integration or real-guest acceptance.
+
+
+## Durable frozen inputs and cleanup checkpoints — 3 November 2026
+
+This continuation adds shared-engine APIs required by the manager's next
+milestone-3 slice. The historical manager handoffs above describe the earlier
+unchanged `bb3fae2` consumer; they do not describe this extension. Python
+operational commands and disabled Swift execution entry points are unchanged.
+
+`SourceSnapshot.privateArchive()` emits the private `DVMSNAP1` binary format:
+versioned strict JSON metadata followed by selected raw file bytes. The reader
+checks exact schema, duplicate keys, safe paths, hashes, lengths, tree references,
+snapshot identity and EOF. It preserves binary bytes, modes and empty directories,
+without host absolute paths/root inode identities. Bounds are 8 MiB metadata,
+32 MiB file bytes, 4096 files/directories, 8192 directory children, 150000 JSON
+values and path depth 64. `FrozenInputsArchive` exposes inert data with redacted
+descriptions; it cannot become a SourceSnapshot/SetupPlan, extract into a user
+tree or resume apply. Selected config may be sensitive: never put archive bytes
+in plan/status/events/terminal output. File privacy/quota belong to the manager.
+
+`CleanupRecoveryIdentity` takes an independently authenticated original
+job/payload/guest/dependency/engine/mode expectation. Its private version-1
+checkpoint includes original guest identity metadata, without credentials,
+private keys, source data or terminal bytes. Restore compares the exact document
+and conservatively re-proves work/payload risk and apply-only grant/cache
+inactivity; disk flags cannot assert cleanliness. It authorizes no transport
+by itself. The sequencer accepts a preallocated payload UUID, and retains its
+control payload until grant/cache inactivity and work quiescence are proved.
+
+The manager now fsyncs UUID-named 0600 input/checkpoint files in a 0700 directory
+before its schema-2 index and worker. It binds hashes/token/payload to the original
+review/session/dependencies, uses a bounded quota counting orphan files, and never
+automatically imports/replays/deletes artifacts. Reopened cleanup requires a fresh
+challenge proof from an injected authority that the previous worker is stopped
+AND fenced from further launch. The authority is fake-only in this slice; no PID
+or disk observation is sufficient. Cleanup needs neither original sources nor an
+input archive, and never stages/grants/applies/prompts/restarts/rebinds. The fixture
+boundary is coordinator/helper reopen with the original surviving VMManager
+session, not full manager/VM restart adoption. Legacy journal risk remains held
+when no genuine ticket/checkpoint exists.
+
+**PRIVATE COUPLING — manager export:** manager `codex/dev-vm-provisioning-plan`
+uses the immutable `bb3fae22be45b38035fac52aefa0eb270a9d0fea` base plus
+`Patches/dev-vm-durable-state.patch`. Its lock binds base and resulting 82-file
+inventories, patch hash, resulting snapshot digest and updated engine identity;
+preparation verifies the result and reverse patch against the base inventory.
+This is not an unchanged-base engine claim or a mutable external path dependency.
+Parser, guest resource and C launcher bytes are unchanged. This worktree contains
+the matching shared source/tests; the manager export retains baseline README bytes
+and documents current integration in its own plan/vendor notice.
+
+**VERIFIED — shared fake/local fixtures:**
+`make build-provisioning test-provisioning test-provisioning-oracle test-provisioning-planning-oracle ORACLE_PYTHON=/opt/homebrew/opt/ansible/libexec/bin/python`
+passes 68 Swift test functions, 18 strict-parser oracle fixtures and 66 complete
+planning/error oracle fixtures. The Python path uses an already available runtime
+only for development-time comparisons, never Ansible or a runtime fallback.
+Four new test functions cover binary/mode/empty-directory archive round trips,
+source removal, malformed/traversal/hash/version damage, conservative apply/check
+cleanup restore, wrong original identity, preallocated payloads and helper retention
+when inactive proof fails. Existing PTY tests need the workspace sandbox exception
+for `/dev/tty`; all process fixtures are disposable local programs. No real
+SSH/SCP/SFTP/Ansible, installs, UI actions or VM operations occurred.
+
+**VERIFIED — manager fake/local fixtures:** `make test` passes 260 Swift test
+functions/40 suites, 49 script tests and relocated/read-only offline-helper
+packaging. Twelve new coordinator/journal functions exercise close/reopen and
+interrupted markers, fresh original-worker fencing, wrong-session/dependency and
+proof rejection, source/input removal, damaged/unsafe/swapped checkpoints,
+quota/orphans, private inert archives and schema-1 risk preservation. A graceful
+shutdown race now classifies body cancellation separately from original guest
+identity so cleanup is not suppressed. Production entry points stay disabled.
+
+**TO PROVE:** production authenticated helper IPC/fencing and manager construction,
+full manager/VM restart with reviewed session rebinding, SSH waits, real missing
+control-helper reconciliation/crash/quiescence, power-loss durability, artifact
+retention/removal, live terminal/job UI and CLI, and all real guest authorization/
+echo/transport acceptance. A helper that cannot prove absence leaves cleanup
+required. This slice does not enable Swift operational execution.
