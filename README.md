@@ -510,3 +510,49 @@ IPC/viewer resynchronization and operational CLI/manager integration. Process
 groups are not a sandbox: deliberately detached code can outlive its parent,
 especially if it closes inherited pipes. Local exit proves only the owned group
 and descriptors; it never proves guest quiescence or a VM `.exited` boundary.
+
+
+## Manager package integration — 3 November 2026
+
+Manager integration is committed as `6dbda68111005b657fc358609d058dee676789f4`
+on `codex/dev-vm-provisioning-plan`. This worktree adds documentation only; the
+manager deliberately keeps its engine/source pin at `bb3fae2`.
+
+Omarchy VM Manager's `codex/dev-vm-provisioning-plan` worktree now consumes an
+unmodified 79-file source export from `bb3fae22be45b38035fac52aefa0eb270a9d0fea`.
+The manager's `Config/DevVMProvisioning.lock.json` records exact source/resource
+hashes, and its make preparation verifies the export before generating a compiled
+pin. Root `Package.resolved` exactly resolves the same TOMLDecoder revision. The
+engine source, parsers, resources, standalone CLI and engine identity in this
+worktree are unchanged; this note records the consumer handoff only.
+
+Manager core and an offline-only `OmarchyVMProvisioningHelper` link the library.
+The helper admits embedded resources and supports package verification, manifest
+validation and offline plans. Apply/check/recover/exec are refused; it never
+creates a runner, reads a registry/Keychain, probes tools or reaches a VM. Its
+product UI/CLI setup gates remain disabled. Distribution includes this library's
+resource bundle/licenses, helper, exact-source PTY launcher, source lock and a
+manifest of final signed child hashes sealed by the outer app signature.
+
+The launcher is built unchanged in a generated standalone SwiftPM package,
+without needing this checkout or a new host Python runtime. A fresh developer
+build may still need ordinary source/cache access for exactly pinned TOMLDecoder;
+runtime planning needs neither a checkout/toolchain nor Homebrew/Ansible.
+
+**VERIFIED — manager local fixtures:** build, 227 manager Swift tests/38 suites,
+48 script tests and relocated/read-only offline-helper checks pass. A private
+ad-hoc sealed fixture app contains no VM runtime; its actual helper plans with
+empty PATH and private empty HOME/TMPDIR, rejects execution/overrides/tampering,
+and omits synthetic variable values. Deep strict signature verification passes
+before resource damage and rejects it afterward. Manager code is sealed but never
+opened/executed by that fixture. Existing socket/mock-authentication fixtures
+required running outside the workspace sandbox; no actual Keychain or auth UI was
+used. An initial network update was unavailable, so validation reused existing
+exact Git objects and private caches with update checks disabled. No real SSH/
+SCP/SFTP/Ansible, host installs, UI action or VM operation occurred.
+
+**TO PROVE:** complete runtime-kit app assembly, Developer ID/notarization,
+other-Mac relocation, authenticated helper IPC, job/session/journal integration,
+terminal rendering/attachment, operational CLI/app setup and all real guest/
+authorization/echo/quiescence behavior. Existing 64 package-test and oracle
+results above remain evidence for the pinned engine, not new remote acceptance.
