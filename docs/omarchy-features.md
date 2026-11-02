@@ -117,7 +117,18 @@ options:
       format = '$directory$git_branch$git_status$cmd_duration$line_break$character'
 
       [directory]
-      truncation_length = 3
+      truncation_length = 1
+      substitutions = [
+        { from = '([^/]{20})[^/]+', to = '${1}…', regex = true },
+      ]
+
+      [git_branch]
+      format = '[$symbol$branch]($style) '
+      truncation_length = 24
+      truncation_symbol = '…'
+
+      [cmd_duration]
+      format = '[$duration]($style) '
 
       [character]
       success_symbol = '[❯](bold green)'
