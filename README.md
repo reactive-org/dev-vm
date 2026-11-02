@@ -556,3 +556,52 @@ other-Mac relocation, authenticated helper IPC, job/session/journal integration,
 terminal rendering/attachment, operational CLI/app setup and all real guest/
 authorization/echo/quiescence behavior. Existing 64 package-test and oracle
 results above remain evidence for the pinned engine, not new remote acceptance.
+
+
+## Manager coordinator/journal foundation — 3 November 2026
+
+The manager foundation is committed as `f752331b4158f464b4fcef71d8a8c289df1d2e61`
+on `codex/dev-vm-provisioning-plan`. This companion change is documentation only;
+the manager keeps its shared engine/source pin at `bb3fae2`.
+
+The manager's `codex/dev-vm-provisioning-plan` worktree now has an internal
+`ProvisioningCoordinator` over this package's pinned `ProvisioningSequencer`,
+plus a private versioned job journal and VMManager lifecycle leases. It retains
+the unchanged `bb3fae2` source/resource pin. No engine API, parser, resource or
+standalone command changes are required in this worktree; these docs record the
+consumer's next step.
+
+The coordinator deduplicates accepted job/review identities, reserves one active
+job, revalidates package/source/session/dependencies, journals before adapter work
+and separates viewer lifetime from explicit job cancellation. The private bounded
+journal stores digests/manager-owned IDs and structured status, not credentials,
+source contents/paths, terminal data or helper PIDs. Bad/changed journals fail
+closed. Disk failure stops body work while known-target cleanup remains possible.
+
+Manager leases defer ordinary shutdown for cleanup, block incompatible lifecycle
+or storage edits and preserve `.exited` ownership. Force stop and unexpected
+session/execution/readiness changes retain cleanup uncertainty. A cleanup deadline
+records risk while retaining the worker; pending Quit then uses normal VM shutdown
+policy. Restart-required remains metadata. No VM lifecycle is added to this library.
+
+Explicit same-process recovery uses the original opaque engine ticket, without
+sources or input. After restart, interrupted/cleanup-required records never resume
+apply or reconstruct a ticket from a PID. The pinned ticket API is intentionally
+in-memory: authenticated helper reattachment, persistent recovery, frozen-input
+capsules and reviewed session rebinding remain future integration work.
+
+**VERIFIED — manager fakes/local fixtures:** 248 Swift test functions/40 suites
+(21 new coordinator/journal functions), 48 script tests and existing relocated
+package checks pass. Coverage includes deduplication/stale admission, private
+write-ahead/corrupt storage, cancellation/viewer detach, shutdown/force stop,
+sleep/exit/SSH loss, unresponsive-worker deadlines, disk failure with attempted
+revoke, live cleanup after source removal and conservative reopen. New coordinator
+paths execute no subprocess. Existing socket/mock-context fixtures require the
+workspace sandbox exception, without actual Keychain or authentication UI.
+No real SSH/SCP/SFTP/Ansible, host installs, manager UI or VM operations occur.
+
+**TO PROVE:** production coordinator construction/helper IPC, durable source and
+recovery formats, SSH waits/restart rebinding, job/terminal UI and CLI, retention/
+migration and real guest/helper crash/authorization/echo/quiescence behavior. The
+manager execution surfaces remain disabled. This is the start of milestone 3,
+not full job integration or real-guest acceptance.

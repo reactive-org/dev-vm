@@ -50,3 +50,5 @@ These records describe the exact builds tested, rather than later rebuilds or up
 [Local process runner and PTY](../README.md#local-process-runner-and-pty--3-november-2026) records exact local process ownership, bounded terminal streams/input leases and disposable-fixture validation. No real SSH/Ansible or VM acceptance is claimed.
 
 [Manager package integration](../README.md#manager-package-integration--3-november-2026) records consumption of the immutable source/resources, offline helper/launcher packaging, local relocation evidence and remaining operational boundaries.
+
+[Manager coordinator/journal foundation](../README.md#manager-coordinatorjournal-foundation--3-november-2026) records fake-runtime orchestration, private durable risk markers, lifecycle leases and the deliberately unimplemented post-restart helper recovery boundary.
