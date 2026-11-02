@@ -96,8 +96,8 @@ or `keep` through the [workstation shell setting](docs/omarchy-features.md#login
 The root SwiftPM package targets Swift 6 and macOS 15+. It exports
 `DevVMProvisioningCore` and the migration-stage `dev-vm` executable. The package now provides
 strict manifests, feature/profile resolution, immutable source snapshots and
-offline proposals. It has no process,
-Ansible, SSH, manager, VM or installation interface. The legacy Python commands
+offline proposals. It ships no concrete process, Ansible, SSH, VM or installation
+backend. Adapter-only transport/authorization sequencing is described below. The legacy Python commands
 above remain the operational entry points until an explicit cutover.
 
 ```sh
@@ -251,6 +251,103 @@ or app opened.
 job materialization, full resource distribution, manager dependency/helper/UI
 integration, signed provenance and relocation, operational standalone cutover,
 transport/authorization, live terminal and all real-guest behavior. Existing
-manager execution gates remain disabled. The transport and execution port remains deferred.
+manager execution gates remain disabled. Concrete transports and production execution remain deferred.
+
+## Transport and authorization sequencing (fake adapters only)
+
+`ProvisioningGuestAdapter` is a typed async port; the only conformance is the
+in-memory `FakeGuest` in tests. No SSH/Ansible/process/PTY implementation, remote
+payload materializer, guest discovery or lifecycle controller is shipped.
+`ProvisioningSequencer` is a single-use actor for reviewed apply/check attempts
+and cleanup-only recovery. The CLI still exposes offline validation/planning
+only, and proposals still report `execution_available: false`.
+
+A request binds a frozen plan and current source/engine identity, job ID, exact
+VM/runtime-session ID, non-root owner name/UID, pinned host-key digest,
+dependency digest, mode, task subset/check policy, dotfile conflict policy and
+interactive input lease into a review digest. Approval separately acknowledges
+custom task code, the persistent setup grant and Docker's root-equivalent opt-in.
+Absent/stale approval, untrusted selected tasks or missing required input stop
+before any adapter call. Check mode skips tasks unless explicitly requested and
+trusted; it never resets/enables/revokes grants, clears sudo authentication,
+installs manifest packages, changes Docker access or requests restart. Check mode
+is not a sandbox for trusted custom tasks.
+
+Every operation is preceded by an identity check; every reply must match command,
+job, VM/session/owner/UID/host-key/dependency pins, protocol version and expected
+structured proof. Future adapters must perform actual authentication and enforce
+these pins at operation time. The current fake replies establish sequencing only,
+not cryptographic identity or a working guest command. A mismatch stops all
+further actions on that channel. No endpoint discovery or silent rebinding occurs.
+
+Apply sequencing is: stage frozen inputs; reset any stale native grant and clear
+cached authentication; request the native persistent grant interactively; verify
+active policy without cached authentication; apply selected packages/features;
+request any explicit native Docker consent; apply repository work; quiesce owned
+work; revoke, clear cached authentication and verify inactive policy; check Docker
+owner access again after revocation; quiesce that check and remove the job-owned
+payload. Interactive commands receive an input lease ID, never passwords or
+keystrokes. Docker success returns `appliedRestartRequired`; no restart is run.
+
+**PRIVATE COUPLING:** `NativeAuthorizationContract` version 1 describes fixed
+`bash -lc` guest argv from `scripts/omarchy_vm_manager.py` and
+`scripts/omarchy_playbook.py` at `56dba82`. It includes native grant enable/reset,
+cache clearing, compound revocation verification, native Docker confirmation
+with `OMARCHY_DEFER_REBOOT=1` and local-socket Docker checks. It interpolates no
+user values and accepts no nonterminal secret input. This code constructs argv
+only; tests never execute these scripts. Native CLI meanings are private guest
+couplings, not public Try Omarchy kit capabilities.
+
+Cleanup coverage is armed before staging or grant/reset attempts, since failure
+or a lost acknowledgement can leave side effects. Cancellation interrupts only
+the exact active command and retains it until its async call ends; cleanup uses
+an independent cancellation scope with no prompts, fresh grant or source-file
+dependency. A local command ending does not prove remote work stopped: a separate
+job-scoped quiescence proof is mandatory. Payload removal is withheld while work
+is uncertain. An inactive-policy observation while work still runs does not
+clear grant risk. A later compound inactive/cache-cleared proof can reconcile a
+lost revoke/cache-clear reply once work is stopped.
+
+Results preserve primary failure separately from cleanup failures. Unresolved
+work/grant/payload state returns `cleanupRequired` and an opaque in-memory ticket
+bound to the original target, dependency pin and job-owned payload ID. A fresh
+driver may recover only that context, without input, grant, apply/check work or
+restart—even if the original source repository has changed or disappeared.
+Recovery refuses changed guests/sessions or dependencies. It reports cleanup
+confirmation, never successful setup. Cross-restart rebinding and private
+persistent recovery journals remain manager work.
+
+Schema-1 result/event records contain fixed codes and command/job/VM/session IDs,
+with correlated started/completed/failed events. They exclude owner/key material,
+paths, frozen data, terminal input/output and arbitrary adapter diagnostics.
+Bindings, requests, commands and recovery tickets have redacted descriptions.
+Attempt completion is never a VM `.exited` boundary; consumers must retain VM
+clients/reservations under the manager's existing lifecycle rules.
+
+Commands carry adapter deadlines: identity checks 10 seconds; grant/cache probes
+and cleanup 30 seconds; interactive commands 120 seconds; setup operations 3,600
+seconds. Actual deadline enforcement/local-process exit belongs to a concrete
+transport. Fake timeout replies test state transitions; they do not prove hard
+wall-clock bounds, uncooperative-adapter termination or descendant cleanup.
+
+**VERIFIED — fake-adapter slice, 2 November 2026:** build and all 38 Swift test
+functions pass (18 added for sequencing/native contracts), including partial
+staging/grants, body failures, cancellation during authorization/cleanup,
+concurrent/replayed driver rejection, stale review/source checks, 10 reply/pin
+mismatch cases, nonprivileged check mode, post-revoke Docker checks, uncertainty
+and same-target recovery without original inputs, and sanitized reports. All 38
+also pass with `PATH=/nonexistent`. The 18 plain-data and 66 proposal/error oracle
+fixtures remain passing. Seven targeted existing Python tests with mocked guest,
+Ansible and lifecycle calls preserve the grant/revoke/check ordering reference.
+The full Ansible-running legacy suite was not rerun for this fake-only slice;
+its prior `56dba82` evidence remains historical. No host tool was installed or
+probed, SSH/Ansible script run, credential read, app opened or VM operated.
+
+**TO PROVE:** real SSH pins/receipt authenticity, native command/TTY/password echo
+behavior and SSH quoting, adapter deadlines/cancellation/process ownership,
+remote quiescence, private payload materialization, persistent recovery and
+explicit restart rebinding, helper/CLI/UI integration, package/signature admission,
+terminal streams and every real-guest scenario. Manager execution gates stay
+disabled.
 
 [All documentation](docs/README.md) · [Prerequisites and settings](docs/omarchy-bootstrap.md) · [Repository checks](docs/development.md)

@@ -42,3 +42,5 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 These records describe the exact builds tested, rather than later rebuilds or updates.
 
 [Shared Swift provisioning](../README.md#swift-provisioning-foundation) provides offline manifest validation, profile resolution and source-snapshotted planning; the Python operational commands remain unchanged.
+
+[Transport/authorization contracts](../README.md#transport-and-authorization-sequencing-fake-adapters-only) add a shared sequencer tested solely with in-memory guest adapters; real transports and operational Swift commands remain unavailable.
