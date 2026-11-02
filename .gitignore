@@ -8,3 +8,7 @@
 .DS_Store
 __pycache__/
 *.pyc
+
+# Swift provisioning package
+.build/
+.swiftpm/

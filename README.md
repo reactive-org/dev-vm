@@ -29,6 +29,9 @@ and [repository checks](docs/development.md) for validation details.
 
 ## Quick start
 
+For the in-progress shared Swift controller, see [Swift provisioning foundation](#swift-provisioning-foundation).
+The commands below still use the existing Python controller.
+
 Open the existing manager app and save **Guest Defaults**. Run from this
 repository's root with an unused VM name.
 
@@ -87,5 +90,85 @@ for the workstation, mise and native build prerequisites without selecting
 global runtimes. Feature playbooks default to zsh with optional Oh My Zsh and
 Starship enabled; select `bash`
 or `keep` through the [workstation shell setting](docs/omarchy-features.md#login-shell).
+
+## Swift provisioning foundation
+
+The root SwiftPM package targets Swift 6 and macOS 15+. It exports
+`DevVMProvisioningCore` and the migration-stage `dev-vm` executable. This first
+milestone-2 slice validates setup manifest structure only. It has no process,
+Ansible, SSH, manager, VM or installation interface. The legacy Python commands
+above remain the operational entry points until an explicit cutover.
+
+```sh
+make build-provisioning test-provisioning
+swift run --skip-build dev-vm validate-manifest omarchy/examples/setup-repo/vm.yml
+make test-provisioning-oracle  # development-only, requires existing Python/PyYAML
+```
+
+`validate-manifest` accepts one explicit `.json`, `.yml` or `.yaml` file and
+returns a JSON count summary with `structure_valid: true`, `resolved: false`
+and `execution_available: false`. Invalid input exits 1; invalid commands exit 2.
+Diagnostics use fixed codes and optional numeric locations, never source text,
+paths or variable values. Source assets, dotfiles and custom task entry points
+are declarations: they are not opened, captured or executed. No host dependency
+checks occur. The compiled CLI/parser works with Python and Ansible absent from
+`PATH`; the Swift toolchain is needed only to build it.
+
+The data readers enforce UTF-8, 256 KiB input, at most 30 container levels,
+string-only unique keys, finite numbers and no template markers. YAML aliases,
+anchors, explicit tags, version/tag directives and merge keys are rejected before composing
+a tree. JSON uses a bounded grammar and Foundation string decoding; malformed
+JSON never falls back to YAML. File reads reject leaf symlinks, directories,
+FIFOs, oversized inputs and detectable changes during the read. This is not a
+repository snapshot or protection against later path/asset replacement.
+
+The YAML event parser is compiled from the unmodified parser subset of Yams
+6.2.2's CYaml/LibYAML at `a27b21e0c81c5bf42049b897a62aaf387e80f279`, behind a
+small C event bridge and Swift validation. It needs no host YAML library. See
+[the SHA-256 inventory](ThirdParty/ParserInventory.json) and the bundled
+[Yams](Sources/DevVMProvisioningCore/Resources/Yams-LICENSE.txt) and
+[LibYAML](Sources/DevVMProvisioningCore/Resources/LibYAML-LICENSE.txt) MIT notices.
+Selection schema/catalogue resources are copied from this repository's
+`ed36bbec92943c10f9a0b1b2d4887a4f4a190bff` baseline; tests require exact hashes
+and equality with their maintained originals. Changes require reviewed inventory
+and fixture updates. SwiftPM supplies the resource bundle through the library.
+Only catalogue/schema resources are packaged in this slice; playbooks, roles,
+presets and guest helpers remain in their existing locations for the later port.
+
+Manifest validation covers schema version, IDs, VM field types/ranges,
+selection fields/options against the bundled schema, known builtin references,
+duplicate aliases, relative source declarations, reserved/overlapping dotfile
+targets, quoted modes and unique task names. Namespaced references are lexical
+declarations until their catalogues are resolved. `starship_config` is bounded
+schema text here; TOML parsing, effective option validation, profile merging,
+source traversal/symlink checks, factory admission, snapshots and plan generation
+are still pending. A `SetupManifest` is not an approved executable plan.
+
+Compatibility changes are deliberate and limited: signed 64-bit integers;
+decimal finite floating point (including exponent notation); YAML 1.1 boolean
+spellings retained; unquoted timestamps and legacy octal/hex/binary,
+underscored or sexagesimal numbers rejected. Quote such values when they are
+intended as strings. Unlike PyYAML, numeric exponent notation in YAML mappings
+is consistently numeric. DEL characters in bounded names/paths, any `.git`
+path segment and canonically equivalent duplicate Unicode keys are also refused.
+Bare and `pkg:` selectors for the same package are treated as duplicate
+declarations. These are not claims of complete Python-controller parity.
+
+**VERIFIED — local no-VM checks, 2 November 2026:** build and 12 Swift test
+functions pass, including 94 parameterized cases and 18 shared plain-data
+fixtures. The unchanged Python loader agrees on all 18 oracle fixtures with
+subprocess fallback disabled. The Swift tests and CLI also pass with
+`PATH=/nonexistent` (test runner invoked by absolute toolchain path). Existing
+`make test-omarchy` passes 235 tests with one Lua fixture skipped because Lua is absent, using the
+already-installed Homebrew Python and local socket access. The initial system
+Python 3.9 run lacked `tomllib`; the restricted run could not start Ansible's
+local RPC server. Neither required an installation or a code workaround.
+`make syntax-check` passes both unchanged playbooks, with expected empty-host
+inventory warnings. No real guest or VM operation was performed.
+
+**TO PROVE:** complete controller/selection/TOML parity, planning and snapshots,
+full resources, immutable manager dependency pin, app/helper integration,
+read-only app relocation, transport/authorization, the live terminal and all
+real-guest behavior. The manager's execution gates remain disabled.
 
 [All documentation](docs/README.md) · [Prerequisites and settings](docs/omarchy-bootstrap.md) · [Repository checks](docs/development.md)
