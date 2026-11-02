@@ -683,3 +683,66 @@ control-helper reconciliation/crash/quiescence, power-loss durability, artifact
 retention/removal, live terminal/job UI and CLI, and all real guest authorization/
 echo/transport acceptance. A helper that cannot prove absence leaves cleanup
 required. This slice does not enable Swift operational execution.
+
+
+## Manager authenticated helper ownership — 3 November 2026
+
+The manager's milestone-3 continuation implements capability-authenticated
+inherited helper IPC and original-worker fencing. This section supersedes the
+older pending-IPC statements above; this worktree's shared engine, resources,
+Python commands and immutable manager source pin are unchanged.
+
+The manager/helper control channel uses an inherited same-user Unix stream and
+per-launch 256-bit capability passed only through an anonymous bootstrap pipe.
+HMAC-SHA256 frames bind helper instance/executable/package identity, direction,
+channel, sequence and payload. Strict bounded schema/request/challenge checks
+reject replay, reflection, wrong pins/keys, truncation and unexpected commands.
+Capabilities never enter arguments, environment, disk, journal or diagnostics.
+Only one request may be outstanding and a failed channel is never auto-retried.
+This authenticates the private launch capability, not a distribution signing
+identity; production launch admission remains a distinct required step.
+
+A helper-local registry retains immutable original job/VM/session/payload/worker,
+review, engine/dependency/binding/checkpoint scope. Registration is a trusted local
+owner operation, never an IPC/disk-import command. Missing state and a new/empty
+helper return unknown. The manager wrapper over this package's process-runner
+protocol closes an original worker's launch gate permanently, interrupts only its
+owned invocation, and waits for matching local exit/not-started or exact retained
+cleanup. Uncertain or mismatched receipts retain ownership. Local proof never
+claims guest work/grants are clean: the shared sequencer still quiesces/revokes/
+verifies/removes against the original revalidated guest. Disconnect fences local
+work without inventing remote proof or reading a PID from disk.
+
+The coordinator now has a concrete authenticated recovery authority, tested with
+fake runtimes/process runners and local sockets after coordinator reopen. The
+actual relocated/ad-hoc sealed helper also supports an inherited ownership-only
+mode. Its empty registry authenticates unknown responses but creates no runner,
+tool probes, journal, Keychain access or VM. Existing operational setup gates and
+apply/check/recover/exec entry points remain disabled. Shared code/resources and
+the manager's base-plus-durable-patch source inventory do not change in this slice.
+
+The user-supplied Setup-tab screenshot is the reference for the future large dark
+live terminal/stage strip, follow/expand, cancellation and job details. Raw terminal
+and input bytes are deliberately absent from the structured ownership protocol;
+rendering, stream/input-lease transport and UI/CLI attachment remain later work.
+No screenshot with personal sidebar identifiers is copied into this repository.
+
+**VERIFIED — manager local fixtures:** `make test` passes 275 manager Swift test
+functions/41 suites (15 new IPC/coordinator functions), 49 script tests and the
+expanded relocated/read-only helper fixture. New Swift IPC tests use only fake
+process runners. A separate actual ad-hoc sealed helper is tested through private
+inherited socket/pipe descriptors, empty PATH and private empty HOME/TMPDIR; its
+empty registry returns authenticated unknown, rejects replay/wrong MAC/bad binary
+pins, and produces no secrets or host state. Existing package signature/tamper
+checks still pass. Full regression uses the existing exception for local sockets/
+synthetic LAContext, with no actual Keychain or auth UI. No real SSH/SCP/SFTP/
+Ansible, installs, manager UI or VM operations occur. Shared code is unchanged;
+prior 68 package tests/oracles remain historical evidence, not a new run here.
+
+**TO PROVE:** automatic admitted manager/helper launch and exclusive backend/job
+registration, operational sequencer/IPC delegation, full manager-process restart
+and reviewed session rebinding, signer/audit policy as required by release,
+real helper/guest crashes, remote cleanup and hard kernel-stall behavior, plus
+terminal/CLI integration and real guest acceptance. A private capability/live
+registry supports coordinator reopen, not adoption of a VM after manager restart.
+The missing-helper case remains cleanup-required rather than assumed safe.

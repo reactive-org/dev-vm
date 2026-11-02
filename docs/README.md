@@ -59,3 +59,10 @@ records bounded inert archives, conservative original-scope recovery, preallocat
 payload identity, exact manager base-plus-patch provenance and fake ownership
 reconciliation. Recovery cannot resume apply or rebind a VM; production helper
 ownership and all real guest acceptance remain pending.
+
+
+[Manager authenticated helper ownership](../README.md#manager-authenticated-helper-ownership--3-november-2026)
+records inherited HMAC control, exact original-worker fencing, conservative missing
+helper state and local packaged-helper fixtures. This is a manager-only handoff;
+shared engine/pins are unchanged and operational job/terminal integration remains
+pending.
