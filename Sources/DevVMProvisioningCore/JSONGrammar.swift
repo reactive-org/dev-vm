@@ -6,6 +6,7 @@ import Foundation
 struct JSONGrammar {
     let bytes: [UInt8]
     private var index = 0
+    var objectKeys: [[String]: [String]] = [:]
     init(bytes: [UInt8]) { self.bytes = bytes }
 
     mutating func parse() throws -> ManifestValue {
@@ -25,7 +26,7 @@ struct JSONGrammar {
     private mutating func require(_ byte: UInt8) throws {
         guard take(byte) else { throw ManifestError(.syntax) }
     }
-    private mutating func value(depth: Int) throws -> ManifestValue {
+    private mutating func value(depth: Int, path: [String] = []) throws -> ManifestValue {
         guard depth <= PlainDataParser.maximumDepth else { throw ManifestError(.depth) }
         whitespace()
         guard index < bytes.count else { throw ManifestError(.syntax) }
@@ -34,13 +35,15 @@ struct JSONGrammar {
             guard depth < PlainDataParser.maximumDepth else { throw ManifestError(.depth) }
             index += 1
             var result: [String: ManifestValue] = [:]
+            objectKeys[path] = []
             if take(125) { return .object(result) }
             repeat {
                 let key = try string()
                 guard key != "<<" else { throw ManifestError(.mergeKey) }
                 guard result[key] == nil else { throw ManifestError(.duplicateKey) }
                 try require(58)
-                result[key] = try value(depth: depth + 1)
+                objectKeys[path, default: []].append(key)
+                result[key] = try value(depth: depth + 1, path: path + [key])
                 if take(125) { return .object(result) }
                 try require(44)
             } while true
@@ -50,7 +53,7 @@ struct JSONGrammar {
             var result: [ManifestValue] = []
             if take(93) { return .array(result) }
             repeat {
-                result.append(try value(depth: depth + 1))
+                result.append(try value(depth: depth + 1, path: path + [String(result.count)]))
                 if take(93) { return .array(result) }
                 try require(44)
             } while true

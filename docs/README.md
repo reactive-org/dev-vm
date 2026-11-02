@@ -40,3 +40,5 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 - [Manager report-timer handoff](omarchy-manager-report-timer-handoff.md)
 
 These records describe the exact builds tested, rather than later rebuilds or updates.
+
+[Shared Swift provisioning](../README.md#swift-provisioning-foundation) provides offline manifest validation, profile resolution and source-snapshotted planning; the Python operational commands remain unchanged.

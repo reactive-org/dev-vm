@@ -31,6 +31,7 @@ public struct ManifestError: Error, Equatable, Sendable, CustomStringConvertible
     public enum Code: String, Sendable {
         case inputSize, encoding, syntax, forbiddenYAML, depth, duplicateKey, stringKey
         case template, mergeKey, scalar, schema, file, changedFile, unsupportedFormat, resource
+        case reference, cycle, conflict, disabledDependency, providerConflict, sourceLimit, sourceChanged, toml
     }
     public let code: Code
     public let line: Int?
@@ -46,18 +47,28 @@ public struct ManifestError: Error, Equatable, Sendable, CustomStringConvertible
 
 public enum ManifestFormat: Sendable { case json, yaml }
 
+struct PlainDocument: Sendable {
+    let value: ManifestValue
+    let objectKeys: [[String]: [String]]
+}
+
 public enum PlainDataParser {
     public static let maximumBytes = 256 * 1024
     public static let maximumDepth = 30
 
     public static func parse(_ data: Data, format: ManifestFormat) throws -> ManifestValue {
+        try document(data, format: format).value
+    }
+
+    static func document(_ data: Data, format: ManifestFormat) throws -> PlainDocument {
         guard data.count <= maximumBytes else { throw ManifestError(.inputSize) }
         guard String(data: data, encoding: .utf8) != nil else { throw ManifestError(.encoding) }
         if format == .json {
             var reader = JSONGrammar(bytes: Array(data))
-            return try reader.parse()
+            let value = try reader.parse()
+            return PlainDocument(value: value, objectKeys: reader.objectKeys)
         }
-        let tree = try data.withUnsafeBytes { bytes -> ManifestValue in
+        let tree = try data.withUnsafeBytes { bytes -> PlainDocument in
             // Data's empty buffer may be nil. The C parser still requires a non-null buffer.
             var empty: UInt8 = 0
             return try withUnsafePointer(to: &empty) { fallback in
@@ -71,7 +82,7 @@ public enum PlainDataParser {
                 let value = try reader.value(depth: 0)
                 try reader.consume(4)
                 guard reader.current.kind == 2 else { throw reader.error(.syntax) }
-                return value
+                return PlainDocument(value: value, objectKeys: reader.objectKeys)
             }
         }
         return tree
@@ -79,6 +90,10 @@ public enum PlainDataParser {
 
     /// Reads only this explicit regular file; referenced tasks/assets are never opened here.
     public static func read(_ url: URL) throws -> ManifestValue {
+        try readDocument(url).value
+    }
+
+    static func readDocument(_ url: URL) throws -> PlainDocument {
         guard url.isFileURL, !url.path.utf8.contains(0) else { throw ManifestError(.file) }
         let format: ManifestFormat
         switch url.pathExtension.lowercased() {
@@ -110,7 +125,7 @@ public enum PlainDataParser {
               before.st_ctimespec.tv_sec == after.st_ctimespec.tv_sec,
               before.st_ctimespec.tv_nsec == after.st_ctimespec.tv_nsec
         else { throw ManifestError(.changedFile) }
-        return try parse(data, format: format)
+        return try document(data, format: format)
     }
 }
 
@@ -123,6 +138,7 @@ func matches(_ value: String, _ pattern: String) -> Bool {
 private struct EventReader {
     let parser: OpaquePointer
     var current = dvm_yaml_event()
+    var objectKeys: [[String]: [String]] = [:]
 
     func error(_ code: ManifestError.Code) -> ManifestError {
         ManifestError(code, line: Int(current.line), column: Int(current.column))
@@ -135,7 +151,7 @@ private struct EventReader {
         guard current.kind == kind else { throw error(.syntax) }
         try advance()
     }
-    mutating func value(depth: Int) throws -> ManifestValue {
+    mutating func value(depth: Int, path: [String] = []) throws -> ManifestValue {
         guard depth <= PlainDataParser.maximumDepth else { throw error(.depth) }
         switch current.kind {
         case 5:
@@ -150,18 +166,20 @@ private struct EventReader {
             guard depth < PlainDataParser.maximumDepth else { throw error(.depth) }
             try advance()
             var items: [ManifestValue] = []
-            while current.kind != 7 { items.append(try value(depth: depth + 1)) }
+            while current.kind != 7 { items.append(try value(depth: depth + 1, path: path + [String(items.count)])) }
             try advance()
             return .array(items)
         case 8:
             guard depth < PlainDataParser.maximumDepth else { throw error(.depth) }
             try advance()
             var result: [String: ManifestValue] = [:]
+            objectKeys[path] = []
             while current.kind != 9 {
                 guard case .string(let key) = try value(depth: depth + 1) else { throw error(.stringKey) }
                 guard key != "<<" else { throw error(.mergeKey) }
                 guard result[key] == nil else { throw error(.duplicateKey) }
-                result[key] = try value(depth: depth + 1)
+                objectKeys[path, default: []].append(key)
+                result[key] = try value(depth: depth + 1, path: path + [key])
             }
             try advance()
             return .object(result)

@@ -3,11 +3,14 @@ import Foundation
 /// Internal validator for the finite keyword subset used by the bundled selection schema.
 /// This is not a general JSON Schema implementation; unsupported keywords fail closed.
 enum SelectionSchema {
-    static func resource(_ name: String) throws -> ManifestValue {
+    static func resourceDocument(_ name: String) throws -> PlainDocument {
         guard let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Resources")
         else { throw ManifestError(.resource) }
-        do { return try PlainDataParser.read(url) }
+        do { return try PlainDataParser.readDocument(url) }
         catch { throw ManifestError(.resource) }
+    }
+    static func resource(_ name: String) throws -> ManifestValue {
+        try resourceDocument(name).value
     }
 
     static func validate(_ value: ManifestValue) throws {

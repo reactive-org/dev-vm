@@ -1,0 +1,32 @@
+{
+  "controller": "swift",
+  "setup_api": 1,
+  "sources": {
+    "Package.resolved": "1c1292adea6d7e8ccf2bca848d90a720bb644bb41c564053d500921b46e7017b",
+    "Package.swift": "ef00d0a6e00e862ee14ad8b4dc57fcf53de03d25e75ff1eec04cbdf59f7b2996",
+    "Sources/CDevVMYAML/DevVMYAML.c": "50914cc96b3210b063ba4878179c20b2a447df6d161a8afae454d888de04e9c5",
+    "Sources/CDevVMYAML/include/DevVMYAML.h": "e74f222fc6e9d77efa1ea74905520d7a784b99e95b383272910b461a0801a43a",
+    "Sources/CDevVMYAML/include/yaml.h": "e64f1da89c04ab728f828965a510dadd99d39778f4c48617d95cfbb9da069af8",
+    "Sources/CDevVMYAML/vendor/api.c": "332a0fdeeb6c2d5bacc6fc93d19f80db59eedf51ec87f0851742bcf441b69421",
+    "Sources/CDevVMYAML/vendor/parser.c": "00990d692199723a087b8e123d5b49e3d422cf10a806e852c43f1cc12b257c28",
+    "Sources/CDevVMYAML/vendor/reader.c": "c428a44b177391557bdf49177c1dc0216edf2a2bbe0e24ca2ef2725ef7f01e9d",
+    "Sources/CDevVMYAML/vendor/scanner.c": "338ee97fc97aa97c08a74cd3349462bea4e1f7ce836e4c7b04334fa1c74031c0",
+    "Sources/CDevVMYAML/vendor/yaml_private.h": "2e2f7887f27da6bff518db117d358f708c1af30ebabdeeea612e628b9ed18841",
+    "Sources/DevVMProvisioningCore/FeatureContract.swift": "037bb4b8c8e700f0b8c30c00ce8945a06af61fb5fc4fcd6bd860b681440372ad",
+    "Sources/DevVMProvisioningCore/FeaturePlanner.swift": "5e7fab041c36b3afc4380fb4aeb32629f0840d34e85dcd96b7dc3fca94388501",
+    "Sources/DevVMProvisioningCore/JSONGrammar.swift": "e015a71cd9928b4c5a2369ee69888c7476d732245e04efbf0440f0492d719974",
+    "Sources/DevVMProvisioningCore/PlainData.swift": "71a28c2c8da37a9e44ee296c60976cbb2b98d3bc5eaa2eb3260c996ee73b5dd5",
+    "Sources/DevVMProvisioningCore/Resources/LibYAML-LICENSE.txt": "c40112449f254b9753045925248313e9270efa36d226b22d82d4cc6c43c57f29",
+    "Sources/DevVMProvisioningCore/Resources/TOMLDecoder-LICENSE.txt": "ee59f20a0a5550b0b071a0d9edb31c29629ce4bad2d8f5d0467ee7d574b541cf",
+    "Sources/DevVMProvisioningCore/Resources/Yams-LICENSE.txt": "0354b0ea403d2e78059c5ae0510a2cfae9f8eb306fcef094ac9fff5b47e20bed",
+    "Sources/DevVMProvisioningCore/Resources/catalogue.json": "cf1741b95d73f30390ad4a9ae4b843babb65db4c16aecbed15c48308b1c4bff0",
+    "Sources/DevVMProvisioningCore/Resources/catalogue.schema.json": "234128f6847d0b5b428d5b063261d4aa6f50129c13846d41d10812783b787ea6",
+    "Sources/DevVMProvisioningCore/Resources/selection.schema.json": "351a0754a2b9091a806e1e1237485cfd251e82e018610f0e1831ba3a049d17c9",
+    "Sources/DevVMProvisioningCore/SelectionSchema.swift": "e46a8ee4a2f81c17c3f33cb2ff0e7cf9ad5f6e70d32c79fc5021976c32eca29d",
+    "Sources/DevVMProvisioningCore/SetupManifest.swift": "52f0af5aa6a65cc5a61ea72cd37491e52ffaafad3e687d27ffd820d2371420a2",
+    "Sources/DevVMProvisioningCore/SetupPlanner.swift": "cfa8d456530c86c9af960dea08c7cad0ff301d7c8b10900bb6b33f64f44898d3",
+    "Sources/DevVMProvisioningCore/SourceSnapshot.swift": "0a39e43e1f951b189e3dfff214f376fa9bae832ad4e1c90afd908c0ec5f38e8b",
+    "Sources/dev-vm/main.swift": "550c97f885f3326477fea78cca65c93d7ee25ad9d7c9ad55a2cd3692f2cda681",
+    "ThirdParty/ParserInventory.json": "3a64ef59bb137a2c4ba26f5812debabbdad9816d041f7e2b6ff52bb8fb6a8941"
+  }
+}

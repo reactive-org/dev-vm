@@ -19,7 +19,7 @@ public struct SetupManifest: Sendable, Equatable {
     public static func read(_ url: URL) throws -> SetupManifest {
         try SetupManifest(value: PlainDataParser.read(url))
     }
-    private init(value: ManifestValue) throws {
+    init(value: ManifestValue) throws {
         let root = try fields(value, allowed: ["schema_version", "id", "vm", "setup", "dotfiles", "tasks", "assets", "vars"],
                               required: ["schema_version", "id"])
         guard root["schema_version"] == .integer(1), let id = root["id"]?.string,
@@ -112,28 +112,28 @@ public struct VMDeclaration: Sendable, Equatable {
     }
 }
 
-private func fields(_ value: ManifestValue, allowed: Set<String>, required: Set<String> = []) throws -> [String: ManifestValue] {
+func fields(_ value: ManifestValue, allowed: Set<String>, required: Set<String> = []) throws -> [String: ManifestValue] {
     guard let object = value.object, Set(object.keys).isSubset(of: allowed), required.isSubset(of: Set(object.keys))
     else { throw ManifestError(.schema) }
     return object
 }
-private func string(_ value: ManifestValue?) throws -> String {
+func string(_ value: ManifestValue?) throws -> String {
     guard let text = value?.string else { throw ManifestError(.schema) }
     return text
 }
-private func items(_ value: ManifestValue) throws -> [ManifestValue] {
+func items(_ value: ManifestValue) throws -> [ManifestValue] {
     guard let items = value.array else { throw ManifestError(.schema) }
     return items
 }
-private func strings(_ value: ManifestValue) throws -> [String] { try items(value).map { try string($0) } }
+func strings(_ value: ManifestValue) throws -> [String] { try items(value).map { try string($0) } }
 private func integer(_ value: ManifestValue, range: ClosedRange<Int64>) throws -> Int64 {
     guard let number = value.integer, range.contains(number) else { throw ManifestError(.schema) }
     return number
 }
-private func boundedText(_ text: String, bytes: Int) -> Bool {
+func boundedText(_ text: String, bytes: Int) -> Bool {
     !text.isEmpty && text.utf8.count <= bytes && !text.unicodeScalars.contains { $0.value < 32 || $0.value == 127 }
 }
-private func relativePath(_ path: String) throws {
+func relativePath(_ path: String) throws {
     guard boundedText(path, bytes: PlainDataParser.maximumBytes), !path.hasPrefix("/"), !path.contains("\\"),
           !path.split(separator: "/", omittingEmptySubsequences: false).contains(where: { ["", ".", "..", ".git"].contains($0) })
     else { throw ManifestError(.schema) }
