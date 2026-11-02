@@ -43,4 +43,6 @@ These records describe the exact builds tested, rather than later rebuilds or up
 
 [Shared Swift provisioning](../README.md#swift-provisioning-foundation) provides offline manifest validation, profile resolution and source-snapshotted planning; the Python operational commands remain unchanged.
 
-[Transport/authorization contracts](../README.md#transport-and-authorization-sequencing-fake-adapters-only) add a shared sequencer tested solely with in-memory guest adapters; real transports and operational Swift commands remain unavailable.
+[Transport/authorization contracts](../README.md#transport-and-authorization-sequencing-fake-adapters-only) add a shared sequencer tested solely with in-memory guest adapters; the concrete command adapter continuation below adds process specifications without enabling operational Swift commands.
+
+[Concrete SSH/Ansible adapters](../README.md#concrete-sshansible-adapters-fake-process-runners-only) cover pinned transport commands, private payload/Ansible files, guest scope control and terminal-stream contracts, tested only with fake process runners. No live runner or PTY is shipped.

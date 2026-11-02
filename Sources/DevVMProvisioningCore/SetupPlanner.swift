@@ -4,6 +4,7 @@ import Foundation
 public struct SetupPlan: Sendable, Encodable {
     public let document: ManifestValue
     public let snapshot: SourceSnapshot
+    let manifestPath: String
     public var identity: String { document.object!["plan_digest"]!.string! }
     public func encode(to encoder: any Encoder) throws { try document.encode(to: encoder) }
     public func verify(in repository: URL) throws {
@@ -69,14 +70,15 @@ public enum SetupPlanner {
                 "removals": .array([]), "update_policy": .string("Native Omarchy/mise ownership; no implicit removal or update"),
                 "factory_admission": .string("manager_verification_required")])]
         document["plan_digest"] = .string(digest(try canonicalData(ManifestValue.object(document))))
-        return SetupPlan(document: .object(document), snapshot: snapshot)
+        return SetupPlan(document: .object(document), snapshot: snapshot, manifestPath: path)
     }
 
     static func engine() throws -> ManifestValue {
         let doc = try SelectionSchema.resource("engine-identity")
         guard let sourceHashes = doc.object?["sources"]?.object else { throw ManifestError(.resource) }
         for (path, expected) in sourceHashes where path.hasPrefix("Sources/DevVMProvisioningCore/Resources/") {
-            let name = URL(fileURLWithPath: path).lastPathComponent
+            let name = String(path.dropFirst("Sources/DevVMProvisioningCore/Resources/".count))
+            try relativePath(name)
             guard let url = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "Resources"),
                   let data = try? Data(contentsOf: url), expected == .string(digest(data)) else { throw ManifestError(.resource) }
         }

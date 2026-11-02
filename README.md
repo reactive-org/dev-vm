@@ -96,8 +96,9 @@ or `keep` through the [workstation shell setting](docs/omarchy-features.md#login
 The root SwiftPM package targets Swift 6 and macOS 15+. It exports
 `DevVMProvisioningCore` and the migration-stage `dev-vm` executable. The package now provides
 strict manifests, feature/profile resolution, immutable source snapshots and
-offline proposals. It ships no concrete process, Ansible, SSH, VM or installation
-backend. Adapter-only transport/authorization sequencing is described below. The legacy Python commands
+offline proposals. A concrete SSH/Ansible command adapter is available behind an
+injected process runner; no live process runner, PTY or VM backend is shipped.
+The transport continuations below describe the implemented boundaries. The legacy Python commands
 above remain the operational entry points until an explicit cutover.
 
 ```sh
@@ -255,9 +256,10 @@ manager execution gates remain disabled. Concrete transports and production exec
 
 ## Transport and authorization sequencing (fake adapters only)
 
-`ProvisioningGuestAdapter` is a typed async port; the only conformance is the
-in-memory `FakeGuest` in tests. No SSH/Ansible/process/PTY implementation, remote
-payload materializer, guest discovery or lifecycle controller is shipped.
+**Historical boundary at `f807104`:** `ProvisioningGuestAdapter` was a typed
+async port implemented only by the in-memory `FakeGuest` in tests. Concrete
+command construction and payload materialization are added in the continuation
+below; a live process runner, PTY, guest discovery and lifecycle controller remain deferred.
 `ProvisioningSequencer` is a single-use actor for reviewed apply/check attempts
 and cleanup-only recovery. The CLI still exposes offline validation/planning
 only, and proposals still report `execution_available: false`.
@@ -351,3 +353,72 @@ terminal streams and every real-guest scenario. Manager execution gates stay
 disabled.
 
 [All documentation](docs/README.md) · [Prerequisites and settings](docs/omarchy-bootstrap.md) · [Repository checks](docs/development.md)
+
+
+## Concrete SSH/Ansible adapters (fake process runners only)
+
+**IMPLEMENTED — milestone 2 continuation, 2 November 2026:**
+`SSHAnsibleGuestAdapter` constructs exact SSH/SCP/Ansible invocations, materializes
+frozen inputs and interprets bounded results. `ProvisioningProcessRunner` is an
+injected port, with only an in-memory fake supplied. There is no host process
+launcher or operational Swift apply/check command. CLI proposals still declare
+execution unavailable; manager integration and execution gates are unchanged.
+
+The connection accepts an explicit loopback endpoint, manager VM/session/owner
+binding, ed25519 host key and private-key reference. Key admission reads metadata
+only. A manager-owned authority revalidates session/dependency admission before
+each process; private SSH config/known_hosts enforce the host key and explicit
+credential, with forwarding, agent access, proxy commands and connection sharing
+disabled. Executables are pinned by resolved identity/hash, revalidated on every
+invocation and invoked through their original launcher path to retain Ansible
+symlink dispatch. No tool discovery or version probe occurs here.
+
+Private UUID job storage contains immutable repository bytes, bundled playbooks,
+roles, catalogue and guest helpers, fixed inventory, JSON variables and isolated
+Ansible config/home/temp/plugin paths. Build-time resource copies and hashes are
+checked against maintained sources. Nested manifest variables use the exact
+snapshot manifest path. Ansible receives the admitted launcher, fixed transport
+variables and explicit tags/check mode; user variables never enter shell argv.
+Native manifest packages use Omarchy commands and mise, preserving upstream
+installation paths. Check mode never installs those packages or changes grants.
+
+Interactive native grant, Docker consent and package installers receive only an
+input-lease ID and request an SSH TTY/terminal stream. Ansible requests live output
+with closed stdin. A future runner must enforce deadlines, output bounds, PTY
+ownership/echo rules and matching local descendant exit before returning. Raw
+terminal bytes never enter structured events/results. Cancellation tracks the
+command even between subprocesses, prevents the next launch and never interrupts
+cleanup. Fake outcomes establish these contracts, not real terminal behavior.
+
+**PRIVATE COUPLING:** `omarchy/guest/provisioning-job.py` is a guest-only Python
+helper, not a host Python runtime. It binds one exclusive non-root UUID payload
+and lease to recorded systemd user scopes. Preparation requires Linux/aarch64,
+Python 3, cgroup v2, a user manager/bus and `systemd-run --scope
+--expand-environment=no` support, checked before granting sudo. This flag requires
+systemd 254+ ([systemd-run reference](https://www.freedesktop.org/software/systemd/man/latest/systemd-run.html)).
+The Ansible shell wrapper scopes module commands. Quiescence seals new body work,
+stops recorded scopes and requires inactive/empty cgroups before a structured
+receipt. Pending/uncertain launch registration fails closed; payload removal
+requires that proof and the exact owned lease. There is no process-name killing
+or unverified removal fallback. Cleanup commands may run after sealing to revoke
+authorization. This is not a sandbox for trusted custom tasks, which may escape
+scopes or create independent services. Uncertain startup can require manual
+recovery; persistent recovery and reboot/session rebinding remain deferred.
+
+**VERIFIED — fake-process checks:** make build and all 50 Swift test functions
+pass, including 12 new transport tests with parameterized faults, malformed or
+mismatched receipts, launcher retargeting, source/workspace tampering, partial
+staging, check mode and cancellation before/between/during process calls. All 50
+also pass with `PATH=/nonexistent`. The 18 parser and 66 complete planning oracle
+fixtures and seven existing mocked Python sequencing tests pass. Both new Python
+files pass syntax compilation; 21 bundled YAML resources pass static parsing.
+The full legacy suite and real Ansible syntax commands were not rerun because
+this slice uses fake process runners only. No SSH/SCP/SFTP/Ansible executable,
+credential contents, host installation, UI action or VM operation was used.
+
+**TO PROVE:** actual SSH authentication/quoting, Ansible execution/parity, guest
+helper/systemd/cgroup operation and privileged descendants, real deadlines and
+cancellation, PTY/password echo and terminal delivery, persistent recovery,
+standalone cutover, manager/helper integration and signed relocation. Earlier
+fake-adapter evidence remains historical; concrete command generation and local
+materialization now exist, without real-guest acceptance.

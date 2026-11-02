@@ -88,9 +88,9 @@ public enum GuestOperation: String, Sendable, Codable, CaseIterable {
     case verifyIdentity, stagePayload, resetGrant, clearAuthenticationCache, requestPersistentGrant, verifyGrantActive
     case installManifestPackages, configureFeatures, configureDockerOwnerAccess, configureRepository
     case quiesceOwnedWork, revokeGrant, verifyGrantInactive, removePayload, verifyOwnerDockerAccess
-    var interactive: Bool { self == .requestPersistentGrant || self == .configureDockerOwnerAccess }
+    var interactive: Bool { [.requestPersistentGrant, .configureDockerOwnerAccess, .installManifestPackages].contains(self) }
     var bodyTimeoutSeconds: Int {
-        if interactive { return 120 }
+        if [.requestPersistentGrant, .configureDockerOwnerAccess].contains(self) { return 120 }
         if self == .verifyIdentity { return 10 }
         if [.resetGrant, .clearAuthenticationCache, .verifyGrantActive].contains(self) { return 30 }
         return 3600
@@ -147,7 +147,8 @@ public struct GuestReply: Sendable {
     }
 }
 
-/// No concrete SSH, Ansible, process, PTY or lifecycle adapter is shipped here.
+/// The concrete SSH/Ansible adapter requires an injected process runner. No live
+/// runner, PTY or lifecycle implementation is shipped here.
 /// An adapter must honor deadlines, bind every operation to the expected pins,
 /// and finish its local command before returning/throwing. Local completion is
 /// not proof that remote descendants stopped: cleanup requires a separate proof.

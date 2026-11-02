@@ -17,6 +17,7 @@ test-provisioning: provisioning-inventory ## Run offline Swift manifest/planning
 
 .PHONY: provisioning-inventory
 provisioning-inventory:
+	@PYTHONDONTWRITEBYTECODE=1 python3 ./scripts/sync_swift_provisioning_resources.py
 	@PYTHONDONTWRITEBYTECODE=1 python3 ./scripts/update_swift_engine_inventory.py
 
 ORACLE_PYTHON ?= python3
