@@ -1,5 +1,10 @@
 # Bootstrap reference
 
+To keep resources, features, dotfiles and custom tasks in another repository,
+use [external setup repositories](omarchy-setup-repositories.md). Supplying
+`OMARCHY_SETUP_REPO` selects that workflow; commands below retain their existing
+behaviour when it is omitted.
+
 The [quick starts](../README.md#quick-start) assume an existing manager app/CLI,
 Git, Python 3 and make on an Apple Silicon Mac. Ansible is required for the
 optional feature playbooks. Host tools are installed separately.

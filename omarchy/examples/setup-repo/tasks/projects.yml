@@ -1,0 +1,6 @@
+---
+- name: Create the owner's projects directory
+  ansible.builtin.file:
+    path: "{{ workstation_home }}/{{ workstation_vars.projects_directory }}"
+    state: directory
+    mode: "0755"

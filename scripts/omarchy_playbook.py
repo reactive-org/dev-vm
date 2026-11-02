@@ -160,6 +160,22 @@ def enable_owner_docker(connection):
     verify_owner_docker(connection)
 
 
+def execution_command(temporary, plan, guest, connection, ansible, *, check=False):
+    """Build the private, manager-pinned invocation shared by both launchers."""
+    fixed = connection_values(guest, connection)
+    inventory = temporary / "inventory.json"
+    variables = temporary / "features.json"
+    write_private(inventory, {"all": {"children": {"omarchy": {"hosts": {"workstation": fixed}}}}})
+    owner_docker = plan["options"].get("docker", {}).get("access") == "sudoless"
+    write_private(variables, {**plan_variables(plan), **fixed,
+                              "omarchy_defer_docker_access": owner_docker and not check})
+    command = [ansible, "-i", str(inventory), str(ROOT / "site.yml"),
+               "--tags", ",".join(plan["features"]), "--extra-vars", "@" + str(variables)]
+    if check:
+        command.append("--check")
+    return command
+
+
 def playbook(args):
     # Resolve and validate local data before even inspecting a manager connection.
     options = read_options(args.vars_file)
@@ -186,17 +202,8 @@ def playbook(args):
     with tempfile.TemporaryDirectory(prefix="dev-omarchy-ansible-") as folder:
         temporary = Path(folder)
         guest, connection = ready_connection(args)
-        fixed = connection_values(guest, connection)
-        inventory = temporary / "inventory.json"
-        variables = temporary / "features.json"
-        write_private(inventory, {"all": {"children": {"omarchy": {"hosts": {"workstation": fixed}}}}})
         owner_docker = plan["options"].get("docker", {}).get("access") == "sudoless"
-        write_private(variables, {**plan_variables(plan), **fixed,
-                                  "omarchy_defer_docker_access": owner_docker and not args.check})
-        command = [ansible, "-i", str(inventory), str(ROOT / "site.yml"),
-                   "--tags", ",".join(plan["features"]), "--extra-vars", "@" + str(variables)]
-        if args.check:
-            command.append("--check")
+        command = execution_command(temporary, plan, guest, connection, ansible, check=args.check)
         print("Resolved proposal:\n" + json.dumps(plan, indent=2), flush=True)
         print(f"Guest: {args.vm_name}\nFeatures: {', '.join(plan['features'])}\n"
               f"Variables: {args.vars_file or 'repository defaults'}\n"

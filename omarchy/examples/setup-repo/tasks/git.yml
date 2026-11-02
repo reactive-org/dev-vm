@@ -1,0 +1,15 @@
+---
+- name: Inspect native Git configuration permissions
+  ansible.builtin.stat:
+    path: "{{ workstation_home }}/.config/git/config"
+  register: workstation_example_git
+
+- name: Include personal Git preferences while preserving native configuration
+  ansible.builtin.blockinfile:
+    path: "{{ workstation_home }}/.config/git/config"
+    create: true
+    mode: "{{ workstation_example_git.stat.mode | default('0644') }}"
+    marker: "# {mark} dev-vm example preferences"
+    block: |
+      [include]
+          path = "{{ workstation_home }}/.config/git/dev-vm-preferences.conf"

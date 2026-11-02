@@ -368,8 +368,9 @@ Duplicate keys, explicit YAML tags, anchors/aliases and Jinja/lookups are reject
 Only guest package names and mise registry short names with string version
 selectors are accepted as installation operations. Catalogues cannot register
 shell commands, Ansible roles, service actions, repository sources, credentials
-or connection variables. Arbitrary role loading remains a future extension;
-configuration beyond these data operations needs a reviewed repository change.
+or connection variables. For dotfiles and trusted executable task files, use the
+separate [external setup repository](omarchy-setup-repositories.md) interface.
+Data-only catalogues retain their existing restrictions.
 
 ## Review, apply and validate
 

@@ -1,5 +1,9 @@
 # Omarchy feature playbooks
 
+For a complete user-owned manifest with dotfiles and explicitly trusted custom
+tasks, see [external setup repositories](omarchy-setup-repositories.md). The
+feature-only interface below retains its existing behaviour.
+
 The playbook targets the non-root owner of an Omarchy `aarch64` guest with native Try Omarchy integration. Both the official factory and the repository's lean factory use the same roles and Omarchy/mise commands. No Ubuntu package sources, roles, desktop templates, personal-key synchronization or Parallels controllers remain.
 
 ## Selection

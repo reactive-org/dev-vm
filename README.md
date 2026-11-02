@@ -17,7 +17,7 @@ Install missing host tools separately; this repository does not install them.
 | macOS Bash and OpenSSH (`ssh`, `scp`, `sftp`) | Shell scripts and guest access through VM Manager's managed SSH connection. |
 | Omarchy VM Manager app and CLI | Creating, configuring and checking VMs from either factory. Save **Guest Defaults** in the app first. The CLI is discovered on `PATH`, then in `~/Applications` or `/Applications`. Lean image import also reads the installed app’s compatibility metadata. See [manager setup and CLI paths](docs/omarchy-bootstrap.md). |
 | Docker CLI and a running ARM64 Linux engine | `make build-omarchy-image` and `make check-omarchy-image`. Full image builds require privileged containers. The official factory and image previews (`OMARCHY_IMAGE_PLAN=yes`) do not require host Docker. |
-| Ansible (`ansible-playbook`, `ansible-inventory`) | Optional feature playbooks (`make apply-playbook`), `make syntax-check` and the complete `make test-omarchy` suite. CI pins `ansible-core` 2.21.5. Standard bootstrap does not require Ansible. |
+| Ansible (`ansible-playbook`, `ansible-inventory`) | Optional feature playbooks, external setup application/bootstrap, `make syntax-check` and the complete `make test-omarchy` suite. CI pins `ansible-core` 2.21.5. Standard bootstrap does not require Ansible. |
 | PyYAML | Reading YAML setup, catalogue or variables files. The loader can reuse the existing Ansible Python runtime; JSON files do not need PyYAML. |
 | Python 3.11+ | Developer-profile compact prompts or custom `starship_config` TOML; validation uses the standard-library TOML parser. |
 | Authenticated GitHub CLI (`gh`) or `GH_TOKEN`/`GITHUB_TOKEN` | Optional theme selection by GitHub stars. See [theme selection](docs/omarchy-themes.md). |
@@ -69,6 +69,17 @@ Every runbook shows both image choices with copy-and-paste commands.
 - [Claude, two terminals and a floating browser](docs/omarchy-layout-claude-two-terminals-browser.md)
 
 Next: [add developer tools](docs/omarchy-features.md) or [choose a theme](docs/omarchy-themes.md).
+
+Keep a complete setup in a separate repository with
+[external setup repositories](docs/omarchy-setup-repositories.md): VM resources,
+features, layouts, dotfiles and explicitly trusted custom Ansible tasks. Start
+from the [standalone example](omarchy/examples/setup-repo/README.md):
+
+```bash
+make plan-omarchy-setup OMARCHY_SETUP_REPO="$HOME/my-workstation"
+make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
+  OMARCHY_SETUP_REPO="$HOME/my-workstation" OMARCHY_SETUP_TRUST_TASKS=yes
+```
 
 If projects own their tools through `mise.toml`, choose the
 [`project-managed` profile](docs/omarchy-features.md#let-projects-manage-their-toolchains)

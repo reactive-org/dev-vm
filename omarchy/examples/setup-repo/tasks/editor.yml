@@ -1,0 +1,12 @@
+---
+- name: Create a personal editor snippets directory
+  ansible.builtin.file:
+    path: "{{ workstation_home }}/.config/dev-vm-example"
+    state: directory
+    mode: "0755"
+
+- name: Render an example editor configuration snippet
+  ansible.builtin.template:
+    src: "{{ workstation_setup_dir }}/templates/editor.json.j2"
+    dest: "{{ workstation_home }}/.config/dev-vm-example/editor.json"
+    mode: "0644"

@@ -1004,6 +1004,8 @@ def print_proposal(
         f"{correction_text}\n",
         flush=True,
     )
+    if getattr(args, "setup_proposal", None):
+        print(args.setup_proposal, flush=True)
 
 
 def ready_guest(args) -> tuple[dict, str]:
@@ -1050,6 +1052,8 @@ def ready_guest_with_factory(args, manager: str, guest: Optional[dict], factory:
         factory_input=factory,
     )
     confirm(args)
+    if getattr(args, "setup_verify", None):
+        args.setup_verify()
     import_factory_input(args, factory)
 
     if guest is None:
@@ -1275,6 +1279,8 @@ def bootstrap_command(args) -> None:
             enable_bootstrap_sudo(connection)
             update_guest_system(connection)
             apply_workstation(args, connection)
+            if getattr(args, "setup_apply", None):
+                args.setup_apply(guest, connection)
         except BaseException:
             try:
                 disable_bootstrap_sudo(connection)
@@ -1285,6 +1291,8 @@ def bootstrap_command(args) -> None:
             # Revoke before restarting: the manager needs no sudo, and this
             # leaves no grant behind if its restart or subsequent checks fail.
             disable_bootstrap_sudo(connection)
+            if getattr(args, "setup_after_revoke", None):
+                args.setup_after_revoke(connection)
     finally:
         for signum, handler in previous_handlers.items():
             signal.signal(signum, handler)

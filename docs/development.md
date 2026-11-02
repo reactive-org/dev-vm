@@ -22,6 +22,7 @@ PYTHONPYCACHEPREFIX=/tmp/dev-omarchy-pycache \
   python3 -m py_compile scripts/omarchy_vm_manager.py scripts/omarchy_playbook.py \
   scripts/omarchy_image.py omarchy/guest/apply-lean-developer.py omarchy/guest/apply-features.py \
   scripts/omarchy_profiles.py scripts/omarchy_data.py omarchy/guest/feature_contract.py \
+  scripts/omarchy_setup.py omarchy/guest/apply-dotfiles.py \
   omarchy/image/compatibility.py omarchy/image/check-provisioning.py
 bash -n omarchy/image/build-container.sh omarchy/image/preferences/first-login.sh \
   omarchy/image/preferences/preferences.install omarchy/image/preferences/PKGBUILD \
@@ -37,6 +38,13 @@ Use `make plan-omarchy-features OMARCHY_PROFILES=web` or
 `OMARCHY_SETUP_FILE="$PWD/omarchy/examples/team/setup.yml"` to exercise profile
 and extension resolution locally without contacting a VM. The resolver uses
 plain YAML/JSON; YAML can reuse the already installed Ansible Python runtime.
+
+Preview an external setup with
+`make plan-omarchy-setup OMARCHY_SETUP_REPO=omarchy/examples/setup-repo`.
+The local setup tests exercise dotfile conflicts, frozen source changes, task
+trust/check boundaries and real Ansible templates plus zero-change reapplication.
+They do not create a VM or validate hardware. `make syntax-check` validates both
+the feature and external-setup playbooks.
 
 When using Codex, run `make test-omarchy` outside the Codex sandbox so the
 Ansible tests can create their local Unix socket for controller RPC. The

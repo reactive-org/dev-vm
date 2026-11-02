@@ -203,19 +203,26 @@ class Resolver:
             result[key] = siblings(result[key], value) if key in result else copy.deepcopy(value)
         return result
 
-    def resolve(self, *, profiles=None, features=None, setup_file=None, catalogues=None, overrides=None):
-        setup = {}
+    def resolve(self, *, profiles=None, features=None, setup_file=None, catalogues=None, overrides=None,
+                selection=None, base_dir=None):
+        setup = selection if selection is not None else {}
+        if selection is not None and setup_file:
+            raise ProfileError("Choose a selection object or a selection file")
         if setup_file:
             setup_file = Path(setup_file).resolve(strict=True)
-            setup = fields(read_data(setup_file), {"schema_version", "catalogues", "profiles", "features", "options"},
+            setup = read_data(setup_file)
+            base_dir = setup_file.parent
+            self.source(setup_file)
+        if setup_file or selection is not None:
+            base_dir = Path(base_dir) if base_dir is not None else Path.cwd()
+            setup = fields(setup, {"schema_version", "catalogues", "profiles", "features", "options"},
                            {"schema_version"}, "selection")
             version(setup["schema_version"])
             paths = setup.get("catalogues", [])
             if not isinstance(paths, list) or any(not isinstance(x, str) or not x for x in paths):
                 raise ProfileError("catalogues must be explicit local file paths")
             for path in paths:
-                self.load_catalogue(setup_file.parent / path)
-            self.source(setup_file)
+                self.load_catalogue(Path(base_dir) / path)
         for path in catalogues or []:
             self.load_catalogue(path)
         self.validate()

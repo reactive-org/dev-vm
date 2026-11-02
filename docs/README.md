@@ -20,6 +20,7 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 
 - [Prerequisites, bootstrap and resource settings](omarchy-bootstrap.md)
 - [Developer feature selection](omarchy-features.md) and [playbook contract](omarchy-playbooks.md)
+- [External setup repositories, dotfiles and trusted custom tasks](omarchy-setup-repositories.md)
 - [Themes](omarchy-themes.md) and [application layouts](omarchy-layouts.md)
 - [Removal profile and restoration](omarchy-lean-developer.md)
 - [Scope and factory choices](omarchy-overview.md)
@@ -29,6 +30,7 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 
 ## Validation records
 
+- [External setup repositories, official and lean acceptance](omarchy-setup-validation.md)
 - [Developer, web and Python profile live acceptance](omarchy-profile-validation.md)
 - [Official-image trimming](omarchy-official-trimmed-validation.md)
 - [Official factory / manager 0.9.2 acceptance](omarchy-official-43-validation.md)
