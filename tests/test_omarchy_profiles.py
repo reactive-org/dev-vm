@@ -38,6 +38,19 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(plan["options"], {"languages": {"tools": {"node": ""}}})
         self.assertNotIn("docker", plan["features"])
 
+    def test_developer_docker_selection_requests_native_sudoless_opt_in(self):
+        self.assertEqual(Resolver().resolve(features=["docker"])["options"]["docker"], {"access": "native"})
+        self.assertNotIn("docker", Resolver().resolve(profiles=["developer"])["features"])
+        for profile in ("developer", "web", "project-managed"):
+            plan = Resolver().resolve(profiles=[profile], features=["docker"])
+            self.assertEqual(plan["options"]["docker"], {"access": "sudoless"})
+            self.assertTrue(any("root-equivalent" in item for item in plan["effects"]["files"]))
+            native = Resolver().resolve(profiles=[profile], features=["docker"], overrides={"docker": {"access": "native"}})
+            self.assertEqual(native["options"]["docker"], {"access": "native"})
+        for value in (True, None, "", "group", "sudoless;id"):
+            with self.subTest(access=value), self.assertRaises(ProfileError):
+                Resolver().resolve(features=["docker"], overrides={"docker": {"access": value}})
+
     def test_workstation_shell_defaults_to_zsh_with_selection_and_legacy_overrides(self):
         default = Resolver().resolve()
         self.assertEqual(default["options"]["workstation"]["shell"], "zsh")

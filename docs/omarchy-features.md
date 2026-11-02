@@ -71,7 +71,7 @@ leave existing software and settings alone; deselection never uninstalls tools.
 | `languages` | Node using Omarchy's declaration when selected alone | `tools`: mise short-name/version map; Python and Ruby prerequisites are explicit |
 | `toolchain` | mise, lazy shims when newly installed, and verification of Bash activation plus zsh hooks when zsh is the login shell | `prerequisites`: `ruby`, `python`, both or neither; native build libraries only, no runtime selection |
 | `build` | base-devel, pkgconf, CMake, Ninja and GDB | `packages` and `tools` |
-| `docker` | Docker, Buildx, Compose, native UFW integration and socket activation | Existing Omarchy sudo/polkit policy; requires an active existing UFW policy |
+| `docker` | Docker, Buildx, Compose, native UFW integration and socket activation | `access`: `native` (standalone default) or `sudoless` (developer-profile default); requires active UFW |
 | `databases` | SQLite CLI | `clients`: `sqlite`, `postgresql` or `mysql`; PostgreSQL uses `postgresql-libs`, MySQL uses `mariadb-clients`; no server initialization/activation |
 | `api` | curl, OpenSSL and HTTPie | `packages` and `tools` |
 | `quality` | ShellCheck through mise; yamllint and pre-commit guest packages | `packages` and `tools`; no changes to existing repositories |
@@ -386,8 +386,15 @@ if cleanup cannot run, use `omarchy sudo passwordless --disable && sudo -K` in
 the guest. Check mode enables no grant, installs no
 packages, writes no preferences and starts no services; its temporary payload is
 removed even on failure. The launcher does not create, start, resize or reboot a
-VM. Docker retains the native sudo/polkit policy, existing firewall and service
-activation; no docker-group membership or host forwards are added.
+VM. Docker retains the native firewall and service integration. Developer profiles
+request Omarchy's interactive Sudoless Docker opt-in (root-equivalent Docker group)
+when Docker is selected; standalone Docker defaults to native sudo access. Override
+with `options.docker.access: native`. After opting in, restart through VM Manager
+to refresh existing desktop credentials. The launcher verifies direct local API
+access plus Compose/Buildx after setup sudo is revoked. Declined consent fails
+setup; check mode obtains no consent and changes no membership. Direct Ansible
+runs require native enrollment beforehand. No socket permissions are weakened or
+host forwards added. See [Docker access](omarchy-playbooks.md#native-ownership).
 
 Local tests cover both factory fixtures, all three complete profiles, reapplication,
 selection/conflicts, schema/data rejection, independent tags, check mode, preflight

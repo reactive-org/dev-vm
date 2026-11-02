@@ -2,6 +2,7 @@
 # Copy to the ignored omarchy/local/features.yml and select it with OMARCHY_VARS_FILE.
 # This configures features; OMARCHY_FEATURES or --tags selects which ones run.
 omarchy_browsers: [chromium, firefox]
+omarchy_docker: {access: sudoless} # Native interactive opt-in; native keeps sudo-only access.
 omarchy_languages:
   node: ""
   python: "3"

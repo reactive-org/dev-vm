@@ -57,7 +57,7 @@ class LauncherTests(unittest.TestCase):
                 PLAYBOOK.ready_connection(argparse.Namespace(vm_name="fixture"))
             cli.assert_not_called()
 
-    def run_launcher(self, *, check=False, failure=None, grant_failure=False):
+    def run_launcher(self, *, check=False, failure=None, grant_failure=False, sudoless=False, consent_failure=False):
         args = argparse.Namespace(cli_path=Path("/manager/bin"), vm_name="fixture", features=["docker"],
                                   vars_file=None, check=check, plan=False, yes=True)
         connection = PLAYBOOK.manager.ManagedSSH(Path("/manager/config"), "omarchy-example")
@@ -79,15 +79,18 @@ class LauncherTests(unittest.TestCase):
                 mock.patch.object(PLAYBOOK.platform, "machine", return_value="arm64"), \
                 mock.patch.object(PLAYBOOK.manager, "require_file", side_effect=lambda p, *_a, **_kw: p), \
                 mock.patch.object(PLAYBOOK.shutil, "which", side_effect=lambda name: "/existing/" + name), \
-                mock.patch.object(PLAYBOOK, "read_options", return_value={"omarchy_browsers": ["firefox"]}), \
+                mock.patch.object(PLAYBOOK, "read_options", return_value={"omarchy_browsers": ["firefox"],
+                                  "omarchy_docker": {"access": "sudoless" if sudoless else "native"}}), \
                 mock.patch.object(PLAYBOOK, "ready_connection", return_value=(self.guest(), connection)), \
                 mock.patch.object(PLAYBOOK.manager, "confirm"), \
                 mock.patch.object(PLAYBOOK.manager, "enable_bootstrap_sudo",
                                   side_effect=PLAYBOOK.manager.WorkstationError("partial grant") if grant_failure else None) as enable, \
                 mock.patch.object(PLAYBOOK.manager, "disable_bootstrap_sudo") as disable, \
+                mock.patch.object(PLAYBOOK, "enable_owner_docker", side_effect=PLAYBOOK.manager.WorkstationError("declined Docker") if consent_failure else None) as docker_enable, \
+                mock.patch.object(PLAYBOOK, "verify_owner_docker", side_effect=lambda _: self.assertTrue(disable.called)) as docker_verify, \
                 mock.patch.object(PLAYBOOK.subprocess, "run", side_effect=execute), \
                 contextlib.redirect_stdout(io.StringIO()):
-            if failure or grant_failure:
+            if failure or grant_failure or consent_failure:
                 with self.assertRaises(BaseException):
                     PLAYBOOK.playbook(args)
             else:
@@ -98,6 +101,14 @@ class LauncherTests(unittest.TestCase):
             else:
                 enable.assert_called_once_with(connection)
                 disable.assert_called_once_with(connection)
+            if sudoless and not check and not failure and not grant_failure:
+                docker_enable.assert_called_once_with(connection)
+            else:
+                docker_enable.assert_not_called()
+            if sudoless and not check and not failure and not grant_failure and not consent_failure:
+                docker_verify.assert_called_once_with(connection)
+            else:
+                docker_verify.assert_not_called()
         if seen:
             self.assertFalse(seen["path"].exists())
         return seen
@@ -114,6 +125,45 @@ class LauncherTests(unittest.TestCase):
         for error in (subprocess.CalledProcessError(2, ["ansible"]), KeyboardInterrupt()):
             self.run_launcher(failure=error)
         self.run_launcher(grant_failure=True)
+
+    def test_sudoless_setup_verifies_after_revoking_sudo_and_decline_cleans_up(self):
+        self.assertTrue(self.run_launcher(sudoless=True)["variables"]["omarchy_defer_docker_access"])
+        self.assertFalse(self.run_launcher(sudoless=True, check=True)["variables"]["omarchy_defer_docker_access"])
+        self.run_launcher(sudoless=True, consent_failure=True)
+
+    def test_native_docker_consent_is_interactive_not_bypassed_and_already_enabled_is_noop(self):
+        connection = PLAYBOOK.manager.ManagedSSH(Path("/manager/config"), "omarchy-example")
+        for needed in (True, False):
+            replies = [subprocess.CompletedProcess([], 0 if needed else 1)]
+            if needed:
+                replies += [subprocess.CompletedProcess([], 0), subprocess.CompletedProcess([], 1)]
+            with mock.patch.object(PLAYBOOK.manager, "guest_login_command", side_effect=replies) as guest, \
+                    mock.patch.object(PLAYBOOK.manager, "note"), \
+                    mock.patch.object(PLAYBOOK, "verify_owner_docker") as verify:
+                PLAYBOOK.enable_owner_docker(connection)
+                verify.assert_called_once_with(connection)
+                if needed:
+                    self.assertEqual(guest.call_args_list[1], mock.call(connection, "OMARCHY_DEFER_REBOOT=1 omarchy-setup-security-sudoless-docker", tty=True))
+                else:
+                    guest.assert_called_once()
+        with mock.patch.object(PLAYBOOK.manager, "guest_login_command", side_effect=[
+                subprocess.CompletedProcess([], 0), subprocess.CompletedProcess([], 0), subprocess.CompletedProcess([], 0)]), \
+                mock.patch.object(PLAYBOOK.manager, "note"), mock.patch.object(PLAYBOOK, "verify_owner_docker") as verify:
+            with self.assertRaisesRegex(PLAYBOOK.manager.WorkstationError, "opt-in was not enabled"):
+                PLAYBOOK.enable_owner_docker(connection)
+            verify.assert_not_called()
+
+    def test_owner_docker_verification_requires_real_local_daemon_and_plugins_without_sudo(self):
+        for result in (subprocess.CompletedProcess([], 1, "", "permission denied"),
+                       subprocess.CompletedProcess([], 0, "", "")):
+            with mock.patch.object(PLAYBOOK.manager, "guest_login_command", return_value=result) as guest:
+                with self.assertRaisesRegex(PLAYBOOK.manager.WorkstationError, "cannot use the local Docker daemon"):
+                    PLAYBOOK.verify_owner_docker(mock.sentinel.connection)
+                command = guest.call_args.args[1]
+                self.assertNotIn("sudo", command)
+                self.assertIn("unix:///var/run/docker.sock", command)
+                self.assertIn("compose version", command)
+                self.assertIn("buildx version", command)
 
 
 @unittest.skipUnless(shutil.which("ansible-playbook") and shutil.which("ansible-inventory"), "Ansible is not installed")
@@ -198,6 +248,25 @@ print(json.dumps({'changed':False,'verified_check_flag':True}))
                 output = self.ansible(play, "--check", "--extra-vars", "@" + str(parameters))
                 self.assertIn("shell_checked", output)
                 self.assertIn("changed=0", output)
+
+    def test_docker_role_receives_access_policy_and_launcher_deferral(self):
+        helper = self.folder / "apply-features.py"
+        helper.write_text("import json,sys\nassert json.load(sys.stdin)=={'access':'sudoless'}\n"
+                          "assert '--defer-docker-access' in sys.argv\nprint(json.dumps({'changed':False}))\n")
+        play = self.folder / "docker.yml"
+        play.write_text('''---
+- hosts: omarchy
+  gather_facts: false
+  vars:
+    omarchy_docker: {access: sudoless}
+    omarchy_defer_docker_access: true
+    omarchy_payload:
+      path: "''' + str(self.folder) + '''"
+  tasks:
+    - ansible.builtin.import_role:
+        name: omarchy_docker
+''')
+        self.assertIn("changed=0", self.ansible(play))
 
     def test_extension_tag_selects_only_the_requested_data_operation_in_check_mode(self):
         helper = self.folder / "apply-features.py"

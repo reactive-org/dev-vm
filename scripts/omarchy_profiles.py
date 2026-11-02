@@ -293,6 +293,8 @@ class Resolver:
             files.append("mise shims (initialized only on native mise installation); Bash and selected zsh activation verified")
         if mise:
             files.append("~/.config/mise/config.toml (explicit selections only; native declarations reused)")
+        if "docker" in ordered and configs["docker"]["access"] == "sudoless":
+            files.append("owner docker-group membership via native interactive Sudoless Docker opt-in (root-equivalent inside guest; desktop restart required)")
         return {"schema_version": 1, "profiles": chosen_profiles, "features": ordered, "options": configs,
                 "reasons": {name: sorted(set(reasons.get(name, []))) for name in ordered},
                 "packages": packages, "mise": mise, "sources": self.sources,
@@ -335,7 +337,7 @@ def schemas():
             config = obj({option: {"type": "array", "uniqueItems": True,
                                    "items": {"enum": list(definition["choices"])}}})
         elif handler == "docker":
-            config = obj({})
+            config = obj({"access": {"enum": ["native", "sudoless"]}})
         elif handler == "toolchain":
             config = obj({"prerequisites": {"type": "array", "uniqueItems": True,
                                            "items": {"enum": list(contract.CATALOGUE["language_packages"])}}})

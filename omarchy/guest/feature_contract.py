@@ -72,6 +72,9 @@ def validate_config(feature, value, *, extension=False):
         selection(value["prerequisites"], CATALOGUE["language_packages"], "toolchain prerequisites")
     elif handler == "credentials":
         selection(value["packages"], definition["choices"], "credential packages")
+    elif handler == "docker":
+        if not isinstance(value["access"], str) or value["access"] not in ("native", "sudoless"):
+            raise FeatureError("Docker access must be native or sudoless")
     elif handler == "workstation":
         if not isinstance(value["shell"], str) or value["shell"] not in (*definition["shells"], "keep"):
             raise FeatureError("Shell must be zsh, bash or keep")

@@ -7,6 +7,9 @@ omarchy_resolved_plan: []
 omarchy_browsers: "{{ omarchy_catalogue.features.browsers.defaults.browsers }}"
 omarchy_languages: "{{ omarchy_catalogue.features.languages.defaults.tools }}"
 omarchy_toolchain: "{{ omarchy_catalogue.features.toolchain.defaults }}"
+omarchy_docker: "{{ omarchy_catalogue.features.docker.defaults }}"
+# Only the launcher defers access verification until native interactive consent.
+omarchy_defer_docker_access: false
 omarchy_agents: "{{ omarchy_catalogue.features.agents.defaults.tools }}"
 omarchy_credential_packages: "{{ omarchy_catalogue.features.credentials.defaults.packages }}"
 omarchy_shell: "{{ omarchy_catalogue.features.workstation.defaults.shell }}"

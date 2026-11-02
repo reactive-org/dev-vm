@@ -132,6 +132,34 @@ def ready_connection(args):
     return current, connection
 
 
+def verify_owner_docker(connection):
+    # Each call opens a fresh pinned SSH session, with newly configured groups.
+    # Use the local socket explicitly: a remote context cannot validate this VM.
+    result = manager.guest_login_command(
+        connection,
+        "env -u DOCKER_HOST -u DOCKER_CONTEXT /usr/bin/docker --host unix:///var/run/docker.sock "
+        "version --format '{{.Server.Version}}' && /usr/bin/docker compose version && /usr/bin/docker buildx version",
+        check=False, capture=True,
+    )
+    if result.returncode or not result.stdout.strip():
+        raise manager.WorkstationError("Owner cannot use the local Docker daemon without sudo: " + (result.stderr or result.stdout).strip())
+    print("Owner Docker access verified without sudo: " + result.stdout.strip(), flush=True)
+
+
+def enable_owner_docker(connection):
+    probe = manager.guest_login_command(connection, "omarchy-sudo-docker --configured", check=False, capture=True)
+    if probe.returncode not in (0, 1):
+        raise manager.WorkstationError("Unable to inspect native Omarchy Docker access policy")
+    if probe.returncode == 0:
+        manager.note("Enable Sudoless Docker at Omarchy's native confirmation; this grants root-equivalent access inside the guest")
+        manager.guest_login_command(connection, "OMARCHY_DEFER_REBOOT=1 omarchy-setup-security-sudoless-docker", tty=True)
+        after = manager.guest_login_command(connection, "omarchy-sudo-docker --configured", check=False, capture=True)
+        if after.returncode != 1:
+            raise manager.WorkstationError("Native Sudoless Docker opt-in was not enabled; owner access is required by the selected developer profile")
+        manager.note("Restart the desktop session through VM Manager before using Docker in existing terminals; no automatic reboot will interrupt your work")
+    verify_owner_docker(connection)
+
+
 def playbook(args):
     # Resolve and validate local data before even inspecting a manager connection.
     options = read_options(args.vars_file)
@@ -162,7 +190,9 @@ def playbook(args):
         inventory = temporary / "inventory.json"
         variables = temporary / "features.json"
         write_private(inventory, {"all": {"children": {"omarchy": {"hosts": {"workstation": fixed}}}}})
-        write_private(variables, {**plan_variables(plan), **fixed})
+        owner_docker = plan["options"].get("docker", {}).get("access") == "sudoless"
+        write_private(variables, {**plan_variables(plan), **fixed,
+                                  "omarchy_defer_docker_access": owner_docker and not args.check})
         command = [ansible, "-i", str(inventory), str(ROOT / "site.yml"),
                    "--tags", ",".join(plan["features"]), "--extra-vars", "@" + str(variables)]
         if args.check:
@@ -192,6 +222,8 @@ def playbook(args):
                 if privileged:
                     manager.enable_bootstrap_sudo(connection)
                 subprocess.run(command, check=True, cwd=ROOT)
+                if privileged and owner_docker:
+                    enable_owner_docker(connection)
             except BaseException:
                 if privileged:
                     try:
@@ -205,6 +237,9 @@ def playbook(args):
         finally:
             for signum, handler in previous.items():
                 signal.signal(signum, handler)
+        if privileged and owner_docker:
+            # A broad setup sudo grant must not mask a broken developer setup.
+            verify_owner_docker(connection)
         print("Selected features complete. Use VM Manager for any required new login or restart.", flush=True)
 
 

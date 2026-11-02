@@ -249,13 +249,27 @@
               },
               "docker": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "access": {
+                    "enum": [
+                      "native",
+                      "sudoless"
+                    ]
+                  }
+                },
                 "required": [],
                 "additionalProperties": false
               },
               "builtin.docker": {
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "access": {
+                    "enum": [
+                      "native",
+                      "sudoless"
+                    ]
+                  }
+                },
                 "required": [],
                 "additionalProperties": false
               },

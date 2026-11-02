@@ -94,10 +94,11 @@ def native(argv, *, check=True):
 
 
 class FeatureRunner:
-    def __init__(self, feature, config, check=False, *, extension=False):
+    def __init__(self, feature, config, check=False, *, extension=False, defer_docker_access=False):
         self.feature = feature
         self.config = validate_config(feature, config, extension=extension)
         self.extension = extension
+        self.defer_docker_access = defer_docker_access
         self.check = check
         self.actions = []
         self.notes = []
@@ -174,6 +175,34 @@ class FeatureRunner:
         service_active = not native(["systemctl", "is-active", "--quiet", "docker.service"], check=False).returncode
         if not service_active and (not enabled or not active):
             self.mutate(["sudo", "-n", "systemctl", "enable", "--now", "docker.socket"], "Enable Docker socket activation")
+        if self.config["access"] == "sudoless":
+            configured = native(["omarchy-sudo-docker", "--configured"], check=False)
+            if configured.returncode not in (0, 1):
+                raise FeatureError("Unable to inspect native Omarchy Docker access policy")
+            if configured.returncode == 0:
+                if self.check:
+                    self.actions.append("Enable owner Docker access through Omarchy's native Sudoless Docker confirmation")
+                elif not self.defer_docker_access:
+                    raise FeatureError("Owner Docker access is missing. Run omarchy-setup-security-sudoless-docker interactively, then rerun; the supported launcher handles this consent step")
+            if self.defer_docker_access:
+                self.notes.append("The launcher must obtain native Docker consent and verify access from a fresh managed SSH session")
+            elif not self.check:
+                self.verify_docker_access(sudoless=True)
+            elif configured.returncode == 1 and not native(["omarchy-sudo-docker"], check=False).returncode:
+                self.notes.append("Docker group is configured but this session is stale; reboot through VM Manager before running project scripts")
+        elif not self.check:
+            self.verify_docker_access(sudoless=False)
+
+    def verify_docker_access(self, *, sudoless):
+        command = ["/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "version", "--format", "{{.Server.Version}}"]
+        if not sudoless:
+            command = ["sudo", "-n", *command]
+        result = native(["env", "-u", "DOCKER_HOST", "-u", "DOCKER_CONTEXT", *command], check=False)
+        if result.returncode or not result.stdout.strip():
+            raise FeatureError("Docker daemon access failed under the selected policy; a configured Docker group may require a fresh login or VM Manager restart. " + (result.stderr or result.stdout).strip())
+        native(["/usr/bin/docker", "compose", "version"])
+        native(["/usr/bin/docker", "buildx", "version"])
+        self.notes.append("Docker daemon, Compose and Buildx verified " + ("without sudo" if sudoless else "through native sudo policy"))
 
     def configured_tool(self, tool):
         result = native(["mise", "ls", "--json", tool])
@@ -530,6 +559,7 @@ def main():
     parser.add_argument("--extension", action="store_true")
     parser.add_argument("--preflight-plan", action="store_true")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--defer-docker-access", action="store_true", help="Launcher-only: verify Docker access after native interactive consent")
     args = parser.parse_args()
     runner = None
     try:
@@ -538,7 +568,10 @@ def main():
             preflight_plan(config, check=args.check)
             print(json.dumps({"changed": False, "preflight": True}))
             return 0
-        runner = FeatureRunner(args.feature, config, args.check, extension=args.extension)
+        if args.defer_docker_access and args.feature != "docker":
+            raise FeatureError("Docker access deferral applies only to the Docker feature")
+        runner = FeatureRunner(args.feature, config, args.check, extension=args.extension,
+                               defer_docker_access=args.defer_docker_access)
         print(json.dumps(runner.apply()))
     except (OSError, ValueError, FeatureError) as error:
         print(json.dumps({"changed": bool(runner and runner.actions), "actions": runner.actions if runner else []}))

@@ -18,7 +18,7 @@
     "docker": {
       "description": "Docker, Buildx, Compose and native UFW/socket integration",
       "handler": "docker",
-      "defaults": {},
+      "defaults": {"access": "native"},
       "packages": ["docker", "docker-buildx", "docker-compose", "ufw-docker"]
     },
     "languages": {
@@ -86,7 +86,8 @@
   "profiles": {
     "developer": {
       "description": "Editor, CLI, Git and API diagnostics",
-      "features": ["workstation", "cli", "vcs", "editors", "api"]
+      "features": ["workstation", "cli", "vcs", "editors", "api"],
+      "options": {"docker": {"access": "sudoless"}}
     },
     "web": {
       "description": "JS/TS workstation with Node, pnpm, browser, Compose and SQL clients",

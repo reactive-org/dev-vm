@@ -33,6 +33,7 @@ class Guest:
         self.home = None
         self.shell = "/bin/bash"
         self.zsh_syntax = self.zsh_environment = self.zsh_activation = True
+        self.docker_configured = self.docker_access = True
         # Observed on both live ARM64 factories; do not let fixtures silently
         # validate a nonexistent ShellCheck repository package again.
         self.unavailable = {"shellcheck"}
@@ -104,6 +105,13 @@ class Guest:
             self.tools[tool] = self.tools[selector] = "/tools/" + selector
             self.configured.add(tool)
             return reply()
+        if argv[0] == "omarchy-sudo-docker":
+            return reply(1 if (self.docker_configured if "--configured" in argv else self.docker_access) else 0)
+        if argv[:4] == ["env", "-u", "DOCKER_HOST", "-u"] and "/usr/bin/docker" in argv:
+            permitted = "sudo" in argv or self.docker_access
+            return reply(0 if permitted else 1, stdout="29.9.2\n" if permitted else "", stderr="permission denied" if not permitted else "")
+        if argv[:2] in (["/usr/bin/docker", "compose"], ["/usr/bin/docker", "buildx"]):
+            return reply(stdout="native plugin version\n")
         if argv[:3] == ["sudo", "-n", "ufw"]:
             return reply(stdout="Status: active\n" if self.ufw_active else "Status: inactive\n")
         if argv[:3] == ["sudo", "-n", "sha256sum"]:
@@ -126,7 +134,7 @@ class Guest:
 
 
 class FeatureTests(unittest.TestCase):
-    def apply(self, guest, feature, config, check=False, extension=False):
+    def apply(self, guest, feature, config, check=False, extension=False, defer_docker_access=False):
         if guest.home is None:
             temporary = tempfile.TemporaryDirectory(prefix="omarchy-feature-home-")
             self.addCleanup(temporary.cleanup)
@@ -141,7 +149,8 @@ class FeatureTests(unittest.TestCase):
                 mock.patch.object(FEATURE.platform, "system", return_value="Linux"), \
                 mock.patch.object(FEATURE.platform, "machine", return_value="aarch64"), \
                 mock.patch.object(FEATURE.os, "geteuid", return_value=1000):
-            return FEATURE.FeatureRunner(feature, config, check, extension=extension).apply()
+            return FEATURE.FeatureRunner(feature, config, check, extension=extension,
+                                         defer_docker_access=defer_docker_access).apply()
 
     def test_new_capabilities_are_selective_and_reapply_without_changes(self):
         for name in ("cli", "vcs", "editors", "build", "databases", "api", "quality"):
@@ -763,9 +772,9 @@ class FeatureTests(unittest.TestCase):
 
     def test_docker_repairs_firewall_and_enables_socket_without_granting_group_membership(self):
         guest = Guest()
-        self.assertTrue(self.apply(guest, "docker", {})["changed"])
+        self.assertTrue(self.apply(guest, "docker", {"access": "native"})["changed"])
         self.assertTrue(guest.firewall and guest.active and guest.enabled)
-        self.assertFalse(self.apply(guest, "docker", {})["changed"])
+        self.assertFalse(self.apply(guest, "docker", {"access": "native"})["changed"])
         calls = " ".join(" ".join(c) for c in guest.calls)
         self.assertNotIn("usermod", calls)
         self.assertNotIn("ufw reset", calls)
@@ -778,19 +787,48 @@ class FeatureTests(unittest.TestCase):
         guest = Guest(official=True)
         guest.active = guest.enabled = False
         guest.service = True
-        self.assertFalse(self.apply(guest, "docker", {})["changed"])
+        self.assertFalse(self.apply(guest, "docker", {"access": "native"})["changed"])
         self.assertNotIn(("sudo", "-n", "systemctl", "enable", "--now", "docker.socket"), guest.calls)
+
+    def test_sudoless_docker_cannot_report_success_without_native_opt_in(self):
+        guest = Guest(official=True)
+        guest.docker_configured = guest.docker_access = False
+        config = {"access": "sudoless"}
+        result = self.apply(guest, "docker", config, check=True)
+        self.assertTrue(any("native Sudoless Docker confirmation" in item for item in result["actions"]))
+        with self.assertRaisesRegex(FEATURE.FeatureError, "Owner Docker access is missing"):
+            self.apply(guest, "docker", config)
+        self.assertFalse(guest.docker_configured)
+        deferred = self.apply(guest, "docker", config, defer_docker_access=True)
+        self.assertTrue(any("launcher must obtain native Docker consent" in item for item in deferred["notes"]))
+        self.assertFalse(guest.docker_configured)
+
+    def test_docker_verifies_owner_api_access_even_with_setup_sudo_available(self):
+        guest = Guest(official=True)
+        guest.docker_access = False
+        # The account is configured, but an existing login still lacks its group.
+        with self.assertRaisesRegex(FEATURE.FeatureError, "Docker daemon access failed"):
+            self.apply(guest, "docker", {"access": "sudoless"})
+        result = self.apply(guest, "docker", {"access": "sudoless"}, check=True)
+        self.assertTrue(any("session is stale" in note for note in result["notes"]))
+        guest.docker_access = True
+        self.assertFalse(self.apply(guest, "docker", {"access": "sudoless"})["changed"])
+        probes = [call for call in guest.calls if call[0] == "env" and "/usr/bin/docker" in call]
+        self.assertTrue(probes)
+        self.assertTrue(all("sudo" not in call for call in probes))
+        self.assertIn(("/usr/bin/docker", "compose", "version"), guest.calls)
+        self.assertIn(("/usr/bin/docker", "buildx", "version"), guest.calls)
 
     def test_inactive_firewall_is_not_silently_replaced_or_new_socket_started(self):
         guest = Guest()
         guest.ufw_active = False
         with self.assertRaisesRegex(FEATURE.FeatureError, "UFW policy"):
-            self.apply(guest, "docker", {})
+            self.apply(guest, "docker", {"access": "native"})
         self.assertFalse(guest.active)
         self.assertNotIn(("sudo", "-n", "ufw-docker", "install"), guest.calls)
 
     def test_check_mode_never_installs_tools_changes_services_or_enables_sudo(self):
-        configs = {"browsers": {"browsers": ["firefox"]}, "docker": {},
+        configs = {"browsers": {"browsers": ["firefox"]}, "docker": {"access": "native"},
                    "languages": {"tools": {"node": ""}}, "agents": {"tools": {"codex": ""}},
                    "credentials": {"packages": ["1password"]}}
         for feature, config in configs.items():
@@ -822,7 +860,7 @@ class FeatureTests(unittest.TestCase):
                     mock.patch.object(FEATURE.os, "geteuid", return_value=uid), \
                     mock.patch.object(FEATURE, "native") as native:
                 with self.assertRaises(FEATURE.FeatureError):
-                    FEATURE.FeatureRunner("docker", {}).apply()
+                    FEATURE.FeatureRunner("docker", {"access": "native"}).apply()
                 native.assert_not_called()
 
 
