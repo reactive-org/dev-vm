@@ -1720,3 +1720,31 @@ gates remain separate approvals. No credential access, signing/SDK tool, Apple
 request, SSH/Ansible, install, UI, image or VM operation occurs; guest acceptance
 stays NOT_RUN. The manager runbook's Local signed-runtime discovery section records
 the evidence boundary; broad real-Ansible targets remain skipped.
+
+### Integrated candidate inputs for 7e46241 — 4 November 2026
+
+After merging latest main into the manager, a new private source-only packet
+freezes the exact `7e46241` archive, six-file scoped overlay and current package/
+runtime/profile requirements. Original scope JSON, historical source commit,
+UUID/root/device/inode/marker pins, receipt and complete scope-definition source
+are preserved verbatim. The new source commit is bound independently. Previous
+artifacts, requests and gates remain unchanged; actual paths/pins stay ignored.
+
+The retained dev.3 release artifacts reuse the exact signed runtime declared
+dev.2, which matches this integrated source's origin, capabilities and immutable
+payload. Development/signed archives and extracted/staged bundle inventories pass
+local checks; no signature bytes are changed. The overlay reconstructs exactly on
+a second fresh archive. Twenty-two input consistency/refusal checks and all twelve
+manager fake signer tests pass. Original 930 private artifact entries are unchanged
+and new packet permissions are private. Shared package source/pins are unchanged.
+
+The existing app-based signer requires source/scope commit equality. This packet
+preserves the historical scope and uses a distinct source-only kind, refused before
+runner authorization or material IO. A reviewed source-only admission/caller update
+is required before real consumption; no app receipt, legacy request or executable
+authority is fabricated. App compilation, named profile/keychain validation,
+cryptographic/loaded-child and real guest evidence remain TO PROVE/NOT_RUN. No app
+build/signing, credentials/profile bytes, Apple/network requests, SSH/Ansible,
+installs, image, UI or VM operation occurs. All later approvals remain NOT_GRANTED.
+The manager runbook's Integrated candidate inputs for 7e46241 section records the
+gate; broad real-Ansible targets remain skipped.
