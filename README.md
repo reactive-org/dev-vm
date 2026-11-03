@@ -1610,3 +1610,29 @@ or product source changes; detailed reports/pins remain private/ignored. Ordinar
 execution stays disabled and all real guest rows stay NOT_RUN. The manager runbook's
 Offline signing and readiness audit section records exact boundaries and the next
 safe fake/local handoff work. Broad real-Ansible targets remain skipped.
+
+### Private signing/packaging handoff — fake/local, 3 November 2026
+
+The manager now prepares a private immutable signing request from explicitly
+reviewed candidate/scope digests. Source/receipt/original scope, runtime/resources,
+locks and profile pin are frozen together; no target root is visited or recaptured.
+The actual candidate produces a private 101-file handoff. CLI exposes preparation
+only, with no real signer/credentials/publisher. Shared Swift sources and package
+pins remain unchanged, as do product execution and production signing policy.
+
+Eighteen new manager test functions, including 22 rejection variants, and all 79
+script tests pass. The injected fake signer exercises profile/runtime/rebuild/
+child-sign/post-sign-seal/outer-sign/verification/private archive and extraction.
+Scope and immutable inputs survive callbacks and roundtrip; tampering, unsafe
+archives, nonprivate/source/VM/release outputs and failed requests are refused.
+Partial outputs remain private without replay or raw signer errors. The actual
+request is refused by the synthetic runner; fake non-Mach-O outputs are explicitly
+SIMULATION_ONLY and cannot establish genuine signing or launch readiness.
+
+Detailed inputs/results remain ignored/private. No actual signing, credentials,
+installed-tool command, host install, network/workflow/publication or VM operation
+occurs. Real signer/private build integration, cryptographic/loaded-child and
+original-Mac scope validation, existing factory/tool/SSH/owner gates and all real
+guest acceptance remain TO PROVE/NOT_RUN. The manager runbook's Private signing
+and packaging handoff section records the boundary; the broad Ansible targets
+remain skipped under the user's constraint.
