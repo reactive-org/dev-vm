@@ -1325,3 +1325,37 @@ prompt/echo behavior remain unproven. Shared package code/pins were not changed.
 The native selection/New VM handoff, authenticated identity and dormant backend
 consumer changes are committed in manager `e92dcf7`. This companion change is
 documentation only; shared library/resources and the manager export pin are unchanged.
+
+### Manager full-screen fake acceptance and guest runbook — 3 November 2026
+
+**VERIFIED — manager consumer only:** the actual New VM/selection/manager Setup
+views now pass 56 isolated fake-service view/action checks, with eight inspected
+full-screen light/dark/scrolled captures. These cover review acknowledgment,
+source/feature edits and late replies, manager resource/factory precedence,
+metadata-only frozen handoff and duplicate creation, chunked task inspection,
+independent apply consent and terminal search/expand/cancel. Fixtures use only
+in-memory synthetic data and a never-started FakeRuntime; no personal registry,
+real transport or guest backend is supplied. Offscreen backing windows cannot
+become key/main or activate and never appear on an attached display.
+
+The manager's `make test` passed 428 Swift functions in 56 suites, 52 script tests,
+relocated/read-only/ad-hoc-signed helper fixtures and the 56 screen checks. Final
+screen validation, package/export verification and release compilation pass; the
+release binary omits the DEBUG acceptance entry point/fixture markers. No real
+signing identity was used. The manager's `docs/DevVMUIAcceptance.md` owns the matrix,
+images, reports and limitations; `docs/DevVMMilestone6Runbook.md` owns the prepared,
+not-executed disposable-guest approval worksheet, operational candidate prerequisites,
+real evidence matrix and cleanup procedure.
+
+**TO PROVE:** physical input, focus/VoiceOver, native dialogs/file importers,
+real identity/SSH/Ansible/nested TTY echo and end-to-end guest cleanup/restart/check/
+crash/sleep/wake. A separately reviewed candidate restricted to explicitly approved
+disposable UUID roots must precede real execution; ordinary product execution stays
+disabled. No host installs, factory downloads or VM launches occurred. This
+companion update is documentation only. Shared package sources/resources remain
+at `3d616f0`; the manager export is still `bb3fae22be45b38035fac52aefa0eb270a9d0fea`
+plus `Patches/dev-vm-durable-state.patch`, with unchanged engine/resource pins.
+
+The manager acceptance harness, screenshots and milestone-6 runbook are committed
+in manager `c51c004`. This companion commit records the consumer evidence only;
+shared library/resources and the manager export pin remain unchanged.
