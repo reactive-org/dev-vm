@@ -113,3 +113,6 @@ resize, bounded output and visible gap/reset contract, local TTY restoration and
 fake/local acceptance. Shared input scope reservation/suspension and canonical
 workspace paths update the engine/export inventory. Native rendering and public
 app/CLI attach are milestone 5; product execution remains disabled.
+
+[Manager milestone 5 terminal/observation slice](../README.md#manager-milestone-5-terminalobservation-slice--3-november-2026)
+records the consumer's renderer/CLI fixtures and remaining gated workflow actions.

@@ -1168,3 +1168,23 @@ cleanup and crash/sleep/wake acceptance remain approval-gated milestone 6; relea
 distribution/signatures remain 7. Full-process loss cannot recreate terminal or
 worker capabilities from disk. No real transports, host installs/downloads, VM or
 user UI operation occurred. The Setup screenshot remains the milestone-5 target.
+
+### Manager milestone 5 terminal/observation slice — 3 November 2026
+
+The manager consumer now has a native Setup terminal and separate same-user
+streaming CLI endpoint backed by the existing job service. Both use the shared
+terminal/input contract; no shared engine/resource source changes are required.
+The manager pins SwiftTerm 1.99.0 as a renderer-only dependency (Swift 6.2+), filters
+host-action escapes, validates split UTF-8, bounds scrollback/input, displays gaps,
+and requires explicit ownership. Offline manager presets select the existing
+`developer`, `web`, `python` and `project-managed` profiles through the same planner.
+UI/CLI default to view-only; detach is distinct from cleanup-aware cancellation.
+
+The manager's `make test-provisioning-ui-cli` covers renderer, strict protocol,
+same-user sockets, cross-view ownership and disposable CLI TTY restoration.
+`make test` passed 376 manager Swift test functions in 50 suites, 52 script tests, and the relocated/read-only/ad-hoc-signed helper fixtures (including original owner-loss/reopen and terminal streaming). The focused UI/CLI coverage contains 13 functions plus the four-case bundled-preset test: split Unicode/ANSI, cursor/colour/CR rendering, blocked host actions, oversized/malformed streams, storage bounds across cursor/style changes, native viewer ownership/search/reset, strict correlated protocol refusal, cross-view input ownership, EOF/gap/reclaim, distinct cancellation and disposable PTY termios/signal/open-file-flag restoration on detach, connection loss and task cancellation. Vendor inventory, the reviewed two-line source patch, exact upstream export comparison, unchanged shared-package export checks and `git diff --check` passed. No user window was opened or real transport executed.
+These are fake/local checks. Product execution, New VM setup coupling,
+frozen preview-to-apply/custom-task trust and reviewed restart/check/recovery
+surfaces remain gated follow-up work. No real SSH/Ansible, host installs or VM
+operations occurred. Shared package sources/resources remain at committed
+`3d616f0`; its previous 72 tests and oracle checks remain the unchanged baseline.
