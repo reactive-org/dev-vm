@@ -86,3 +86,9 @@ records private authenticated delivery binding, independent helper replan/review
 checks, frozen-copy ownership and local signed-helper fixtures. The shared plan's
 reviewed manifest path is now public read-only and its inventory/pin is updated;
 product backends, session authority, restart and terminal integration remain pending.
+
+[Manager helper backend and session authority](../README.md#manager-helper-backend-and-session-authority--3-november-2026)
+records concrete shared-adapter/fenced-runner construction, independent authenticated
+manager checks and fake/signed-helper coverage. Shared explicit connection/tool
+verification and fixed-purpose metadata APIs update the engine pin; product resource
+handoff, operational runner/terminal wiring and restart acceptance remain pending.

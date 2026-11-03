@@ -934,3 +934,74 @@ dependency authority, product wiring, full restart/reconnect/rebinding, real rel
 signatures, power-loss durability/retention UX and terminal/PTY/input/UI/CLI work.
 Real guest authorization, echo, cleanup/quiescence and crash/kernel behavior remain
 unproved. This is a foundation continuation, not completion of milestone 3.
+
+## Manager helper backend and session authority — 3 November 2026
+
+The next manager milestone-3 continuation constructs this package's concrete
+`SSHAnsibleGuestAdapter` with an original-worker fenced runner and a manager-backed
+session authority. This supersedes the pending construction/authority foundation
+above. The product helper has no transport-resource provider, rejects activation
+and leaves setup execution gates disabled. All exercised providers supply inert
+fixture files and fake process runners; no SSH/Ansible command is executed.
+
+Shared changes are narrow: `ProvisioningSSHConnection.verify()` exposes stat-only
+identity reference revalidation without reading key bytes;
+`ProvisioningTransportTools.verify()` is public; `ProvisioningProcessPurpose` gains
+Codable for fixed private metadata. Inventory and the manager's exact immutable
+base-plus-patch export/engine pin are updated together (82 resulting files). Guest
+resources, parser dependencies and C launcher remain unchanged. No Python
+operational workflow or runtime fallback changes.
+
+A single-use helper-local builder checks the frozen request/package and fresh
+manager permission before asking a trusted provider for the explicit connection,
+tools, dependency digest and idle process-runner factory. Recheck exact bindings
+and pins around awaits, then construct the shared adapter and fenced runner with
+the same authority. There is no manifest/RPC-selected executable, host path or
+credential-discovery default. Production managed-SSH/Homebrew admission and private
+resource handoff remain consumer wiring, not an implicit capability of the builder.
+
+Bootstrap 4 binds a separate inherited fd-5 reverse authority channel. A derived
+HMAC key domain and separate counters prevent control frames from granting session
+permission. The manager binds one original registration/activation after durable
+activation/lease publication. Fresh challenge-correlated checks cover preparation,
+commands, invocations and completion; responses are never cached. A dedicated
+reverse loop keeps control/status/cancel available while the coordinator awaits
+VMManager/dependency checks. Typed bounded metadata contains no owner names,
+credentials, paths/argv, source or terminal bytes. Wrong/replayed/lost frames fail
+closed. Schema 6 preserves the authority version without inventing it for legacy
+rows or resuming apply after restart.
+
+VM/session/readiness/lifecycle ownership remains with the manager. It checks the
+current lease/generation/activation and original target/dependencies around awaits.
+The fenced runner records ownership before permission and rechecks cancellation
+before backend launch. Original-target cleanup remains possible after ordinary
+cancellation or package/source loss. Failed journal writes stop body work while
+retaining the live lease for cleanup and an unresolved hold. Lost or invalid
+authority cannot assert remote cleanliness; uncertain local ownership retains the
+original runner until explicit matching proof. No VM implementation is duplicated.
+
+**VERIFIED — shared fake/local checks:**
+`make build-provisioning test-provisioning test-provisioning-oracle test-provisioning-planning-oracle ORACLE_PYTHON=/opt/homebrew/opt/ansible/libexec/bin/python`
+passes 68 Swift functions, 18 parser oracle fixtures and 66 complete planning/error
+fixtures. The existing Python runtime is development-only; PTY fixtures use the
+existing local `/dev/tty` sandbox exception. No real Ansible or guest runs.
+
+**VERIFIED — manager fake/local checks:** `make test` passes 319 Swift functions/
+45 suites, 49 script tests and expanded relocated/read-only signed-helper fixtures.
+New coverage includes concrete adapter apply/check without execution, construction
+ordering/resource changes, fresh manager permission before every fake invocation,
+cancel/shutdown/session/readiness/dependency/package/channel changes, cancellation
+during dependency validation, failed-journal cleanup, strict MAC/challenge/schema
+and binding handling, local-authority bypass refusal and uncertainty recovery
+without constructing another backend. A separately sealed/ad-hoc-signed Debug
+helper exercises actual backend construction and inherited session RPC with fake
+process replies, completion and deterministic interruption/cleanup. The normal
+helper refuses activation without a provider and matching child exit is reaped.
+No real credentials/auth UI, host installs, SSH/SCP/SFTP/Ansible, installed-app
+change or VM operation occurs.
+
+**TO PROVE:** consumer resource admission/handoff and product construction, real
+runner/terminal/input leases, UI/CLI, full restart/reconnect/rebinding, release
+signatures, power-loss/retention UX and all real guest/auth/echo/transport/remote
+cleanup/quiescence/crash/kernel behavior. Fresh manager RPC is not atomic remote
+execution or proof of guest liveness after its reply. Milestone 3 remains incomplete.
