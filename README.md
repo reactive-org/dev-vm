@@ -1698,3 +1698,25 @@ Apple/network requests, SSH/Ansible, installs, UI, disk operation or VM launch.
 Existing 91-test evidence remains applicable; no new executable behavior is added.
 All real compiler/profile/cryptographic/notary/original-Mac/loaded-child and guest
 outcomes remain TO PROVE/NOT_RUN; broad real-Ansible targets stay skipped.
+
+### Matching local signed-runtime discovery — 4 November 2026
+
+The primary manager checkout retains an existing published `v0.9.4-dev.1` signed
+runtime matching the frozen candidate's source-lock/kit/patch and payload. Its ZIP
+digest/inventory and three extracted bundle inventories match. Newer local
+candidate origins differ and are ineligible. Matching bundle/ZIP/lock copies are
+privately staged in the adapter layout and checked again; original artifacts,
+gate/request/scope, shared source/pins and ordinary product approval are unchanged.
+
+Nonsecret identity/team selectors derive from the helper's existing public CMS
+certificate, parsed locally without a signing, Keychain, trust or network call.
+This is not key-availability or fresh SDK signature proof. Profile candidates are
+located/stat-ed only and remain unopened; no keychain is selected or queried.
+Exact selectors/paths/digests stay private. Every approval remains NOT_GRANTED.
+Next is explicit isolated-keychain selection and separately approved bounded
+runtime/profile validation and private profile staging. Admitting this existing
+artifact avoids new runtime signing; app build/key use/timestamps and all later
+gates remain separate approvals. No credential access, signing/SDK tool, Apple
+request, SSH/Ansible, install, UI, image or VM operation occurs; guest acceptance
+stays NOT_RUN. The manager runbook's Local signed-runtime discovery section records
+the evidence boundary; broad real-Ansible targets remain skipped.
