@@ -1636,3 +1636,35 @@ original-Mac scope validation, existing factory/tool/SSH/owner gates and all rea
 guest acceptance remain TO PROVE/NOT_RUN. The manager runbook's Private signing
 and packaging handoff section records the boundary; the broad Ansible targets
 remain skipped under the user's constraint.
+
+### Private signer adapter — fake processes, 4 November 2026
+
+The manager now connects its frozen private handoff to signed-prerelease build,
+SDK signing and private archive verification through an injected command runner.
+It requires a local signed runtime with the original development-kit origin and
+clean pinned client/parser sources; runtime signing stays upstream. The recorded
+source/overlay is reconstructed with original scope and operational composition
+preserved. Only signed pins and the signed inspection branch are projected.
+Child signing precedes the provisioning seal and outer signing, followed by strict
+signature/team/authority/hardened/timestamp/profile/entitlement/certificate checks,
+bundle-only diagnostics and exact extraction/verification again.
+
+The system runner denies by default before reading signing material and needs
+explicit trusted in-memory request/scope/material/effect authorization. No signing
+CLI, credential importer, keychain unlock/search change, runtime fetch, notarization
+or publication interface is added. Signing timestamps would contact Apple and
+remain separately approval-gated. Ordinary product execution stays disabled and
+the actual candidate/pins remain private and unchanged. Shared Swift source and
+package pins are unchanged.
+
+Twelve new manager tests, including 33 command/signature failure cases and four
+runtime cases, and all 91 script tests pass with fake processes/local fixtures.
+Mocked system dispatch checks explicit environment and timeout group cleanup;
+no real process or group is touched. Fixture results explicitly report no genuine
+cryptography, original-Mac validation, loaded-child or guest execution. Real
+compiler/SwiftPM/SDK signing, authorized material availability, notarization,
+original-Mac scope and loaded-child checks remain TO PROVE, as do prior factory/
+tool/SSH/owner gates and every real guest row. No real signing, credentials, Apple
+requests, host installs, SSH/Ansible, VM launch, disk operation or UI takeover
+occurred. The manager runbook's Private signer adapter section records this
+boundary; broad real-Ansible targets remain skipped.
