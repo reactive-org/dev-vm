@@ -36,6 +36,7 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 - [Official factory / manager 0.9.2 acceptance](omarchy-official-43-validation.md)
 - [Feature playbook acceptance](omarchy-playbook-validation.md)
 - [Lean 42.1 acceptance and historical timer failure](omarchy-lean-42-validation.md)
+- [Lean factory admission, full bootstrap on manager 0.11.0 and remaining checks](omarchy-lean-011-validation.md)
 - [Lean 43.1 acceptance and remaining checks](omarchy-lean-43-validation.md)
 - [Manager report-timer handoff](omarchy-manager-report-timer-handoff.md)
 

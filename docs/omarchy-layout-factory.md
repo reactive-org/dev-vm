@@ -2,13 +2,16 @@
 
 Start with a smaller, reusable base and add only the apps and developer tools you need.
 
-Use an existing ARM64 Docker engine and the installed VM Manager app/CLI.
-Guest build sources are bundled and checksum-pinned in this repository.
+Use an existing ARM64 Docker engine and the installed VM Manager 0.11.0 app/CLI.
+Guest build sources and the exact reviewed integration package are bundled and
+checksum-pinned in this repository. New disks reuse that package; a different
+package hash requires manager policy review.
 From the repository root:
 
 ```bash
 make build-omarchy-image
 make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_MANAGER_APP="/Applications/Omarchy VM Manager.app" \
   OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest
 ```
 
@@ -30,4 +33,4 @@ options.
 **Official Try Omarchy:** Get running quickly with Omarchy’s standard apps already installed and no image build required.
 Skip building and use `OMARCHY_VM_FACTORY=official`.
 
-[Build/import details](omarchy-layout-factory-reference.md) · [Image contract](omarchy-image.md)
+[0.11 validation scope](omarchy-lean-011-validation.md) · [Build/import details](omarchy-layout-factory-reference.md) · [Image contract](omarchy-image.md)

@@ -41,11 +41,14 @@ make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" OMARCHY_VM_FACTORY=official
 **Lean, mean coding image:** Standard ARM64 Omarchy with a smaller app selection,
 Git, Python and build tools, prepared for QEMU on your Mac using Try Omarchy’s
 factory approach and Omarchy VM Manager’s native integration
-([image details](docs/omarchy-image.md)).
+([image details](docs/omarchy-image.md)). Lean factory admission targets manager
+0.11.0 and reuses its reviewed integration archive; see
+[what was validated on 0.11](docs/omarchy-lean-011-validation.md).
 
 ```bash
 make build-omarchy-image
 make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_MANAGER_APP="/Applications/Omarchy VM Manager.app" \
   OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest
 ```
 

@@ -4,6 +4,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import stat
 import subprocess
@@ -12,6 +13,20 @@ from pathlib import Path
 
 class CompatibilityError(RuntimeError):
     pass
+
+
+def integration_recipe_digest(recipe):
+    """Bind archive reuse to the complete transformed recipe, license and modes."""
+    rows = []
+    for path in sorted(Path(recipe).rglob("*")):
+        if path.is_symlink():
+            value = ["link", os.readlink(path)]
+        elif path.is_dir():
+            value = ["directory"]
+        else:
+            value = ["file", path.stat().st_mode & 0o777, digest(path)]
+        rows.append([path.relative_to(recipe).as_posix(), *value])
+    return hashlib.sha256(json.dumps(rows, separators=(",", ":")).encode()).hexdigest()
 
 
 def normalize_source_permissions(root):

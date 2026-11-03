@@ -30,12 +30,14 @@ ARM64 factory admitted by VM Manager. Choose one command for a new VM:
 make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" OMARCHY_VM_FACTORY=official
 ```
 
-For BYO, pass a successful build directory, its compressed image with companion
-metadata, or a prepared factory bundle. Bootstrap handles preparation and import:
+Lean factory admission targets VM Manager 0.11.0. Pass a successful build
+directory, its compressed image with companion metadata, or a prepared factory
+bundle. Bootstrap handles preparation and import:
 
 ```bash
 make build-omarchy-image
 make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_MANAGER_APP="/Applications/Omarchy VM Manager.app" \
   OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest
 ```
 
@@ -45,12 +47,23 @@ and provisioning evidence is insufficient. Keep the image and companion files
 together. Existing prepared bundles retain their exact descriptor and hashes.
 
 Bootstrap verifies a private snapshot and describes repository build outputs
-using the installed app's runtime inventory and reviewed lean owner contract.
-The image's integration source, package and owner-program hashes must match that
-app. After showing the source/identity in the proposal and receiving
+using format 2, guest integration contract 1, the installed app's runtime
+inventory and reviewed lean owner contract. It includes the build's original
+complete integration archive and requires its reviewed hash, package version and
+owner-program hashes. The image source commit remains provenance; it need not
+equal the manager's host patch commit. After showing the source/identity in the proposal and receiving
 confirmation, bootstrap invokes native `factory-import`, checks the returned
 identity, then creates the VM. No hash copying or manual import is required.
 The manager remains responsible for factory admission and runtime verification.
+The builder reuses the bundled reviewed integration archive, guarded by its
+checksum and complete transformed source identity. A changed package hash needs
+manager policy review. Old unsupported builds must be rebuilt; never substitute
+archive evidence beside an existing disk. See the
+[0.11 validation record](omarchy-lean-011-validation.md).
+
+To exercise native import without creating or starting a VM, run
+`make import-omarchy-factory OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest`.
+It shows an import proposal and uses the same preparation/import path as bootstrap.
 
 After bootstrap's restart, the manager can briefly report
 `ssh-connection-unavailable` during its final pinned identity probe even though

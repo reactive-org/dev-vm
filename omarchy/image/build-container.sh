@@ -61,7 +61,22 @@ for package in omarchy-settings-dev omarchy-dev; do
   sed -i 's/^pkgrel=1$/pkgrel=1.1/' "$recipe/PKGBUILD"
   build_package "$package" "$recipe"
 done
-build_package try-omarchy /workspace/guest/package/try-omarchy
+# Repacking changes the complete archive identity even when payloads are identical.
+# Verify the transformed source again inside the container, then install the exact
+# reviewed archive through the same resolver and pacstrap path as other packages.
+python3 - <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, '/profile')
+from compatibility import digest, integration_recipe_digest
+lock = json.loads(Path('/profile/inputs.lock.json').read_text())
+reviewed = lock['reviewed_integration']
+archive = Path('/profile') / reviewed['archive']
+assert not archive.is_symlink() and digest(archive) == reviewed['sha256'], 'Reviewed archive checksum mismatch'
+assert reviewed['sha256'] == json.loads(Path('/profile/guest-integration-compatibility.json').read_text())['leanPackageSHA256']
+assert integration_recipe_digest(Path('/workspace/guest/package/try-omarchy')) == reviewed['recipe_sha256'], 'Integration recipe changed; manager policy review required'
+PY
+install -m 0644 "/profile/$(field reviewed_integration.archive)" /output/packages/
 build_package dev-workstation-preferences /profile/preferences
 
 python3 /profile/check-provisioning.py /work/sources /output/provisioning-check.json

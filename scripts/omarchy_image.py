@@ -223,6 +223,20 @@ def stage_inputs(source, destination, lock, commit=None):
     unit.parent.mkdir(parents=True)
     shutil.copy2(profile / "preferences/first-login.service", unit)
     (upstream / "guest/package/try-omarchy/LICENSE").write_bytes((upstream / "LICENSE").read_bytes())
+    verify_reviewed_integration(profile, upstream / "guest/package/try-omarchy", lock)
+
+
+def verify_reviewed_integration(profile, recipe, lock):
+    reviewed = lock["reviewed_integration"]
+    archive = profile / reviewed["archive"]
+    policy = json.loads((profile / "guest-integration-compatibility.json").read_text())
+    if (archive.is_symlink() or not archive.is_file()
+            or compat.digest(archive) != reviewed["sha256"]
+            or reviewed["sha256"] != policy["leanPackageSHA256"]):
+        raise compat.CompatibilityError("Reviewed integration archive checksum mismatch; restore the reviewed archive")
+    if compat.integration_recipe_digest(recipe) != reviewed["recipe_sha256"]:
+        raise compat.CompatibilityError(
+            "Integration recipe changed; a new package needs manager policy review before admission")
 
 
 def build(args):
@@ -231,10 +245,12 @@ def build(args):
     validate_source(source, commit, lock)
     required, _ = package_profile()
     identity, provenance = input_identity(commit, args.size_gib)
+    provenance["integration_package"] = {**lock["reviewed_integration"], "reused_reviewed_archive": True}
     print(f"Omarchy desktop-foundation {'compatibility check' if args.check_only else 'image build'}", flush=True)
     print(f"  Try source: {commit}\n  Omarchy: {lock['omarchy_version']}\n"
           f"  Platform: macOS Apple Silicon / aarch64 guest\n  Disk: {args.size_gib} GiB, UEFI/Limine, Btrfs\n"
           f"  Required packages: {len(required)} roots plus dependency closure\n"
+          f"  Reuse reviewed integration: {lock['reviewed_integration']['sha256']}\n"
           "  Optional applications: none\n"
           f"  Output: {ARTIFACTS}\n  Operations: isolated guest containers; no VM operations", flush=True)
     if args.plan:

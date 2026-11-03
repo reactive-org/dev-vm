@@ -31,6 +31,8 @@ from urllib.request import Request, urlopen
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_CLI = None  # Resolve the installed CLI when a command runs, not at import time.
 MINIMUM_MANAGER_VERSION = (0, 6, 0)
+GUEST_INTEGRATION_POLICY = PROJECT_DIR / "omarchy/image/guest-integration-compatibility.json"
+LEAN_INTEGRATION_PACKAGE = "try-omarchy-0.1.0-43.1-aarch64.pkg.tar.zst"
 GUEST_REPAIR = PROJECT_DIR / "omarchy" / "guest" / "repair-try-omarchy-black-screen.sh"
 GUEST_APPLY = PROJECT_DIR / "omarchy" / "guest" / "apply-workstation.sh"
 GUEST_CHECK = PROJECT_DIR / "omarchy" / "guest" / "check-workstation.sh"
@@ -452,8 +454,9 @@ def prepare_factory_descriptor(args, bundle: Path, files: dict) -> None:
     # Copyright and license: omarchy/image/MANAGER-LICENSE.
     resources = installed_app(args) / "Contents/Resources"
     lock = json.loads(factory_metadata(resources / "TryOmarchyRuntime.lock.json"))
+    policy = json.loads(factory_metadata(GUEST_INTEGRATION_POLICY))
     capabilities = ("customFactoryVersion", "managedSSHVersion", "managedSetupVersion",
-                    "ownerSetupReportVersion", "ownerSetupContractsVersion")
+                    "ownerSetupReportVersion", "ownerSetupContractsVersion", "factoryCompatibilityVersion")
     if any(type(lock.get(key)) is not int or lock[key] != 1 for key in capabilities):
         raise ValueError("The installed manager lacks the required factory and owner-contract capabilities")
     runtime = lock.get("files")
@@ -468,18 +471,21 @@ def prepare_factory_descriptor(args, bundle: Path, files: dict) -> None:
                    for path, digest in runtime.items())):
         raise ValueError("The installed manager runtime inventory is incompatible with this lean image")
     contract_bytes = factory_metadata(resources / (
-        "OmarchyVMManager_OmarchyVMManagerCore.bundle/Contents/Resources/LeanOwnerSetupContract.json"))
+        "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract.json"))
     contract = json.loads(contract_bytes)
+    if (hashlib.sha256(contract_bytes).hexdigest() != policy["ownerSetupContractSHA256"]
+            or runtime[package] != policy["runtimePackageSHA256"]):
+        raise ValueError("The installed manager owner contract or runtime guest package needs compatibility review")
     expected = dict(contract["programs"])
     del expected["/usr/share/omarchy/install/provisioning/progress-icon.sh"]
     evidence = json.loads(factory_metadata(bundle / "compatibility.json"))
     build = json.loads(factory_metadata(bundle / "image-build.json"))
     commit = build.get("try_commit")
     if (evidence.get("owner_programs") != expected
-            or evidence.get("packages", {}).get("try-omarchy") != "0.1.0-43.1"
+            or evidence.get("packages", {}).get("try-omarchy") != policy["leanPackageVersion"]
             or not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit)
-            or commit != lock.get("patchCommit")):
-        raise ValueError("Lean image source, owner programs or integration package differ from the installed manager; rebuild with compatible pinned inputs")
+            or files.get(LEAN_INTEGRATION_PACKAGE) != policy["leanPackageSHA256"]):
+        raise ValueError("Lean image evidence or integration archive is unsupported; use the reviewed archive in a new build or request manager policy review for a new package hash")
     image = json.loads(factory_metadata(bundle / "factory.json"))
     disk = image.get("disk", {})
     if (type(image.get("format")) is not int or image["format"] != 1
@@ -491,15 +497,18 @@ def prepare_factory_descriptor(args, bundle: Path, files: dict) -> None:
             or not isinstance(disk.get("sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", disk["sha256"])):
         raise ValueError("The factory must describe a valid aarch64 Omarchy UEFI/Limine disk")
     descriptor = {
-        "format": 1, "name": "Minimal Omarchy", "architecture": "aarch64", "boot": "uefi-limine",
-        **{key: 1 for key in capabilities if key != "ownerSetupContractsVersion"},
+        "format": 2, "name": "Minimal Omarchy", "architecture": "aarch64", "boot": "uefi-limine",
+        **{key: 1 for key in capabilities if key not in ("ownerSetupContractsVersion", "factoryCompatibilityVersion")},
         "integrationPackageSHA256": runtime[package],
         "ownerSetupContractSHA256": hashlib.sha256(contract_bytes).hexdigest(),
         "runtimeFiles": runtime, "files": files,
         "provisioning": {name: digest for name, digest in files.items() if name not in
                          ("factory.json", image["compressed"]["path"])},
         "ownerSetupEvidence": "compatibility.json", "imageBuildEvidence": "image-build.json",
-        "imageIntegrationVersion": "0.1.0-43.1", "imageIntegrationSourceCommit": commit,
+        "imageIntegrationVersion": policy["leanPackageVersion"], "imageIntegrationSourceCommit": commit,
+        "guestIntegration": {"contractVersion": policy["contractVersion"], "capabilities": policy["capabilities"],
+                             "packageFile": LEAN_INTEGRATION_PACKAGE,
+                             "packageSHA256": files[LEAN_INTEGRATION_PACKAGE]},
     }
     with (bundle / "reviewed-factory.json").open("x") as output:
         output.write(json.dumps(descriptor, indent=2, sort_keys=True) + "\n")
@@ -546,10 +555,15 @@ def prepare_factory_input(args):
             if any(name not in checksums for name in names):
                 raise ValueError("A build image requires its checksums and companion provisioning evidence")
             files = {name: checksums[name] for name in names}
+            package_name = "packages/" + LEAN_INTEGRATION_PACKAGE
+            if package_name not in checksums:
+                raise ValueError("A lean build requires its original complete integration archive and checksum; rebuild or recover the original evidence")
+            files[LEAN_INTEGRATION_PACKAGE] = checksums[package_name]
         with tempfile.TemporaryDirectory(prefix="dev-omarchy-factory-") as temporary:
             bundle = Path(temporary).resolve()
             for name, digest in files.items():
-                snapshot_factory_file(source / name, bundle / name, digest)
+                original = source / ("packages/" + name if not prepared and name == LEAN_INTEGRATION_PACKAGE else name)
+                snapshot_factory_file(original, bundle / name, digest)
             if prepared:
                 (bundle / "reviewed-factory.json").write_bytes(manifest_bytes)
             else:
@@ -568,6 +582,19 @@ def import_factory_input(args, factory: FactoryInput) -> None:
     if (not isinstance(factories, list) or len(factories) != 1 or not isinstance(factories[0], dict)
             or factories[0].get("kind") != "custom" or factories[0].get("manifestSHA256") != factory.selector):
         raise WorkstationError("The imported factory does not match the prepared proposal; no VM was created")
+
+
+def import_factory_command(args) -> None:
+    preflight(args)
+    with prepare_factory_input(args) as factory:
+        if factory.bundle is None:
+            raise WorkstationError("Factory import requires a build, image or prepared bundle path")
+        print(f"Import lean factory through Omarchy VM Manager\n"
+              f"  Source: {factory.source}\n  Manifest: {factory.selector}\n"
+              "  Operation: verify/import into the manager library; no VM operations", flush=True)
+        confirm(args)
+        import_factory_input(args, factory)
+        note(f"Imported factory: {factory.selector}")
 
 
 def guest_factory(guest: dict) -> str:
@@ -915,9 +942,10 @@ def confirm(args) -> None:
         raise WorkstationError(
             "Interactive confirmation is required; rerun in a terminal"
         )
-    answer = input("Proceed with this managed VM? [y/N] ").strip().lower()
+    importing = args.command == "import-factory"
+    answer = input("Import this factory? [y/N] " if importing else "Proceed with this managed VM? [y/N] ").strip().lower()
     if answer not in {"y", "yes"}:
-        raise WorkstationError("Cancelled without changing the managed guest")
+        raise WorkstationError("Cancelled without importing a factory" if importing else "Cancelled without changing the managed guest")
 
 
 def preflight(args) -> str:
@@ -1367,7 +1395,7 @@ def build_parser() -> argparse.ArgumentParser:
             "omarchy-pkg-add"
         ),
     )
-    parser.add_argument("command", choices=("bootstrap", "check", "list"))
+    parser.add_argument("command", choices=("bootstrap", "check", "list", "import-factory"))
     return parser
 
 
@@ -1376,6 +1404,8 @@ def main() -> int:
     try:
         if args.command == "bootstrap":
             bootstrap_command(args)
+        elif args.command == "import-factory":
+            import_factory_command(args)
         elif args.command == "list":
             preflight(args)
             print(json.dumps(cli_call(args, "list"), indent=2))

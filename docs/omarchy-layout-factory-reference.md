@@ -7,22 +7,26 @@ installs the selected apps, theme and layout.
 ## Build and bootstrap
 
 Use an Apple Silicon Mac with existing Git, Python 3.10+, make, an ARM64 Linux
-Docker engine and the installed VM Manager app/CLI. Allow the requested
+Docker engine and the installed VM Manager 0.11.0 app/CLI. Allow the requested
 factory capacity plus 4 GiB on the artifact volume and at least 3 GiB of Docker
 scratch. Bootstrap's private snapshot also needs room for the compressed payload.
 
 ```bash
 make build-omarchy-image
 make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_MANAGER_APP="/Applications/Omarchy VM Manager.app" \
   OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest
 ```
 
 The builder uses `omarchy/image/try-guest-source.tar.gz`, a guest-only source
 snapshot whose archive checksum, guest tree and integration commit are pinned
 in `omarchy/image/inputs.lock.json`. It contains no host runtime or manager code.
-The current source is `85f5e561e5a277ccec08d7725c8714cb090c9011`, producing
-package 43.1 for the installed 0.9.3 manager and `lean-e4fffc6` owner contract.
-Its guest tree is identical to the previous 0.9.2 build input. The builder does
+The current source is `85f5e561e5a277ccec08d7725c8714cb090c9011`. The builder
+reuses the complete reviewed 43.1 integration archive bundled in
+`omarchy/image/reviewed-packages/`, after checking its SHA-256 and the complete
+transformed source recipe. This keeps new disks compatible with manager 0.11
+guest integration contract 1 and `lean-e4fffc6`. Repacking that archive gives
+a different identity and requires manager policy review. The builder does
 not need a manager checkout, download host software or operate a VM.
 
 The [bootstrap reference](omarchy-bootstrap.md) describes installed CLI discovery
@@ -61,8 +65,11 @@ relabels an unbooted image as validated.
 For repository outputs, bootstrap checks the selected payloads against
 `SHA256SUMS`, copies the image and required evidence to a private temporary bundle,
 and writes the bundle descriptor from the installed app's runtime inventory
-and reviewed lean owner contract. The source commit, integration package and
-owner-program hashes must match that app before the proposal is shown.
+and reviewed lean owner contract. The format-2 descriptor includes the original full integration archive. Its
+identity, package version and owner-program hashes must match the reviewed
+guest policy. The installed app must provide the supported runtime package,
+owner contract and capabilities. The image source commit remains recorded
+provenance; it need not equal the app's host patch commit.
 Existing prepared bundles are copied verbatim;
 their descriptor is preserved. Payloads must be regular files with matching hashes;
 undeclared files, links and unsafe names are refused in prepared bundles.
@@ -73,6 +80,22 @@ reviewed snapshot. After confirmation, bootstrap calls VM Manager's native
 `factory-import` and requires the returned custom-factory identity to match the
 prepared descriptor before creating a VM. The manager owns admission, its private
 library, runtime checks and storage. Original source artifacts are not modified.
+
+To verify/import a build without operating a VM, use the same automatic preparation:
+
+```bash
+make import-omarchy-factory \
+  OMARCHY_VM_MANAGER_APP="/Applications/Omarchy VM Manager.app" \
+  OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest
+```
+
+Review and confirm the import proposal. Bootstrap performs this import itself,
+so this command is optional. No manual bundle copying, descriptor editing or
+manifest-hash transfer is needed. `OMARCHY_VM_YES=yes` accepts the proposal for
+an already reviewed automated run. Older builds must retain their own original
+`packages/try-omarchy-0.1.0-43.1-aarch64.pkg.tar.zst` and its checksum. A missing
+or unsupported archive requires recovery of original evidence or a fresh build;
+substituting the reviewed archive beside an old disk is invalid.
 
 Temporary preparation files are removed afterward. Cancellation, failed
 preparation, failed import or an unexpected returned identity prevents VM
@@ -94,6 +117,6 @@ hardware rendering, Retina/dynamic resizing and clipboard text in both direction
 Reject `llvmpipe`, `softpipe` and forced software backends.
 
 Keep the full artifact and checksums. The [image contract](omarchy-image.md) and
-[43.1 acceptance record](omarchy-lean-43-validation.md) describe recorded evidence
+[0.11 validation record](omarchy-lean-011-validation.md) describe recorded evidence
 and remaining limits. Live Arch repositories mean rebuilds are not guaranteed
 byte-identical. Never commit owner credentials or real guest identities.
