@@ -1591,3 +1591,22 @@ approved SSH/owner configuration, actual factory/tools, exact inputs/consents an
 all real guest rows remain TO PROVE/NOT_RUN. The broad real-Ansible targets remain
 skipped. The manager runbook's Private scoped candidate preparation section records
 the current boundary; milestone 6 is not complete and no real run is authorized.
+
+### Offline candidate signing/readiness audit — 3 November 2026
+
+The manager audit records nineteen passing static checks and seven remaining
+signing/readiness gates. Candidate/package/kit/source/scope and original root/registry
+are unchanged. Static Core 2.21.5 metadata and common Homebrew formula paths are
+observations only: no Ansible, brew, SSH or gh command is executed. Factory-cache
+metadata is present, but OS file access refuses checksum verification; no permission
+is granted and no image/disk is downloaded, copied or decompressed.
+
+Source review confirms the supported signed-prerelease runtime/profile/pin rebuild
+is required. The existing tag workflow checks out ordinary source and publishes
+archives, so a separate reviewed nonpublishing handoff must retain the original
+private scope. No identity enumeration, credentials, Keychain access, signing,
+notarization, network, workflow/publication or guest operation is used. No shared
+or product source changes; detailed reports/pins remain private/ignored. Ordinary
+execution stays disabled and all real guest rows stay NOT_RUN. The manager runbook's
+Offline signing and readiness audit section records exact boundaries and the next
+safe fake/local handoff work. Broad real-Ansible targets remain skipped.
