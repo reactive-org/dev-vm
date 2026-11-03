@@ -11,7 +11,8 @@ DEST = ROOT / "Sources/DevVMProvisioningCore/Resources/Provisioning"
 def source_paths():
     names = ["site.yml", "setup.yml", "group_vars/all.yml", "omarchy/features/catalogue.json"]
     names += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "roles").rglob("*.yml"))]
-    names += ["omarchy/guest/" + n for n in ["apply-features.py", "feature_contract.py", "apply-workstation.sh", "apply-theme.sh", "repair-try-omarchy-black-screen.sh", "apply-dotfiles.py", "provisioning-job.py"]]
+    names += ["omarchy/guest/" + n for n in ["apply-lean-developer.py", "lean-developer.packages", "apply-features.py", "feature_contract.py", "apply-workstation.sh", "apply-theme.sh", "repair-try-omarchy-black-screen.sh", "apply-dotfiles.py", "provisioning-job.py"]]
+    names += ["omarchy/examples/layouts/" + n for n in ["catalogue.json", "four-terminals.lua", "terminal-browser.lua", "vscode-browser.lua", "claude-two-terminals-browser.lua"]]
     return names
 
 

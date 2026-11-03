@@ -1359,3 +1359,213 @@ plus `Patches/dev-vm-durable-state.patch`, with unchanged engine/resource pins.
 The manager acceptance harness, screenshots and milestone-6 runbook are committed
 in manager `c51c004`. This companion commit records the consumer evidence only;
 shared library/resources and the manager export pin remain unchanged.
+
+### Manager milestone-6 disposable admission — 3 November 2026
+
+**DESIGN DECISION — consumer only:** the manager now derives product execution
+from an optional reviewed disposable-root approval, currently nil. A future private
+candidate must embed original UUID/root/device/inode/ownership-marker identity
+pins independently in manager and helper. No Boolean, CLI/environment, manifest,
+registry, journal, tool report or wire field can grant this approval. A directory
+marker alone does not prove an existing VM is disposable; trusted explicit approval
+must identify newly prepared disposable roots.
+
+The manager checks its profile/session namespace, preparation, transport, leases,
+cleanup and both sides of restart; a compiled candidate retains restrictions before
+service installation and after coordinator close. Helper backend construction and
+preparation/command/invocation RPC boundaries independently recheck its local scope.
+Input claim/send/resize also recheck approval and release ownership on failure;
+read-only output remains available. Recovery constructs no adapter outside scope
+and cannot bypass original-worker/session/quiescence or cleanup proofs. Root
+replacement, changed markers, unsafe ownership/mode, symlinks, retained POC IDs and
+unlisted/foreign roots are refused. Directory descriptors prevent inode reuse.
+
+**VERIFIED — fake/local:** 12 manager admission test functions include invalid and
+changed-root matrices, admitted fake work, independent manager/helper refusal,
+post-RPC change, same-UUID foreign root, restart/replacement, recovery and terminal
+input revocation. No real SSH/Ansible, host installs, images or VM launches occur.
+The manager plan and `docs/DevVMMilestone6Runbook.md` own the precise evidence and
+operational prerequisites. Ordinary product execution remains disabled and no real
+approval values have been installed. A concrete signed candidate, real guest/TTY/
+cleanup/restart/check/crash/sleep/wake and distribution remain TO PROVE. This
+companion change is docs only; shared sources/resources and manager export/engine
+pins are unchanged.
+
+The full manager regression run passed 440 Swift functions in 57 suites, 52 script
+tests, relocated/read-only/ad-hoc-signed helper fixtures and 56 isolated screen
+checks. The final focused admission suite passed after cross-viewer input
+revocation coverage. Release compilation (without real signing credentials),
+package/export verification and both diff checks pass. No actual guest acceptance
+or signed-distribution result is claimed.
+
+### Manager Source and multiple profile cards — 3 November 2026
+
+The consumer now separates configuration Source (bundled or local folder) from
+multi-select Developer/Web/Python/Project managed cards. Native badges and readable
+summaries are derived from this package's resolver: inherited Developer features,
+additional features, language tools and database clients. Individual native feature
+overrides are hidden for now. Local manifest profiles/options/tasks remain included;
+cards add bounded builtin profiles and deduplicate aliases through a generated
+private manifest. The source folder stays unchanged. Profile edits require a new
+frozen review/acknowledgment, with proposal identifiers and raw data under Details.
+
+The shared resolver still owns combination/dependency/option conflict semantics.
+Sibling conflicts are refused, not resolved by card order; an explicit local option
+can resolve a conflict. Legacy preset CLI requests remain compatible; the native
+source DTO adds strict optional bundled/profile fields on the existing protocol.
+Local custom catalogue profiles remain manifest-defined; native cards cover the
+four bundled profiles. No task/sudo/Docker or execution authority comes from cards.
+
+Manager validation passed 24 focused selection functions, 448 Swift functions in
+58 suites, 52 script tests, local signed helper fixtures and 62 isolated screen
+checks. Eight light/dark/scrolled captures were inspected; release compilation
+without real signing credentials, package/export and both diff checks pass. The
+manager UI acceptance/implementation records own images, hashes and limitations.
+Product approval remains nil and execution disabled. No real SSH/Ansible, host
+install, image download or VM launch occurred. This companion change is docs only;
+shared package/library/resources and the immutable manager export/engine pins are
+unchanged. Physical UI and real guest/distribution acceptance remain TO PROVE.
+
+### Manager optional-app trim integration — 3 November 2026
+
+The shared Swift planner/adapter now honor the existing `vm.lean_developer`
+selection. Offline proposals list allowlisted candidates, excluding explicit
+manifest packages and resolved feature packages. Installed state is unobserved.
+The upstream guest trim helper and allowlist are packaged as hashed resources;
+apply runs them through the authenticated job supervisor and terminal stream,
+after manifest packages and before features. Check never trims. Native Omarchy
+owns removals, with the existing recursive-transaction protection and cleanup.
+This guest-side Python helper adds no host Python/PyYAML prerequisite.
+
+The manager conditionally exposes **Trim optional apps** only for its official
+Try Omarchy identity, off by default, freezes the choice and refuses unsupported
+factory handoff/preparation. The reusable factory image is unchanged. Its export
+adds `Patches/dev-vm-optional-app-trim.patch` over the existing immutable base and
+durable-state patch, with updated engine/resource/snapshot pins. Real guest
+trimming remains TO PROVE; product execution stays disabled.
+
+Verification: 77 shared Swift test functions pass using fake process runners and
+disposable local fixtures; twelve legacy trim tests pass with mocked subprocess
+results. Resource sync/helper Python syntax parsing passes. Manager selection,
+package and 74 offscreen UI checks pass; retained scrolled light/dark screenshots
+show the controls. Guest trim/reapply/terminal behavior remains TO PROVE.
+
+Verification exception: the broad `make test-omarchy` target invoked installed
+Ansible against temporary local inventories/synthetic helpers before its complete
+scope was inspected, exceeding the requested no-real-Ansible restriction. It
+finished with 10 failures, 44 errors and one skip among 235 tests, including missing
+Python TOML support. This is not passing acceptance evidence. No guest was
+contacted, host tool installed or VM/factory operation performed. Subsequent trim
+verification uses mocked helpers/fake runners only; the exception is recorded in
+the manager implementation plan.
+
+Final manager release compilation passes without signing credentials; both
+worktree diff checks and immutable reverse-patch/export verification pass.
+Changes remain uncommitted. The final export engine is
+`83061c59cd7f1c4f87f0762183eaa6a4b61bc85592366874cd86e1654a9d8ff7`.
+
+### Manager Theme & layout integration — 3 November 2026
+
+The shared Swift package now supplies `ThemeSelection`/`ThemeResolver` for strict
+GitHub roots, `random` and `most-starred`, catalogue figures, minimum stars and
+stable ranking ties, behind injected HTTP and star providers. The manager resolves
+once during review and GET-checks the concrete repository, then freezes that URL
+in the existing workstation options. A GET checks accessibility, not theme content,
+compatibility or a fixed Git commit. Direct URLs and random with zero minimum stars
+need no gh; star-based selection uses an existing authenticated GitHub CLI, with no
+installation/sign-in flow and no logged credentials or raw responses.
+
+The collapsed native Theme & layout section also supports a selected Lua layout or
+managed-layout removal. A bounded UTF-8 file is copied into private reviewed inputs,
+so later original-file edits cannot change apply. Existing shared snapshot/planning,
+Ansible variable/staging and native Omarchy helpers continue to own application;
+no separate executor, host Python dependency or YAML workflow is introduced.
+Explicit workstation disable is refused; other source settings remain included.
+CLI review commands expose --theme/--theme-min-stars/--layout-file/--remove-layout.
+The manager export adds `Patches/dev-vm-theme-selection.patch`, with updated
+source/engine/lock/snapshot pins and fake tests.
+
+Verification for this slice uses fake HTTP/star/process providers, URLProtocol
+responses without sockets, local files and disposable shell fixtures with stub
+Omarchy/git commands. The broad `make test-omarchy` target is not run because it
+invokes real Ansible; the user's fixture-only restriction takes precedence over
+that repository target. Shell/Python syntax checks are used without guest execution.
+No real HTTP/gh/SSH/Ansible, tool install, factory change/download or VM launch is
+performed in these checks. Actual catalogue/authentication/theme/layout behavior
+remains TO PROVE under explicit disposable acceptance; product execution stays off.
+
+Verification results: shared make test-provisioning passes 84 Swift functions,
+including selector/GET/ranking and fake apply/check transport coverage. Nine selected
+controller tests pass under guards against real network/subprocess/manager access;
+nine guest theme-helper tests use disposable HOME and stub Omarchy/git commands.
+Shell syntax/Python AST checks pass. Manager make test passes 463 Swift functions,
+52 scripts, signed local helper fixtures and 82 offscreen UI checks; eleven focused
+appearance functions and release compilation also pass. Four new light/dark
+appearance screenshots were inspected. Reverse integration-patch/export and both
+worktree diff checks pass. Final exported engine is
+`f51a1b3d9f0432b613b67b014ca6abd5d18794f2edae11b5b5eacbc9508b00a0`.
+Changes remain uncommitted in both worktrees.
+
+Manager presentation follow-up (3 November 2026): responsive theme/layout panels
+and explicit Keep/GitHub/Random/Most starred choices map to the unchanged source
+DTO/resolver. Trim help is adjacent to its toggle; reviewed inclusion is a short
+separate status. Ninety-two offscreen fake-service checks pass, including choice
+forwarding and wide/narrow layouts. Shared code/resources/pins and disabled product
+execution are unchanged; no actual network, host installation or guest operation.
+
+### Bundled layout examples in the manager — 3 November 2026
+
+The four original Lua examples and a maintained catalogue of wireframes, titles,
+app prerequisites and source hashes are copied into the shared resources. The new
+`LayoutExamples` API admits fixed IDs and verifies catalogue/source hashes before
+offering bytes. The manager displays single-select cards under Desktop layout →
+Examples, retains Custom file/Keep/Remove and freezes the selected original Lua in
+its existing private input path. The CLI review option is --layout-example. Native
+previews recognize the selected example by the actual frozen input hash.
+
+Cards show intended relative placement, not live guest state. All examples use
+floating placement rules, including the overlapping browser in the Claude layout.
+App names are prerequisites, not implicit package installation selections. Card
+selection/review never executes Lua, launches apps/VMs or authorizes provisioning.
+The original Lua files are unchanged. The manager export adds
+Patches/dev-vm-layout-examples.patch with new engine/resource/snapshot/lock pins.
+
+Verification uses Swift fake/local fixtures, offscreen synthetic services and
+byte-for-byte comparisons of all four original files/catalogue to the bundled
+copies. No real Lua, HTTP/gh/SSH/Ansible, host install, factory change/download or
+VM launch is used. The broad test-omarchy target is skipped because it invokes
+real Ansible, contrary to the user's current constraint. Physical UI and actual
+guest app availability/startup/geometry/login behavior remain TO PROVE under
+explicit disposable approval. Product execution remains disabled.
+
+Verification results: 86 shared Swift functions pass. Full manager tests pass 468
+Swift functions in 62 suites, 52 scripts, signed local helper fixtures and 100
+isolated screen checks. Five new manager functions cover exact frozen example bytes,
+no implicit app installs, old-review stability, exclusivity, legacy compatibility
+and CLI/socket paths. All four original Lua files/catalogue compare byte-for-byte
+to bundled copies; resource-sync Python syntax and reverse export/diff checks pass.
+Four current light/dark gallery captures were inspected. The exported engine is
+`818e5ba3267d14f0d08453118fb3b962d25afef2a90a9810dda043e07d9cb369`.
+Changes remain uncommitted in both worktrees; real guest acceptance remains open.
+Final manager release compilation passes without signing credentials or notarization.
+
+### Manager milestone 6 offline preflight — 3 November 2026
+
+The manager now provides `make provisioning-preflight` to verify its immutable
+export/reconstructed base/generated pin and existing resource inventory, and record
+local build hashes without running candidates or guest/dependency/signing tools.
+This is manager development tooling, not a shipped Python controller or a shared
+package API change. Offline PASS is separate from readiness: executionAuthorized
+stays false and guestAcceptance stays NOT_RUN. Source/candidate correspondence,
+approved new disposable roots, operational composition, signing/loaded code and
+real factory/dependency/guest evidence remain explicit prerequisites. Product
+approval remains nil; no real scope has been chosen or prepared.
+
+Ten offline checks and all 61 manager script tests pass, including nine new
+preflight/read-only export regressions. Existing Swift/shared/UI acceptance remains
+the evidence for the unchanged package sources. No real HTTP/gh/SSH/Ansible,
+signing credentials, host install, factory/VM operation or desktop control occurs.
+The broad real-Ansible targets remain skipped under the user's constraint. The
+manager runbook's Offline candidate preflight section records use and limitations.
+This checkpoint collects the previous pending admission/UI/trim/theme/layout work
+and related docs in both worktrees; the earlier uncommitted notices are historical.
