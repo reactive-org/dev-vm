@@ -1668,3 +1668,33 @@ tool/SSH/owner gates and every real guest row. No real signing, credentials, App
 requests, host installs, SSH/Ansible, VM launch, disk operation or UI takeover
 occurred. The manager runbook's Private signer adapter section records this
 boundary; broad real-Ansible targets remain skipped.
+
+### Real signed-candidate gate preparation — 4 November 2026
+
+The manager prepared a private review-only gate with exact retained candidate/
+request/original-scope and source/adapter bindings, required runtime-origin and
+profile pins, canonical clean client/parser observations and unresolved material
+selectors. The candidate and frozen request re-admit; both local dependencies match
+their archived revisions. No target root/registry is visited or identity recaptured.
+Pins and the packet remain private; every approval remains NOT_GRANTED and ordinary
+execution stays disabled. The adapter and shared sources/pins are unchanged.
+
+The required runtime is a real Developer ID signed variant of the frozen patched
+development kit, retaining its origin, capabilities and immutable payload, with
+the same selected team as app/children. No eligible real runtime is selected; the
+team/identity, isolated keychain and exact pinned profile path remain unselected
+and uninspected. No credential areas are searched. If a runtime must be produced,
+its upstream signing-only route and isolated-keychain handling need a separate
+review: upstream's builder has no explicit keychain selector, while ordinary
+release orchestration imports credentials, notarizes and publishes artifacts.
+
+The manager gate runbook separates named material inspection/preparation, optional
+runtime production, private app build/key use/Apple secure timestamps, original-Mac
+scope/non-activating loaded-child validation, optional notarization and later
+disposable-guest approval. A trusted one-shot caller and material binding can only
+be reviewed after concrete selections; the review packet is never authorization.
+Preparation runs read-only local Git only: no SDK, real signing, credentials,
+Apple/network requests, SSH/Ansible, installs, UI, disk operation or VM launch.
+Existing 91-test evidence remains applicable; no new executable behavior is added.
+All real compiler/profile/cryptographic/notary/original-Mac/loaded-child and guest
+outcomes remain TO PROVE/NOT_RUN; broad real-Ansible targets stay skipped.
