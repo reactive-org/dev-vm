@@ -1748,3 +1748,34 @@ build/signing, credentials/profile bytes, Apple/network requests, SSH/Ansible,
 installs, image, UI or VM operation occurs. All later approvals remain NOT_GRANTED.
 The manager runbook's Integrated candidate inputs for 7e46241 section records the
 gate; broad real-Ansible targets remain skipped.
+
+### Source-only admission and caller — 4 November 2026
+
+The manager now admits its unchanged source-only packet through a distinct
+version-2 contract. Typed in-memory review binds the new source/archive/overlay,
+packet and team/fixture mode independently of original scope bytes, semantic
+digest, preserved definition and prior request. Versioned request digests cannot
+alias legacy or packet digests. The existing app-based admission stays separate;
+gate JSON, checksum files and environments never provide execution authority.
+
+Strict inventories, safe archive/config/package/resource checks, exact scoped
+source reconstruction and runtime-origin/payload/ZIP admission feed the existing
+adapter, with callback re-admission and unchanged signing/sealing/verification
+policies. The typed caller consumes one use atomically before admission and
+defaults to refusing before profile/keychain IO or output. No signing CLI,
+credential import/unlock, retry, publication or notarization operation is added.
+
+Eighteen new manager tests cover complete fake adapter/extraction roundtrip,
+independent source/scope preservation, authority/version/runtime mutation and
+concurrent one-shot refusal. The allowed full Python run passes 127 tests with
+five software-signing/PKCS12 skips (132 discovered); process auditing records no
+forbidden tool attempt. Actual frozen `7e46241` inputs admit as read-only data,
+with process/network hooks blocked and no runner/material authorization created.
+All 1,161 previous private artifact entries, pins and historical gate fields stay
+unchanged; new evidence remains separate/private. Shared Swift/package source and
+pins are unchanged and product provisioning stays disabled. No actual signing,
+credentials/profile bytes, Apple requests, SSH/Ansible, installs, app/UI, image or
+VM operation occurs. Named material validation and real compiler/signature/profile/
+loaded-child/original-Mac and guest evidence remain TO PROVE/NOT_RUN. See the manager
+runbook's Version 2 source-only admission and caller section; broad Ansible targets
+remain skipped.
