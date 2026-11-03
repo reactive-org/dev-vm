@@ -872,3 +872,65 @@ full manager/helper restart/reconnect and reviewed rebinding, release signatures
 real guest/auth/echo/remote cleanup/crash/kernel behavior, terminal/PTY/input/UI/CLI.
 Current fixture acceptance does not establish guest behavior or enable operational
 setup. No shared package/oracle rerun is claimed for this docs-only handoff.
+
+## Manager frozen-input delivery and context validation — 3 November 2026
+
+The manager's next milestone-3 continuation delivers selected frozen inputs and
+reviewed request metadata to its admitted helper. This supersedes the pending
+context transfer above. This worktree exposes `SetupPlan.manifestPath` as public
+read-only metadata so a consumer can preserve the reviewed relative manifest path;
+engine inventory is regenerated. No planner/parser/guest/C-launcher behavior or
+Python operational command changes. The manager's immutable base-plus-patch export
+is updated with that exact API/inventory change; it is not an unchanged engine pin.
+
+The manager fsyncs a private immutable `DVMCNTX1` blob (strict request JSON plus
+`DVMSNAP1` selected archive). Registration/schema-5 journal bind its exact length
+and total/metadata/archive hashes to the original owner/review. A retained private
+read-only source descriptor is checked before transfer. The child inherits an
+empty separate socket at fd 4; only after owned-live-child image admission receive
+bootstrap 3 and the frozen bytes. Capability/source data do not enter arguments,
+environment, status or terminal. Data is chunked/bounded and requires exact size,
+hash and EOF; no arbitrary host source path is sent to the helper.
+
+The helper verifies metadata/target/session/dependencies, writes only into a new
+private UUID tree using descriptor-relative no-follow/exclusive traversal, and
+preserves modes, binary bytes and empty directories. Existing archive bounds plus
+implicit-directory/depth bounds apply. It independently replans with this package
+inside that tree, compares plan/input/engine hashes, reconstructs the full request
+and compares review identity before acknowledging delivery. `FrozenInputsArchive`
+remains inert data; it does not deserialize an executable plan or grant apply.
+
+A backend receives the validated context only; delivered, backend and explicit
+activation acknowledgements combine by AND. The product helper has no backend,
+rejects activation and keeps execution gates disabled. Only an excluded Debug
+fixture constructs synthetic adapters. Once an accepted frozen job exists, its
+selected private copy defines the reviewed inputs; original-checkout edits/removal
+cannot replace them. Source checks still precede publication, activation validates
+persisted/private copies, cleanup remains independent of inputs, and reopen never
+replays apply. Schemas 1–4 preserve risk/ownership without invented receipts.
+Partial private artifacts are retained; automatic import/removal is not introduced.
+
+**VERIFIED — shared fake/local checks:**
+`make build-provisioning test-provisioning test-provisioning-oracle test-provisioning-planning-oracle ORACLE_PYTHON=/opt/homebrew/opt/ansible/libexec/bin/python`
+passes 68 Swift functions, 18 parser oracle fixtures and 66 complete planning/error
+fixtures. The already available Python runtime is used solely for development
+oracle comparisons; no Ansible or product Python fallback runs. Existing PTY
+fixtures need the local `/dev/tty` sandbox exception.
+
+**VERIFIED — manager fake/local checks:** `make test` passes 308 Swift functions/
+44 suites, 49 script tests and expanded relocated/read-only signed-helper fixtures.
+Coverage includes independent replan after source deletion, custom manifest/
+catalogue/tasks, binary/mode/empty-directory preservation, metadata/hash/scope/
+framing damage, unsafe/changed private descriptors, root substitution and directory
+bounds, strict bootstrap/receipt/journal handling and consent constraints. The
+actual product helper validates but denies activation. A separate ad-hoc-signed
+fixture helper receives/validates a multi-frame payload, then completes/cancels
+using fake adapters after the parent's source is removed. Changed delivery is
+refused and the owned child reaped. No real SSH/SCP/SFTP/Ansible, credentials,
+auth UI, host installs, installed-app changes or VM operations occur.
+
+**TO PROVE:** exclusive real backend construction and trusted manager-aware session/
+dependency authority, product wiring, full restart/reconnect/rebinding, real release
+signatures, power-loss durability/retention UX and terminal/PTY/input/UI/CLI work.
+Real guest authorization, echo, cleanup/quiescence and crash/kernel behavior remain
+unproved. This is a foundation continuation, not completion of milestone 3.

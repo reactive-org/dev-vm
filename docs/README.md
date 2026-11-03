@@ -80,3 +80,9 @@ records one-shot activation, shared-sequencer helper tasks, authenticated status
 cancellation, durable no-replay markers and fake/signed-process fixture coverage.
 Shared sources/pins are unchanged; production contexts/backends, full restart and
 live terminal integration remain pending.
+
+[Manager frozen-input delivery and context validation](../README.md#manager-frozen-input-delivery-and-context-validation--3-november-2026)
+records private authenticated delivery binding, independent helper replan/review
+checks, frozen-copy ownership and local signed-helper fixtures. The shared plan's
+reviewed manifest path is now public read-only and its inventory/pin is updated;
+product backends, session authority, restart and terminal integration remain pending.
