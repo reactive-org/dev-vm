@@ -1779,3 +1779,28 @@ VM operation occurs. Named material validation and real compiler/signature/profi
 loaded-child/original-Mac and guest evidence remain TO PROVE/NOT_RUN. See the manager
 runbook's Version 2 source-only admission and caller section; broad Ansible targets
 remain skipped.
+
+### Named material inspection and staging — 4 November 2026
+
+The manager adds a separate typed, one-shot inspection caller for selected
+profile/keychain/public-certificate/runtime inputs. Its request domain binds the
+admitted source, selectors, independent public-leaf/inspector hashes and private
+output. Default execution denies before material IO/output; native authorization
+must be inspect-only and fixture inputs cannot execute it. Exact profile/public
+certificate bytes stage privately; profile scope/expiry, leaf membership/name/dates,
+local dependency identity/cleanliness, runtime inspection and callback input/file
+revalidation are covered. Keychain metadata only is checked; contents, key
+availability and unlocked state are never queried. Public parsing does not prove
+trust. Staged material requires a distinct later signing approval; no CLI,
+credential importer/unlocker or automatic signing continuation is added.
+
+Nineteen new manager fake tests pass. The full allowed Python suite has 146 passes
+and five signing/PKCS12 skips (151 discovered); auditing observes only local
+Git/Python, with no forbidden-tool attempt. All 1,161 retained private artifact
+entries and frozen pins stay unchanged. Actual material selection/inspection,
+key availability, compiler/signatures/profile trust/loaded-child/original-Mac and
+guest evidence remain TO PROVE/NOT_RUN. No actual profile/certificate parser,
+SDK/CMS, keychain, signing, credential, Apple, SSH/Ansible, install, app/UI, image or
+VM operation occurs. Shared Swift/package source and pins are unchanged; ordinary
+provisioning remains disabled. See the manager runbook's Named material inspection
+and private staging section. Broad real-Ansible targets remain skipped.
