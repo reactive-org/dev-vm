@@ -1188,3 +1188,28 @@ frozen preview-to-apply/custom-task trust and reviewed restart/check/recovery
 surfaces remain gated follow-up work. No real SSH/Ansible, host installs or VM
 operations occurred. Shared package sources/resources remain at committed
 `3d616f0`; its previous 72 tests and oracle checks remain the unchanged baseline.
+
+### Manager milestone 5 frozen review and task-trust slice — 3 November 2026
+
+The manager now exposes frozen preview capture/lookup, explicit bounded task-source
+inspection and prepare/apply consent through the same native/CLI service. It uses
+this package's existing SetupPlanner, immutable source archives and request review
+identity; no shared library/resource/pin changes are needed. Capture replans inside
+a retained private UUID tree and compares plan/input/engine hashes. Later edits to
+the original folder cannot change the approved inputs. A separate task-trust digest
+binds the exact request, complete frozen snapshot and task selection. General Apply,
+persistent sudo and Docker root-access acknowledgements do not imply task trust.
+
+Final submission rechecks frozen sources, package, original resources/session and
+fresh dependencies before the existing helper path. One preparation/submission is
+owned per UUID; duplicate consent retrieves its acceptance, while failed operations
+are not automatically replayed. Explicit source reads use 4096-byte chunks and never
+enter background status/terminal output. Memory-only previews/consent cannot be
+reconstructed from retained files after manager restart. Product execution and its
+real owner/UID/key resolver stay disabled; fake tests supply synthetic bindings.
+`make test` passed 390 manager Swift test functions in 52 suites, 52 script tests and the relocated/read-only/ad-hoc-signed helper fixture suite (including original-owner loss/reopen and terminal streaming). `make test-provisioning-review` passed 28 functions in three suites: frozen previews, original-source edits, explicit task-source chunking, preview quotas, no authority after reopen, separate task/sudo/Docker consent, exact duplicate submission, changed source/tool/session admission, cancellation during a gated final recheck, stale task trust, strict nested protocol cases and CLI/native service interoperability. Tests call the native service API and actual private CLI socket, without opening the form or claiming visual acceptance. Package/export and both diff checks pass; shared package sources/resources/pins are unchanged.
+Native feature editing/New VM handoff and reviewed restart/check/recovery surfaces
+remain follow-up work. No actual SSH/Ansible, host installs, factory images, VM
+operations or user UI takeover occurred. Shared sources/resources remain unchanged
+at `3d616f0`; the docs-only terminal consumer commit is `f5d495c`. The manager's
+preceding terminal/UI/CLI slice is committed at `18feed5`.

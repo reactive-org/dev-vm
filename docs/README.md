@@ -116,3 +116,6 @@ app/CLI attach are milestone 5; product execution remains disabled.
 
 [Manager milestone 5 terminal/observation slice](../README.md#manager-milestone-5-terminalobservation-slice--3-november-2026)
 records the consumer's renderer/CLI fixtures and remaining gated workflow actions.
+
+[Manager frozen review and task-trust slice](../README.md#manager-milestone-5-frozen-review-and-task-trust-slice--3-november-2026)
+records the shared planner/request consumer contract and fake-only validation.
