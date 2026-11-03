@@ -122,3 +122,11 @@ records the shared planner/request consumer contract and fake-only validation.
 
 [Manager reviewed workflow actions](../README.md#manager-milestone-5-reviewed-workflow-actions--3-november-2026)
 records restart/check/cleanup scope, original-worker proof and fake-only evidence.
+
+[Manager native features and New VM handoff](../README.md#manager-milestone-5-native-features-and-new-vm-handoff--3-november-2026)
+records private generated manifests, shared resolution, metadata-only selection
+receipts, duplicate-create protection and fake-only validation. Execution stays gated.
+
+[Authenticated identity and dormant backends](../README.md#manager-authenticated-identity-and-dormant-backends--3-november-2026)
+records the consumer's authenticated UID/session/key evidence, freshness and
+manager-aware construction. Execution stays disabled pending guest acceptance.
