@@ -119,3 +119,6 @@ records the consumer's renderer/CLI fixtures and remaining gated workflow action
 
 [Manager frozen review and task-trust slice](../README.md#manager-milestone-5-frozen-review-and-task-trust-slice--3-november-2026)
 records the shared planner/request consumer contract and fake-only validation.
+
+[Manager reviewed workflow actions](../README.md#manager-milestone-5-reviewed-workflow-actions--3-november-2026)
+records restart/check/cleanup scope, original-worker proof and fake-only evidence.

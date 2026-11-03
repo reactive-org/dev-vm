@@ -1213,3 +1213,22 @@ remain follow-up work. No actual SSH/Ansible, host installs, factory images, VM
 operations or user UI takeover occurred. Shared sources/resources remain unchanged
 at `3d616f0`; the docs-only terminal consumer commit is `f5d495c`. The manager's
 preceding terminal/UI/CLI slice is committed at `18feed5`.
+
+### Manager milestone 5 reviewed workflow actions — 3 November 2026
+
+The manager now exposes reviewed restart, post-restart check and cleanup recovery
+through the same native/CLI service. Exact action UUID/digest and acknowledgement
+bind workflow, VM/session/job, sequence and frozen-input/dependency hashes. It
+reuses the established manager coordinator and this package’s sequencing contracts.
+Restart waits for matching VM exit before replacement; check requires fresh-session
+admission, excludes custom tasks and grants no authorization input. Recovery uses
+only original identity/quiescence/revocation/cache/inactive/payload cleanup, with a
+lazy adapter factory behind authenticated original-worker and checkpoint admission.
+Saved metadata/PID cannot recover lost capabilities; failed revocation retains risk.
+No Apply/task trust is reused as action consent and no failed operation is replayed.
+`make test` passed 403 manager Swift test functions in 54 suites, 52 script tests and the relocated/read-only/ad-hoc-signed helper fixtures, including original-owner loss/reopen and terminal streaming. `make test-provisioning-actions` passed 13 functions in two suites (including ten malformed-wire variants and three final-check admission/cancellation variants). Fake fixtures cover explicit consent, shared CLI/native action lookup, duplicate restart/check, diagnostic-vs-exit boundaries, fresh-session frozen checks with custom tasks excluded and no authorization input, active-risk recovery refusal, lazy factory ordering, missing original capability after reopen, source-free cleanup, failed revocation/retained holds, stale sibling recovery reviews, failed-operation non-replay and lost in-memory consent. Product endpoint tests prove disabled refusal before probes/factories. UI controls compile; complete interactive/visual acceptance was not performed. Package/export checks and both diff checks pass. Shared package sources/resources/pins are unchanged.
+Product execution, real target resolution and recovery factories stay disabled.
+Native feature editing/New VM setup handoff and all real guest/visual/distribution
+acceptance remain separate. No actual SSH/Ansible, installs, factory images, VM or
+user UI operations occurred. Shared library/resources/pins remain unchanged; the
+manager’s preceding frozen-review slice is `d6d9c64` (companion docs `09a099c`).
