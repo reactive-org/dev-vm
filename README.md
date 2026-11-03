@@ -1569,3 +1569,25 @@ The broad real-Ansible targets remain skipped under the user's constraint. The
 manager runbook's Offline candidate preflight section records use and limitations.
 This checkpoint collects the previous pending admission/UI/trim/theme/layout work
 and related docs in both worktrees; the earlier uncommitted notices are historical.
+
+### Private scoped manager candidate — 3 November 2026
+
+After explicit stopped-profile/root preparation approval, a separate private manager
+candidate is built from manager commit `1cb2bdd` plus a six-file recorded overlay.
+Its Core embeds the original UUID/root/device/inode/marker constants in both manager
+and helper, fails closed if the original scope is unavailable, and adds no external
+approval loader. Actual identifiers, source overlay and artifact evidence remain
+private/ignored. The ordinary manager stays disabled; shared package source/pins
+are unchanged. No standalone controller or virtualization fork is introduced.
+
+Thirteen offline artifact checks, both packaged component inspections before/after
+relocation, scope probes against the candidate Core with zero fake runtime starts,
+and twelve ordinary manager admission tests pass. Existing pinned kit content and
+signatures are preserved. Only ad-hoc signing is used; the unchanged production
+same-team helper policy correctly refuses this candidate. No real SSH/Ansible, host
+install, credentials, VM launch, normal UI or operational worker body is used, and
+the real root/metadata/registry remain unchanged. Signed loaded-child acceptance,
+approved SSH/owner configuration, actual factory/tools, exact inputs/consents and
+all real guest rows remain TO PROVE/NOT_RUN. The broad real-Ansible targets remain
+skipped. The manager runbook's Private scoped candidate preparation section records
+the current boundary; milestone 6 is not complete and no real run is authorized.
