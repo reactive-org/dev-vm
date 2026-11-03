@@ -1005,3 +1005,166 @@ runner/terminal/input leases, UI/CLI, full restart/reconnect/rebinding, release
 signatures, power-loss/retention UX and all real guest/auth/echo/transport/remote
 cleanup/quiescence/crash/kernel behavior. Fresh manager RPC is not atomic remote
 execution or proof of guest liveness after its reply. Milestone 3 remains incomplete.
+
+## Manager transport-resource admission and private handoff — 3 November 2026
+
+The next milestone-3 continuation admits the manager's original transport resources
+and hands them privately to its helper. This supersedes the pending admission/
+handoff foundation above. Product setup gates stay disabled; the normal helper
+has no process-runner factory and still refuses activation. No VM implementation
+or Python operational workflow is changed.
+
+The shared package adds `ProvisioningTransportReference`, an explicitly private
+metadata format for original connection/executable proofs. It contains the public
+host key and identity-file path/stat proof, never private-key bytes. Import checks
+strict schemas, expected binding/identity/tool paths and original inode/mode/link/
+time/hash/target proofs rather than blessing replacement files. Identity references
+now require one link. Descriptions are redacted; default report/event encoding is
+not added. Export/import do not run a process or authorize execution by themselves.
+The manager's exact base-plus-patch export/engine pin is updated with 83 resulting
+files. Guest resources, parser dependencies and C launcher remain unchanged.
+
+The manager admits only its current running/ready session/profile/root and managed
+SSH port. It verifies public managed manifests/known-hosts metadata, root identity
+and stat-only key reference without calling credential generation or key-reading
+storage validation. It consumes an already checked dependency report, validates
+fixed system entries, Homebrew Ansible pair/version/installation and fingerprints,
+and captures original full tool pins. Dependency identity is derived from that
+selection and must match the reviewed request. Report fingerprints are change
+detectors, not new binary-signing or complete runtime provenance claims.
+
+An ephemeral bounded descriptor binds resources to the original job/VM/session/
+worker/payload/review/checkpoint/plan/engine/mode. Bootstrap 5 binds its SHA/size/
+dependency receipt and inherited fd 6. Only after owned-child admission transfer
+it on the private one-shot channel, with exact framing/hash/EOF. No descriptor file
+is written; no private paths/data enter arguments, environment, control/status/
+terminal frames or the journal. The helper independently checks its host policy
+and original references before acknowledging the resource digest. Fixture policy
+is injected only by excluded test code, never selected by the document or a flag.
+
+Manager and helper recheck current resources before publication/activation and
+command/invocation boundaries. Changed keys/tools/wrappers/installation/public
+metadata require new review, not automatic recapture or cleanup retargeting.
+Schema 7 stores receipts only; legacy risk/pins survive without invented resources.
+Live admission/launch state remains separate, and coordinator reopen never imports
+credentials or replays apply. Product resource acquisition/coordinator wiring,
+operational runner and terminal/input leases remain later consumer work.
+
+**VERIFIED — shared fake/local checks:**
+`make build-provisioning test-provisioning test-provisioning-oracle test-provisioning-planning-oracle ORACLE_PYTHON=/opt/homebrew/opt/ansible/libexec/bin/python`
+passes 70 Swift functions, 18 parser fixtures and 66 complete planning/error oracle
+fixtures. New shared tests round-trip original proofs with an unreadable synthetic
+identity file and reject changed/retargeted/unknown proofs. Python is used only for
+development comparisons; existing PTY tests use the local `/dev/tty` exception.
+
+**VERIFIED — manager fake/local checks:** `make test` passes 328 Swift functions/
+46 suites, 49 script tests and expanded relocated/read-only signed-helper fixtures.
+New coverage includes manager-owned metadata/report admission, private round trip,
+key/tool/alias/installation/metadata/root changes, cross-job/mode/review/format/hash
+damage, acknowledgement refusal, independent policy, migration and no replay.
+Concrete apply/check use fake process runners. A separate sealed/ad-hoc-signed
+Debug helper imports the actual inherited descriptor and uses original resources
+with fake process replies for completion/cancellation; matching exit is reaped.
+The normal helper rejects fixture paths under host policy and gets no fake runner.
+No real credentials/auth UI, host installs, SSH/SCP/SFTP/Ansible, installed-app
+changes or VM operations occur.
+
+**TO PROVE:** genuine resource admission across supported installations, product
+acquisition/coordinator wiring and report provenance/lifetime, operational runner/
+terminal/input/UI/CLI, full restart/reconnect/rebinding, release signing, retention/
+power-loss UX and real guest identity/auth/echo/transport/remote cleanup/quiescence/
+crash/kernel behavior. Stat/hash/RPC checks do not make remote execution atomic or
+prove guest liveness after a reply. Milestone 3 remains incomplete.
+
+## Manager milestone 3 completion — 3 November 2026
+
+**DESIGN DECISION:** manager milestone 3 is complete for fake/local acceptance. Its
+new manager-owned service installs once with product execution disabled; opening it
+admits the pinned package and seeds persisted lifecycle risk before exposing work,
+without probing tools, starting helpers or operating VMs. A strict private workflow
+index complements schema-7 child journals and receipt-bound frozen inputs. Owned
+preparation waits for the exact SSH session, requires review, persists acceptance
+before suspending and deduplicates concurrent/duplicate requests. Original-helper
+exit observation is required even after a clean engine result.
+
+Planned restart requires separate approval and the matching old `.exited` before
+the manager may create the replacement session. Fresh resources, the same VM/owner/
+UID/expected key and a distinct explicit rebind review authorize a new check-only
+job over frozen inputs, excluding custom tasks and password input. Cancellation,
+timeout and `.error` never substitute for exit or silently reapply.
+
+Reopen never resumes activation or imports sources/credentials. Cleanup requires
+current manager-session authority, original resource admission and independent
+stopped-and-fenced proof from the original authenticated helper. A surviving
+launcher can support service/coordinator reopen; a genuinely fresh manager process
+cannot recreate that capability from disk. It retains cleanup-required holds and
+refuses worker/VM adoption and replay. The separate-process debug fixture exercises
+owner exit during fake work, EOF fencing and fresh-process refusal; its marker is
+only a test diagnostic, never a production ownership proof.
+
+Retention preserves private inputs/checkpoints/deliveries and orphan/partial files.
+Count/byte-only reports reveal no private contents or paths. Quotas refuse work
+instead of evicting recovery data; retained rebind trees also have count/entry/byte
+bounds. Manual recovery/retention UX remains later acceptance work.
+
+**VERIFIED — consumer no-VM checks:** `make test` passes 347 Swift test functions in 48 suites, 49 script tests, and relocated/read-only ad-hoc-signed helper fixtures. The final `make test-provisioning-tools` run passes 141 functions in 13 suites after the last cancellation/recovery guard changes. Package/export validation and companion/vendor source/engine matching pass.
+No shared source or export-pin changes were needed for this completion above the
+transport-resource handoff slice. The previously recorded 70 shared Swift, 18 parser
+and 66 planning/error oracle checks remain its evidence. New manager checks cover
+service composition, local runner construction/output with no input grant, SSH and
+restart/rebind lifecycle, concurrency, failures/corruption, retention, surviving-
+capability recovery and full-process lost-capability refusal. No actual SSH/SCP/
+SFTP/Ansible, credential/auth UI, host install, installed-app change or VM operation
+is performed.
+
+**TO PROVE / NEXT:** milestone 4 live terminal/stream/input/resize delivery and
+rendering; milestone 5 Setup UI/CLI; milestone 6 approved real guest authentication,
+restart/check, revocation, remote cleanup/quiescence and crash/sleep/wake behavior;
+milestone 7 release signing/distribution. Product helper execution remains disabled
+without an operational runner factory. Positive remote recovery/adoption after
+full process loss is not established by the safe refusal tests. The Setup screenshot
+remains a later UI target.
+
+### Manager milestone 4 terminal transport — 3 November 2026
+
+The manager consumer now connects the shared memory-only terminal to a dedicated
+inherited, separately authenticated helper stream. Viewers start read-only; one
+explicit owner generation controls input and PTY size. Detach/expiry/channel loss,
+completion/cancel/fence and observed output gaps revoke input. Queued keystrokes
+are discarded on suspension; a new live attachment must deliberately reclaim the
+reviewed scope. Output stays bounded, in memory and separate from structured
+status/results and journals. Eviction requires a visible decoder/emulator reset,
+an explicit jump to the live tail and a fresh claim, never invented old screen
+state. The scoped local TTY helper restores settings after success/error/cooperative
+cancellation; hard process termination is not covered.
+
+The shared package adds reserved-versus-enabled input scope, atomic suspension and
+explicit resumption, plus a read-only tail sequence for the consumer's reset
+contract. Permanent revocation remains final. Transport workspaces normalize their
+own generated paths before local runner admission. Sources, engine inventory,
+manager export and reviewed patch are synchronized; the immutable base revision
+remains unchanged. No guest resources/playbooks or third-party dependencies change.
+
+**VERIFIED:** `make build-provisioning test-provisioning test-provisioning-oracle
+test-provisioning-planning-oracle
+ORACLE_PYTHON=/opt/homebrew/opt/ansible/libexec/bin/python` passes 72 Swift test
+functions, 18 parser oracle fixtures and 66 complete planning/error oracle fixtures.
+Python is an existing development oracle only. The manager's final `make test` passes 362 Swift functions in 49 suites,
+49 script tests and the relocated/read-only/ad-hoc-signed helper fixtures. Package
+export verification, exact comparison of all seven changed source/engine/test
+files and both worktree diff checks pass.
+Local fixtures prove ANSI/carriage-return/split-UTF-8 byte delivery, real local PTY
+prompts/hidden input/resize, view detach/reclaim, expiry, stale capability refusal,
+bounded floods, cancellation, gap/reset handling and TTY restoration. An excluded
+ad-hoc-signed debug helper runs a fixed local printf/sleep feature fixture through
+the admitted frozen/resource/session/engine/terminal path; it never executes the
+original SSH/Ansible command. The shipped helper still has no operational runner
+factory and product execution remains disabled.
+
+**TO PROVE / NEXT:** native emulator/rendering and host-action escape policy,
+Setup UI and external CLI stream endpoint are manager milestone 5. Real nested
+SSH/native guest authentication/echo, resize, revocation, restart/check, remote
+cleanup and crash/sleep/wake acceptance remain approval-gated milestone 6; release
+distribution/signatures remain 7. Full-process loss cannot recreate terminal or
+worker capabilities from disk. No real transports, host installs/downloads, VM or
+user UI operation occurred. The Setup screenshot remains the milestone-5 target.

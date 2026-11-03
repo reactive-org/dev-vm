@@ -92,3 +92,24 @@ records concrete shared-adapter/fenced-runner construction, independent authenti
 manager checks and fake/signed-helper coverage. Shared explicit connection/tool
 verification and fixed-purpose metadata APIs update the engine pin; product resource
 handoff, operational runner/terminal wiring and restart acceptance remain pending.
+
+[Manager transport-resource admission and private handoff](../README.md#manager-transport-resource-admission-and-private-handoff--3-november-2026)
+records managed-SSH/Homebrew admission, original private reference proofs, inherited
+resource delivery and local signed-helper validation. The shared private-reference
+API and link-count proofs update the engine/export pin; product acquisition/wiring,
+operational runner/terminal integration and restart acceptance remain pending.
+
+[Manager milestone 3 completion](../README.md#manager-milestone-3-completion--3-november-2026)
+records manager service composition, strict workflow journaling, SSH wait/review,
+matching-exit restart and explicit new-session check review, authenticated cleanup,
+bounded retention and separate-process lost-owner refusal. Milestone 3 is complete
+for fake/local acceptance; public execution stays disabled. Terminal/input,
+UI/CLI, real guest and distribution acceptance remain milestones 4–7. This consumer
+completion does not change the shared source/export pin from the handoff slice.
+
+[Manager milestone 4 terminal transport](../README.md#manager-milestone-4-terminal-transport--3-november-2026)
+records the separate authenticated stream, explicit input owner, detach/expiry,
+resize, bounded output and visible gap/reset contract, local TTY restoration and
+fake/local acceptance. Shared input scope reservation/suspension and canonical
+workspace paths update the engine/export inventory. Native rendering and public
+app/CLI attach are milestone 5; product execution remains disabled.
