@@ -70,6 +70,8 @@ Every runbook shows both image choices with copy-and-paste commands.
 - [Terminal left 40%, browser right 60%](docs/omarchy-layout-terminal-browser.md)
 - [VS Code left 60%, browser right 40%](docs/omarchy-layout-vscode-browser.md)
 - [Claude, two terminals and a floating browser](docs/omarchy-layout-claude-two-terminals-browser.md)
+- [VS Code, four terminals and Claude across three workspaces](docs/omarchy-layout-multi-workspace.md)
+- [Claude and browser, VS Code, and four terminals across three workspaces](docs/omarchy-layout-claude-browser-code-terminals.md)
 
 Next: [add developer tools](docs/omarchy-features.md) or [choose a theme](docs/omarchy-themes.md).
 

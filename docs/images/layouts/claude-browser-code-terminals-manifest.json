@@ -1,0 +1,61 @@
+{
+  "capture_date": "2026-11-05",
+  "timezone": "Australia/Melbourne",
+  "manager_version": "0.11.0 (27)",
+  "guest_platform": "aarch64",
+  "factory": "lean",
+  "factory_manifest_sha256": "dd76d38cab9343cbd68989cfef5f45a53d3bb2352a53ed05929e06859f4c9dcc",
+  "layout": "omarchy/examples/layouts/claude-browser-code-terminals.lua",
+  "layout_sha256": "f027c09bc8135880755a16dec77cd4112c284308a17e60a54aacb641a38d1690",
+  "preparation": "Four empty Foot windows relaunched with their original app IDs and neutral labeled Bash prompts; native notification banners and VS Code first-run sign-in overlay dismissed. No window positions or sizes changed; no application accounts signed in.",
+  "encoding": {
+    "format": "WebP",
+    "quality": 86,
+    "method": 6,
+    "resampling": "cwebp resize",
+    "crop": false,
+    "metadata": "none"
+  },
+  "images": [
+    {
+      "workspace": 1,
+      "file": "claude-browser-code-terminals-workspace-1.webp",
+      "sha256": "5af5e37791bdbdc7f751d4ed9e2c86beffbfe6a408f531a2c3b5a5df11ec5968",
+      "bytes": 33120,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261105-claude-code/workspace-1.png",
+      "source_sha256": "f3a8249fc6d54b3f69423638b4f79337434649bb530e9b3ade67083d01674817",
+      "source_width": 2080,
+      "source_height": 1170,
+      "display_scale": 1
+    },
+    {
+      "workspace": 2,
+      "file": "claude-browser-code-terminals-workspace-2.webp",
+      "sha256": "01a6cfc4bc9473afe716543ed271a633f6e605335f09b7cd07cab2ea2e592b3c",
+      "bytes": 37328,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261105-claude-code/workspace-2.png",
+      "source_sha256": "a7382c1bddad17eb66bb4acd325fb7ed5da3a82f5b5be010f34c77b7bbaf0398",
+      "source_width": 2080,
+      "source_height": 1170,
+      "display_scale": 1
+    },
+    {
+      "workspace": 3,
+      "file": "claude-browser-code-terminals-workspace-3.webp",
+      "sha256": "b29d296fa2451a4f6b24a080b9868edf74c90c0a24076883008c622411e46179",
+      "bytes": 22816,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261105-claude-code/workspace-3.png",
+      "source_sha256": "0bf6f74d6501625f994f64075771af067fbd36e486d885ab88901940cc6593d5",
+      "source_width": 2080,
+      "source_height": 1170,
+      "display_scale": 1
+    }
+  ],
+  "total_bytes": 93264
+}

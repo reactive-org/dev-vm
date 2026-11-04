@@ -10,15 +10,25 @@ the left (60%) and Chromium on the right (40%).
 The `omarchy/examples/layouts/four-terminals.lua` example arranges four Foot
 windows in an equal 2×2 grid on workspace 1, using a dedicated app ID for each
 corner and the same floating placement rules as the other presets.
+The `omarchy/examples/layouts/multi-workspace.lua` example spans three
+workspaces: VS Code and Chromium on 1, four terminals on 2, and Claude with
+two terminals on 3. Each terminal uses a dedicated app ID, and each window
+rule assigns its destination workspace without switching the current view.
+The `omarchy/examples/layouts/claude-browser-code-terminals.lua` alternative
+places Claude Desktop and Chromium on workspace 1, VS Code alone on 2,
+and four terminals in a 2×2 grid on 3.
 Install the desired applications before selecting a layout.
 
 Choose the official Try image or a BYO custom image path in the same
 bootstrap runbook: [four terminals](omarchy-layout-four-terminals.md),
 [terminal and browser](omarchy-layout-terminal-browser.md),
-[VS Code and browser](omarchy-layout-vscode-browser.md), or
-[Claude, two terminals and browser](omarchy-layout-claude-two-terminals-browser.md).
+[VS Code and browser](omarchy-layout-vscode-browser.md),
+[Claude, two terminals and browser](omarchy-layout-claude-two-terminals-browser.md),
+the [multi-workspace workstation](omarchy-layout-multi-workspace.md), or
+[Claude and browser, VS Code, and four terminals](omarchy-layout-claude-browser-code-terminals.md).
 Bootstrap installs their apps and applies the layout in the selected VM.
-Each layout runbook includes an actual guest screenshot; see the
+The four single-workspace runbooks and the Claude/browser, VS Code and terminals
+runbook include actual guest screenshots; see the
 [capture notes](images/layouts/README.md) for preparation and provenance.
 For your own base image, [build your lean, mean coding image](omarchy-layout-factory.md).
 That optional image build contains no selected apps or app layout.
@@ -137,3 +147,69 @@ renderer and workstation checks, and was gracefully stopped and retained.
 All five pre-existing VM disk trees matched their complete file-stat baseline.
 Repository verification passed 160 tests, the documented Bash/Python checks,
 Ansible syntax, screenshot decoding/metadata checks and documentation links.
+
+## Claude, browser, code and terminals validation — 5 November 2026
+
+The `claude-browser-code-terminals.lua` preset passed live validation in one
+new disposable lean `aarch64` guest using installed VM Manager **0.11.0 (27)**,
+8 CPUs, 20 GiB RAM and a 64 GiB disk. All 24 published factory checksums passed
+before creation. The admitted lean factory manifest was
+`dd76d38cab9343cbd68989cfef5f45a53d3bb2352a53ed05929e06859f4c9dcc`.
+Native Guest Defaults, owner setup and pinned managed SSH were used; shared
+folders, personal-key inheritance and guest Touch ID were disabled for this guest.
+
+Omarchy's native update and app installation ran through the repository controller
+helpers, followed by preference/layout application, native setup-sudo revocation
+and a manager-owned restart. The installed layout matched the tracked source
+hash before and after screenshot preparation. No layout source changes were needed.
+
+All seven windows were floating, with exactly two windows on workspace 1,
+one on workspace 2 and four on workspace 3. Measured logical-pixel geometry at
+native `2080×1170`, scale 1, matched the preset exactly:
+
+| Workspace | Window | Position | Size |
+| --- | --- | --- | --- |
+| 1 | Claude Desktop | `(12,38)` | `1230×1120` |
+| 1 | Chromium | `(1254,38)` | `814×1120` |
+| 2 | VS Code | `(12,38)` | `2056×1120` |
+| 3 | Top-left Foot | `(12,38)` | `1022×554` |
+| 3 | Top-right Foot | `(1046,38)` | `1022×554` |
+| 3 | Bottom-left Foot | `(12,604)` | `1022×554` |
+| 3 | Bottom-right Foot | `(1046,604)` | `1022×554` |
+
+Workspace switching through Hyprland's native Lua dispatch API was checked
+before each capture. The guest reported `Accelerated: yes` and
+`virgl (Apple M5 Max)`, with no software-rendering overrides in the desktop
+processes, no Hyprland configuration errors and zero failed system/user units.
+Foot configuration, the native clipboard channel and host-owned idle/locking
+preferences passed the repository workstation check. The boot ID changed after
+restart; the native sudo grant was inactive and noninteractive sudo required
+authentication again.
+
+Installed app versions were Foot `1.28.0-2`, Chromium `156.0.8078.79-1`,
+VS Code `1.145.0-1` and Claude Desktop `4.16336.0-1`; Omarchy was
+`4.0.0.r7594.g84b3f28-1`. Claude remained at its welcome screen, Chromium at
+a new tab and VS Code at Welcome. No application accounts were signed in.
+
+The [runbook](omarchy-layout-claude-browser-code-terminals.md) includes one
+actual screenshot per workspace. Before capture, empty Foot windows were
+relaunched with their original app IDs and neutral labeled Bash prompts;
+native notification banners and VS Code's first-run sign-in overlay were
+dismissed. No window geometry was adjusted. The complete geometry, renderer,
+service-health and sudo checks passed again after preparation.
+
+All 36 live assertions passed. Repository validation also passed: 239 tests ran
+(238 passed, one host-Lua availability skip), with the documented Bash/Python
+syntax checks, `git diff --check`, screenshot decoding/metadata checks, capture
+hashes and documentation links verified.
+
+Private inventories, logs, JSON checks, geometry and raw PNGs are retained in
+ignored `.artifacts/layout-validation/20261105-claude-code/`. Public capture
+hashes and provenance are in the [screenshot manifest](images/layouts/claude-browser-code-terminals-manifest.json).
+The disposable guest was gracefully stopped and retained. All three existing
+guests retained their inventory settings, stopped state and complete disk-tree
+file-stat baselines; exactly one new guest was created.
+
+This validates the lean factory at the observed display size. The official
+factory, Retina/dynamic-resolution transitions and functional clipboard paste
+were not exercised in this run.
