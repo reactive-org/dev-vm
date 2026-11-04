@@ -1848,3 +1848,26 @@ native inspection, signing, Apple request, SSH/Ansible, install, UI, image or VM
 operation occurs. Shared package source/pins and product approval are unchanged.
 See the manager runbook's Offline inspection adapter section; broad Ansible
 targets remain skipped.
+
+### Concrete offline inspection bindings — 4 November 2026
+
+The manager now provides lazy closed-symbol macOS bindings and an explicitly
+authorized bounded worker factory. Content-only CMS, public certificate/status
+and no-network static checks retain CF ownership/type/size guards. Anonymous
+parent/task pipes bind implementation and fake/native mode; nonblocking streams
+retain live bounds. Root PID ownership remains held through group quiescence,
+including a Darwin waitid binding for system Python. Missing ownership or failed
+cleanup refuses and retains actionable handles. Filter-free Git metadata/raw
+worktree checks avoid executing configured clean filters. Defaults remain denied;
+all new modules enter the implementation digest rather than changing frozen pins.
+
+Thirty-three fake FFI/process tests include a complete synthetic roundtrip through
+the concrete code. The full allowed Python suite has 211 passes/five signing skips
+(216 discovered), only Git/Python programs and no forbidden tool or inspection
+library attempt. All 1,161 private entries and historical reviews remain unchanged.
+No actual API/worker/material/keychain inspection, signing, Apple request,
+SSH/Ansible, install, UI, image or VM operation occurs. Shared package/product code
+is unchanged. Fresh implementation review and separate native approval precede
+real API/ABI, group/wait, scheduling/cleanup/crash and validation evidence. See the
+manager runbook's macOS bindings and bounded launcher section; real-Ansible
+targets remain skipped.
