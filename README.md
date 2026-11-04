@@ -1804,3 +1804,23 @@ SDK/CMS, keychain, signing, credential, Apple, SSH/Ansible, install, app/UI, ima
 VM operation occurs. Shared Swift/package source and pins are unchanged; ordinary
 provisioning remains disabled. See the manager runbook's Named material inspection
 and private staging section. Broad real-Ansible targets remain skipped.
+
+### Bounded native inspection — source review, 4 November 2026
+
+Manager source review traces upstream verification into the bundled daemon's
+exact `check` branch: helper access, local payload hashes and static client CDHash
+validation return before listener/session/start operations. The client's XPC
+check is a different command. No native code was executed to establish this.
+
+A proposed separate offline adapter/request requires explicit
+`kSecCSNoNetworkAccess`, CMS content decoding without signer trust evaluation,
+locked keychain status only and static runtime validation with no daemon launch.
+It preserves frozen runtime bytes and requires a 300-second job/120-second stage
+deadline, live 2 MiB stream caps, bounded inputs and failure kill/reap. Current
+capture-size checks happen after completion and do not bound live disk use.
+The existing caller is not silently promoted to that contract: implementation and
+fake APIs/process checks precede separate native approval. Source/SDK evidence
+and the proposed contract remain private. No verifier/daemon, signature/trust API,
+build/signing, Apple request, SSH/Ansible, install or VM operation occurs; shared
+package source/pins are unchanged. See the manager runbook's Bounded native
+inspection preparation section. Broad real-Ansible tests remain skipped.
