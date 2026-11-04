@@ -2068,3 +2068,28 @@ No real inspection, build, signing, key access, Apple request, SSH/Ansible, inst
 UI or VM operation occurs. Commit before considering a separately approved new
 attempt; real compiler/signing/candidate and guest behavior remain unproven.
 See the manager runbook's Frozen helper and safe failure diagnostics section.
+
+### Fresh candidate compiled; resource assembly refused — 5 November 2026
+
+The user approves the exact fresh manager `31f0bd7` / companion `3a7285b` private
+candidate run with selected key, secure UI and Apple timestamps. The 28 reviewed
+files and implementation digest match at preflight. Frozen-helper preparation,
+23 runtime static checks, certificate/dependency validation, release compilation
+and binary/scope-marker checks pass. Twelve commands and thirty native workers
+succeed. Assembly stops at 447.472 seconds with `input-inventory-changed`: fresh
+provisioning bundle payload equals the frozen reference, whose four inherited
+signature records are absent from build output. Core resources match. Retained
+files establish the mismatch; no command failed and no frozen input is rewritten.
+
+All 42 owned roots/workers have confirmed cleanup and are absent from a bounded
+recorded-PID snapshot. All 4,002 prior artifact entries/pins remain unchanged;
+credential content is unopened, external keychain admission is metadata-only and
+lock state is unqueried. Partial assembly and build outputs remain private. No
+signing/key/UI/timestamp stage, success receipt or signed archive is reached. No
+notarization, SSH/Ansible, install, app/runtime execution or VM operation occurs;
+product/shared code and approval stay unchanged. Concurrent unrelated manager CLI
+edits are preserved. The request is consumed without retry/approval transfer.
+Next combine compiled-vs-frozen resource/signature fixtures, narrow assembly/final
+seal validation and a fresh review, keeping generic inventories and pins intact.
+Real signing/candidate/guest proof remains unestablished. See the manager runbook's
+Fresh candidate attempt section.
