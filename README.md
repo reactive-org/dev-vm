@@ -1824,3 +1824,27 @@ and the proposed contract remain private. No verifier/daemon, signature/trust AP
 build/signing, Apple request, SSH/Ansible, install or VM operation occurs; shared
 package source/pins are unchanged. See the manager runbook's Bounded native
 inspection preparation section. Broad real-Ansible tests remain skipped.
+
+### Offline inspection adapter — fake APIs/workers, 4 November 2026
+
+The manager implements a distinct typed one-shot offline review/authorization
+domain with default denial before IO. It binds source/scope/selection, public
+certificate, implementation, entitlement sources and output. Injected API policy
+guards CMS before native decoding, requires locked status, releases references
+and performs static validation with explicit no-network flags and exact signing
+policy. No runtime/daemon is executed and fake receipts grant no signing/guest
+authority. The injected supervisor monitors 300-second whole-job/120-second
+worker budgets and live 2 MiB stream caps, with group kill/reap/close and refusal
+on descendants, unconfirmed cleanup, mutation or replay.
+
+Thirty-two new manager fake tests pass; the full allowed Python suite has 178
+passes/five signing skips (183 discovered). Only local Git/Python processes are
+observed, with no forbidden-tool attempt. All 1,161 retained private entries and
+pins remain unchanged. No real native API binding/factory/activation CLI is
+supplied: concrete bindings and fake FFI/process checks precede separate native
+approval. Virtual tests do not establish native process/IO behavior; parent
+filesystem reads are checked at budget boundaries. No actual materials/keychain,
+native inspection, signing, Apple request, SSH/Ansible, install, UI, image or VM
+operation occurs. Shared package source/pins and product approval are unchanged.
+See the manager runbook's Offline inspection adapter section; broad Ansible
+targets remain skipped.
