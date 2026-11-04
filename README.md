@@ -1939,3 +1939,22 @@ cleanup evidence and typed certificate dates in one fake-only change with fresh
 review. No source/product approval changes, signing, private-key access, Apple
 requests, SSH/Ansible, installs, UI or VM operations occur. See the manager
 runbook's Corrected native inspection result section.
+
+### Inspection diagnostics, cleanup evidence and typed dates — 5 November 2026
+
+The manager implements closed mode-proven worker failure code/phase records,
+private per-worker exit/categorized cleanup and held-handle evidence, and retained
+macOS 15 typed certificate date getters with strict validation/releases. Cleanup
+errors stay latched false despite later successful fallback; observed quiet roots
+are reaped without redundant signals. Live/unproven groups retain kill/reap.
+Twelve new fake FFI/process tests pass; the full allowed Python suite has 223
+passes/five signing skips (228 discovered), only local Git/Python processes and no
+native-library attempt. A fresh private review binds the exact uncommitted 14-file
+implementation, 17-file source/test snapshot/base patch, corrected guard and new
+request/output. All 1,191 old artifact entries, frozen pins and failed receipts are
+unchanged; credential content stays unopened and external material/lock evidence
+remains historical. Fresh output is absent, all new approvals false and no real
+inspection/authority is activated. Prior native causes and actual new behavior
+remain unproven. No shared/product code or approval change, signing, private-key
+access, Apple request, SSH/Ansible, install, UI or VM operation occurs. See the
+manager runbook's Diagnostic and date hardening section.
