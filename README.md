@@ -1920,3 +1920,22 @@ No inspection, signing, private-key access, Apple requests, SSH/Ansible, install
 UI or VM operations occur; product/shared source and ordinary approval remain
 unchanged. See the manager runbook's Corrected fresh private inspection review
 section.
+
+### Corrected native inspection partial result — 5 November 2026
+
+The approved corrected manager review runs once with exact `ddf5451` code/guard
+bindings. Both dependency checks, locked keychain status, profile content/policy
+and public-certificate membership pass. The fifth worker fails at public-
+certificate parsing after about 12 seconds; the generic worker error does not
+establish its native cause. Runtime signatures and final checks are not reached.
+The runner retains cleanup=false with zero unresolved factory handles. A bounded
+exact-parent/worker snapshot observes no survivors; the snapshot's initial sandbox
+denial is resolved for cleanup only, without retrying inspection. That observation
+does not override the failed cleanup receipt. All 1,182 old artifact entries and
+frozen pins remain unchanged; retained credential content stays unopened and new
+staged public files/failure evidence remain private. Five fake cases reproduce
+possible type/cleanup failures only. Next, combine fixed diagnostics, per-handle
+cleanup evidence and typed certificate dates in one fake-only change with fresh
+review. No source/product approval changes, signing, private-key access, Apple
+requests, SSH/Ansible, installs, UI or VM operations occur. See the manager
+runbook's Corrected native inspection result section.
