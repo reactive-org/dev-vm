@@ -1887,3 +1887,36 @@ requests, SSH/Ansible, installs, UI, VM-root observation or VM operations occur.
 Separate exact-packet approval precedes execution-time revalidation and bounded
 native work. Product/shared code is unchanged and ordinary approval remains nil.
 See the manager runbook's Fresh private inspection review for ddf5451 section.
+
+### Approved inspection pre-native stop — 5 November 2026
+
+The user approved the exact manager `ddf5451` read-only review. An additional
+one-off composition audit guard incorrectly denied Python's `/dev/null` `O_RDWR`
+open for disabled Git stdin, before any subprocess, worker, native authority/caller,
+API or external material access. The inspection output is absent; no profile,
+keychain or signature result is claimed. Review checksums and noncredential
+artifact bytes/modes/links match; all 1,161 old entries remain present. Retained
+credential-named content stays unopened, without a fresh content claim. Pins and
+product/shared source remain unchanged. Ten fake audit-event cases validate an
+unused narrow guard correction. The attempt is consumed without retry; corrected
+fresh review and separate approval precede another attempt. No signing,
+private-key access, Apple requests, SSH/Ansible, installs, UI or VM operations
+occur. See the manager runbook's Approved inspection attempt stopped before native
+work section.
+
+### Corrected fresh private inspection review — 5 November 2026
+
+The manager prepares a distinct private request/output binding the unchanged
+`ddf5451` implementation and frozen inputs to exact corrected guard/review hashes.
+Only a literal `/dev/null` `O_RDWR` open with optional `O_CLOEXEC` is newly allowed.
+Twenty-two fake audit/helper cases pass. No guard, authority, caller, worker or
+native API is activated. Fourteen committed files, pure input admission, dependency
+HEADs and entitlement hashes match; full source cleanliness is deferred. All 1,170
+existing artifact entries, original review, failure evidence and consumed marker
+remain unchanged. Credential-named content stays unopened; external material and
+lock observations remain historical. Both outputs are absent, all new approvals
+false, and separate approval must name the fresh review and corrected guard.
+No inspection, signing, private-key access, Apple requests, SSH/Ansible, installs,
+UI or VM operations occur; product/shared source and ordinary approval remain
+unchanged. See the manager runbook's Corrected fresh private inspection review
+section.
