@@ -53,7 +53,7 @@ workstation_window(
 local stacked_size = { "(monitor_w*0.40-18)", "(monitor_h*0.50-31)" }
 terminal("ws3-top", "Workspace 3: top", 3, stacked_size, { 12, 38 })
 terminal("ws3-bottom", "Workspace 3: bottom", 3, stacked_size,
-  { 12, "(monitor_h*0.50+6)" })
+  { 12, "(monitor_h*0.50+19)" })
 
 o.exec_on_start(o.launch_sole(vscode_class, "code --new-window"))
 o.exec_on_start(o.launch_sole(

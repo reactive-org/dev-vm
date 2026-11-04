@@ -1,0 +1,76 @@
+{
+  "capture_date": "2026-11-05",
+  "timezone": "Australia/Melbourne",
+  "manager_version": "0.11.0 (27)",
+  "guest_platform": "aarch64",
+  "factory": "lean",
+  "factory_manifest_sha256": "dd76d38cab9343cbd68989cfef5f45a53d3bb2352a53ed05929e06859f4c9dcc",
+  "layout": "omarchy/examples/layouts/small-screen.lua",
+  "layout_sha256": "56ba737ffd8d05bbe92717544fc8a5e0da119c58592c7304ca6787fd7be80620",
+  "logical_width": 1794,
+  "logical_height": 1089,
+  "preparation": "Native VM window resized to a laptop-sized viewport; all five app windows reopened so the saved placement rules apply at that mode. Two empty Foot windows then relaunched with their original app IDs and neutral labeled Bash prompts; native notification banners and VS Code first-run sign-in overlay dismissed. No window positions or sizes manually adjusted; no application accounts signed in.",
+  "encoding": {
+    "format": "WebP",
+    "quality": 86,
+    "method": 6,
+    "resampling": "cwebp resize to logical display dimensions",
+    "crop": false,
+    "metadata": "none"
+  },
+  "images": [
+    {
+      "workspace": 1,
+      "file": "small-screen-1.webp",
+      "sha256": "3bbd9b865024d85a28ae28cc2ac6b15e703e1ca7d9f764778821aea26fa7c791",
+      "bytes": 22746,
+      "width": 1794,
+      "height": 1089,
+      "source": ".artifacts/layout-validation/20261105-small-screen/workspace-1.png",
+      "source_sha256": "46e081841b96aa057ae3b994468dca18f84dd17c9b216563dab96444f785a0f9",
+      "source_width": 3588,
+      "source_height": 2178,
+      "display_scale": 2
+    },
+    {
+      "workspace": 2,
+      "file": "small-screen-2.webp",
+      "sha256": "f28285041995e15809967eeba559c5b129bfd5deb8d089e11dc5d5aa47506ff5",
+      "bytes": 34914,
+      "width": 1794,
+      "height": 1089,
+      "source": ".artifacts/layout-validation/20261105-small-screen/workspace-2.png",
+      "source_sha256": "7a3713b29b952bdb916d8cc157386e086546bf2a34d792cb6ff736f1232939a4",
+      "source_width": 3588,
+      "source_height": 2178,
+      "display_scale": 2
+    },
+    {
+      "workspace": 3,
+      "file": "small-screen-3.webp",
+      "sha256": "453ea6797b0b671d0c9e60108f8b2ecdc050e28d2d97e71f4e006cae53707a35",
+      "bytes": 27410,
+      "width": 1794,
+      "height": 1089,
+      "source": ".artifacts/layout-validation/20261105-small-screen/workspace-3.png",
+      "source_sha256": "e65d921517a41d21c8060279f73781fe9f9530558804e78b3b18f79d6cb5b334",
+      "source_width": 3588,
+      "source_height": 2178,
+      "display_scale": 2
+    },
+    {
+      "workspace": 4,
+      "file": "small-screen-4.webp",
+      "sha256": "5ed042d7fe08baf35b4b9a81531c9113adaea9c568749a2f9a2854a750a959a8",
+      "bytes": 20500,
+      "width": 1794,
+      "height": 1089,
+      "source": ".artifacts/layout-validation/20261105-small-screen/workspace-4.png",
+      "source_sha256": "a46f98321158ac38bd68359a88cd35270fe515ca85cfaca843ba27f288fd35c8",
+      "source_width": 3588,
+      "source_height": 2178,
+      "display_scale": 2
+    }
+  ],
+  "total_bytes": 105570
+}

@@ -17,6 +17,7 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 - [Claude, terminals and browser](omarchy-layout-claude-two-terminals-browser.md)
 - [Multi-workspace workstation](omarchy-layout-multi-workspace.md)
 - [Claude and browser, VS Code, and four terminals](omarchy-layout-claude-browser-code-terminals.md)
+- [Small-screen workstation across four workspaces](omarchy-layout-small-screen.md)
 
 ## Reference
 

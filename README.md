@@ -72,6 +72,7 @@ Every runbook shows both image choices with copy-and-paste commands.
 - [Claude, two terminals and a floating browser](docs/omarchy-layout-claude-two-terminals-browser.md)
 - [VS Code, four terminals and Claude across three workspaces](docs/omarchy-layout-multi-workspace.md)
 - [Claude and browser, VS Code, and four terminals across three workspaces](docs/omarchy-layout-claude-browser-code-terminals.md)
+- [Small screen: Claude, Chromium, VS Code, and two terminals across four workspaces](docs/omarchy-layout-small-screen.md)
 
 Next: [add developer tools](docs/omarchy-features.md) or [choose a theme](docs/omarchy-themes.md).
 
