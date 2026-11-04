@@ -1998,3 +1998,27 @@ install, UI or VM operation occurs. Next combine signing admission/runner/
 inspection hardening, fake tests and fresh review. Product/shared source and
 approval remain unchanged. See the manager runbook's Signed-candidate review
 after offline inspection section.
+
+### Receipt-bound candidate path — 5 November 2026
+
+Manager tooling implements one-shot receipt/current-code/material/output admission,
+bounded supervision and replacement of legacy profile/daemon/app verification.
+Older real dispatch is disabled. The new route uses no-network capability workers
+for exact signing identity/entitlements/timestamp/CDHash/public-leaf policy, with
+original source/scope/runtime and child-sign/seal/outer-sign/roundtrip checks.
+Shared 2,400-second budget, 1,200-second build / 120-second other stages and live
+2 MiB streams retain owned group/reap/descriptor evidence and unresolved holds.
+Exact command policy rejects original-checkout and arbitrary program/flag changes.
+Parent IO remains budget-checked at callbacks. Twenty new fake tests pass; full
+suite 243 passes/five signing skips (248 discovered), only Git/Python and no native
+library attempt. Fresh private review binds an uncommitted sixteen-file code and
+24-file source/test/Makefile snapshot. All 1,251 original artifact entries, pins
+and receipts/reviews are preserved, including interim preparation evidence.
+Credential content stays unopened; original signing materials/keychain are not
+refreshed. Build/inspect/key-use/necessary secure-UI/Apple-timestamp effects remain
+ungranted; operator keychain preparation/relock may be needed and no automatic
+unlock/ACL change is added. Output absent; no real authority/inspection/signing,
+private-key access, Apple request, SSH/Ansible, install, UI or VM operation occurs.
+Real signing/native behavior and later original-Mac/loaded-child/notarization/
+guest acceptance remain unproven; product/shared code and approval stay unchanged.
+See the manager runbook's Receipt-bound signing path section.
