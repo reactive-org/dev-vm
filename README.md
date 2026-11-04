@@ -1978,3 +1978,23 @@ remain unestablished; earlier failure causes remain unknown. No signing,
 private-key access, Apple request, SSH/Ansible, install, UI or VM operation occurs.
 Milestone 6 remains incomplete and signing/guest actions need separate approval.
 See the manager runbook's Native offline inspection passed section.
+
+### Signed-candidate review prepared — 5 November 2026
+
+After native-result doc commits `740fd81` / `7d8d907`, the manager prepares a
+private review binding the passed offline inspection, matching staged public
+material, frozen source/scope/runtime, current tooling and absent app/ZIP output.
+It is not executable: receipt/implementation/output-bound signing admission,
+live-cap/shared-budget/owned-cleanup supervision and replacement or separate
+review of legacy profile/daemon verification remain. Key availability is unqueried;
+selected-key/secure-UI and Apple timestamp approvals are ungranted. Touch ID is
+preferred only if already supported, without inferred ACL/permission changes.
+Notarization, original-Mac/loaded-child and guest acceptance stay separate. All
+1,239 old artifact entries and pins remain unchanged, retained credential content
+stays unopened and original signing materials/keychain are not reopened or stat-
+checked. No authority, caller, runner, signer or output is activated; no native
+inspection, build, signing, private-key access, Apple request, SSH/Ansible,
+install, UI or VM operation occurs. Next combine signing admission/runner/
+inspection hardening, fake tests and fresh review. Product/shared source and
+approval remain unchanged. See the manager runbook's Signed-candidate review
+after offline inspection section.
