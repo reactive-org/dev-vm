@@ -2022,3 +2022,23 @@ private-key access, Apple request, SSH/Ansible, install, UI or VM operation occu
 Real signing/native behavior and later original-Mac/loaded-child/notarization/
 guest acceptance remain unproven; product/shared code and approval stay unchanged.
 See the manager runbook's Receipt-bound signing path section.
+
+### First reviewed candidate attempt stopped — 5 November 2026
+
+The user approves the exact committed manager `27c672f` / companion `92593c9`
+candidate run with selected-key/secure-UI/Apple-timestamp effects. Source/receipt/
+material and snapshot bindings pass, as do certificate, overlay and pinned local
+dependency checks. Frozen provisioning-source preparation exits 1 after 125.283
+seconds, before compilation, runtime validation, app/archive assembly or signing.
+No key, secure UI or timestamp request is reached. The exact cause is unknown;
+only exit/stream counts are retained. Read-only source/mode/patch/syntax checks
+pass without replay. All nine command roots and three validation workers reap
+after group quietness with closed descriptors, no pending handles and no recorded
+PID survivors in a bounded snapshot. All 1,279 old artifact entries and pins stay
+unchanged; credential content is unopened and keychain state is not refreshed or
+changed. The consumed request is not retried or transferred. Next combine actual
+frozen-helper fake/local-fixture coverage, fixed bounded failure diagnostics and
+fresh review. Real signing/candidate and later original-Mac/loaded-child/guest
+proof remain unestablished. No notarization, SSH/Ansible, installs, app/runtime
+execution or VM operations occur; product/shared code and approval stay unchanged.
+See the manager runbook's First reviewed candidate attempt section.
