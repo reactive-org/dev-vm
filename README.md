@@ -1871,3 +1871,19 @@ is unchanged. Fresh implementation review and separate native approval precede
 real API/ABI, group/wait, scheduling/cleanup/crash and validation evidence. See the
 manager runbook's macOS bindings and bounded launcher section; real-Ansible
 targets remain skipped.
+
+### Fresh private review for ddf5451 — 4 November 2026
+
+The manager prepares a new ignored 0700/0600 inspection review binding committed
+tooling and 14-file implementation, existing source/scope/selection/runtime,
+public leaf/entitlement hashes and an uncreated output. No approval, authorization,
+worker/factory or native API is activated. Historical records/pins stay unchanged.
+Stored fake/source evidence, dependency HEADs and entitlement hashes match;
+external material/keychain state and full source cleanliness are not refreshed.
+All 1,161 previous artifact entries stay in place. A credential-named retained
+artifact remains unopened with prior digest/stable metadata, not a new content
+validation. Exact values stay private. No tests, real inspection, signing, Apple
+requests, SSH/Ansible, installs, UI, VM-root observation or VM operations occur.
+Separate exact-packet approval precedes execution-time revalidation and bounded
+native work. Product/shared code is unchanged and ordinary approval remains nil.
+See the manager runbook's Fresh private inspection review for ddf5451 section.
