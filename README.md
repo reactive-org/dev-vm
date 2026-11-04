@@ -1958,3 +1958,23 @@ inspection/authority is activated. Prior native causes and actual new behavior
 remain unproven. No shared/product code or approval change, signing, private-key
 access, Apple request, SSH/Ansible, install, UI or VM operation occurs. See the
 manager runbook's Diagnostic and date hardening section.
+
+### Native offline inspection passed — 5 November 2026
+
+Manager `df8b75e` / companion docs `a8a8ba4` commit the reviewed change. The approved
+fresh inspection matches all 17 source/test snapshot files to committed/current
+bytes and completes in 64.18 seconds: before/after source and locked-keychain
+checks, profile/public-leaf policy, certificate name/dates and all 23 static code
+checks pass. The offline-only receipt uses explicit no-network validation and
+executes no runtime code. All 31 workers are reaped after group quietness with
+closed descriptors and no diagnostics/cleanup errors or unresolved handles; a
+bounded snapshot of their recorded PIDs finds no survivors. All 1,204 previous
+artifact entries, pins, reviews and failed receipts stay unchanged. Credential
+content remains unopened; private evidence records the new commit without
+rewriting the preparation-time review. Product/shared code and approval remain
+unchanged. Private-key availability, CMS signer authenticity, standalone
+certificate trust, revocation/notarization, daemon/loaded-child and guest proof
+remain unestablished; earlier failure causes remain unknown. No signing,
+private-key access, Apple request, SSH/Ansible, install, UI or VM operation occurs.
+Milestone 6 remains incomplete and signing/guest actions need separate approval.
+See the manager runbook's Native offline inspection passed section.
