@@ -2042,3 +2042,29 @@ fresh review. Real signing/candidate and later original-Mac/loaded-child/guest
 proof remain unestablished. No notarization, SSH/Ansible, installs, app/runtime
 execution or VM operations occur; product/shared code and approval stay unchanged.
 See the manager runbook's First reviewed candidate attempt section.
+
+### Frozen-helper fixtures and safe diagnostics — 5 November 2026
+
+Prior failed-run docs are committed as manager `d3d70ab` / companion `09b396b`.
+The manager now tests the exact retained frozen helper with unchanged public
+package inputs. Local Git/Python fixtures reproduce a patch-base mismatch beneath
+an ignored nested checkout; an exact private-output Git discovery ceiling fixes
+that case without changing pins. The historical error's exact cause stays unknown
+because its raw stderr was not retained. This is fixture evidence, not a retry.
+
+Failed quiet command roots drain bounded pipes to EOF before fixed phase/code
+classification. No raw stderr/path/exception/output hash persists; partial/capped
+streams remain incomplete and cleanup retention is unchanged. Thirteen new cases;
+full audited manager Python suite: 256 passes, five signing/PKCS12 skips, Git/Python
+child programs only and no native-library attempts. Companion/shared Swift code
+and pins are unchanged, so no Ansible-bearing companion workflow is run.
+
+A fresh private review binds seventeen implementation files and an exact 28-file
+uncommitted snapshot against manager `d3d70ab`, an independent historical offline
+receipt and unchanged frozen pins. All execution effects remain NOT_GRANTED and
+new output absent. All 3,987 earlier artifact entries and failed outputs remain
+intact; retained credential content is unopened and external keychain unqueried.
+No real inspection, build, signing, key access, Apple request, SSH/Ansible, install,
+UI or VM operation occurs. Commit before considering a separately approved new
+attempt; real compiler/signing/candidate and guest behavior remain unproven.
+See the manager runbook's Frozen helper and safe failure diagnostics section.
