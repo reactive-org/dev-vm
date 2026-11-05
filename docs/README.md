@@ -50,6 +50,10 @@ records the `c30f213` integration, offline/fake test results and exclusions, and
 preservation of private artifacts and manager pins. It does not refresh the
 manager package or establish real guest/signing acceptance.
 
+[Fresh manager 007bc66 private review](../README.md#fresh-manager-007bc66-private-review-prepared--5-november-2026)
+records the new source/runtime bindings, unchanged disposable scope and offline/
+fake preparation. Native inspection and all execution effects remain unapproved.
+
 [Shared Swift provisioning](../README.md#swift-provisioning-foundation) provides offline manifest validation, profile resolution and source-snapshotted planning; the Python operational commands remain unchanged.
 
 [Transport/authorization contracts](../README.md#transport-and-authorization-sequencing-fake-adapters-only) add a shared sequencer tested solely with in-memory guest adapters; the concrete command adapter continuation below adds process specifications without enabling operational Swift commands.

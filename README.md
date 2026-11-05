@@ -2366,3 +2366,27 @@ or expanded Swift layout catalogue requires a separate change.
 No signing, key access, native inspection, Apple request, real SSH/Ansible, install,
 container/image build, normal app/runtime action or VM launch occurs. This record
 establishes offline/fake validation only, not guest or signed-candidate acceptance.
+
+### Fresh manager 007bc66 private review prepared — 5 November 2026
+
+The manager pins this branch's merged `5770d0f` export in `007bc66`, then prepares
+a fresh private candidate review with the unchanged matching local signed runtime.
+The original Stable disposable scope JSON, preparation receipt and Swift definition
+are copied verbatim; no UUID/root is observed or pin recaptured. Historical signed/
+failed outputs, reviews, consumed plans and frozen pins remain unchanged.
+
+Source-only admission, independent six-file private-overlay reconstruction and all
+25 actual-packet positive/refusal checks pass, as do 170 fake API/process tests.
+The owner-only packet seals 173 files and binds 32 committed manager tooling files,
+seventeen engine files, operator, corrected guard and staged public materials.
+Source/request/implementation bindings are fresh; old or relabeled native receipts
+cannot transfer. All 23,951 prior private entries and four manager pin files remain
+unchanged. Shared package sources/resources and pins are unchanged by this review.
+
+Native inspection is prepared, not run; keychain metadata/state and key availability
+are unqueried. All effects remain NOT_GRANTED. No authority, inspection output,
+signing operator plan, candidate build/output, signing, key access, Apple request,
+real SSH/Ansible, install, normal app/runtime action or VM launch occurs. A fresh
+successful exact-input inspection receipt is required before an attended signing
+plan can be prepared. See the manager runbook's Fresh private candidate review for
+007bc66 section. Private packets, raw materials, paths and pins stay out of Git.
