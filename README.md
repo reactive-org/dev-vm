@@ -2480,3 +2480,41 @@ checks pass and same-team signing admission correctly refuses the ad-hoc build.
 Real identity authorization and the actual guest apply remain pending. No shared
 package/resource/pin, historical frozen artifact, Main or guest is changed by this
 preparation; private scope and review material stay outside Git.
+
+
+### Disposable Dev saved-setup acceptance — 6 November 2026
+
+With explicit approval for attended signing and one private disposable Dev root,
+the manager's corrected candidate completes the saved Developer selection.
+Ansible multiplexing must be disabled in the high-priority `ansible_ssh_args`
+connection variable as well as `ansible.cfg`: include `ControlPath=none` alongside
+`ControlMaster=no` and `ControlPersist=no`. Otherwise the plugin still generates
+a Unix socket path which can exceed macOS's limit. Code revision `6397eea` and
+its engine inventory are pinned by the manager. The effective-variable regression
+and a real Ansible plugin/fake-SSH probe with long HOME/TMP paths pass. All 86
+Swift tests and 239 Python/local tests pass (one skip); local PTY/RPC fixtures
+need resources the tool sandbox can deny. No host tools are installed.
+
+The fresh review preserves the exact saved input bytes/effects while acknowledging
+the changed engine. Manager IPC uses bounded preparation leases, initial live
+terminal attachment waits for an admitted job, and CLI `--from` can select a safe
+relative `--manifest`. The ordinary execution gate and same-team helper policy
+remain unchanged; only a private candidate embeds the approved disposable root.
+Historical frozen receipts/pins and all prior artifacts remain intact.
+
+The real scoped apply reports success with verified cleanup: selected packages,
+provenance and byte-identical four-terminal layout are observed; admin access is
+inactive and the job payload absent. Normal restart shows all four selected
+terminal classes on workspace 1 in distinct positions. Normal shutdown then
+leaves no active session, runtime children or open test-disk handles. Main's
+nineteen persistent process identities and four baseline hashes match; two
+transient shell processes expired. Private signed app/ZIP inventories, package
+seals and deep signatures pass. The app remains open and the disposable root is
+retained for user testing. No Main/other-guest command, host install, Docker
+membership, custom task, removal, publication or notarization occurs. Private
+selectors, receipts, review packets and binaries stay outside Git.
+
+This proves one existing approved disposable Dev VM's saved-setup application,
+not a fresh creation/factory matrix or unrestricted execution. Other option,
+authentication and lifecycle acceptance remains bounded by the manager runbook;
+live-terminal wrapping/completed-state messaging still needs polish.
