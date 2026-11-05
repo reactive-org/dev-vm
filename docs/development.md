@@ -79,9 +79,9 @@ and performs no factory download/build, signing or VM operation. Repository and
 pinned source-dependency checkout remain normal hosted CI inputs.
 
 The ordinary Ansible installation/legacy validation job is skipped for this
-branch. That broader validation remains separately scoped. The manager's shared
-source pin stays at `df5e2c8`; this publication follow-up changes only workflow and
-documentation, with no exported package source/resource changes.
+branch. That broader validation remains separately scoped. The initial publication kept the manager's source pin at `df5e2c8`. The later
+shared resource-lookup fix advances only the active public package source pin;
+private candidate pins and archived resource bytes stay frozen.
 
 The first hosted factory run refused regenerated resource bytes under its newer
 Python toolchain. The read-only oracle check now compares the canonical
@@ -91,3 +91,9 @@ It never recompresses or rewrites a check input. Three local tests verify no-wri
 behavior, refusal of changed archive contents, and refusal of an equivalent gzip
 re-encoding without matching recipe/pin changes. Existing resources and all source
 pins remain unchanged; the fresh hosted result is reported separately.
+
+The next hosted pass reached the Swift suite, then failed factory resource lookup
+because resourceURL already included a Resources component. Named bundle lookup
+now handles both supported SwiftPM layouts and still rejects missing or damaged
+pinned resources. The local shared suite passes 93 tests. The updated hosted
+result is recorded separately; real factory/guest acceptance stays TO PROVE.
