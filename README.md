@@ -2184,3 +2184,26 @@ access, Apple request, SSH/Ansible, install, UI/app/runtime/VM operation, source
 product approval change or scope recapture occurs. The plan remains consumed;
 a new attended attempt needs a distinct plan and fresh approval. No retry/new plan
 is prepared here. See the manager runbook's Read-only signing readiness diagnosis.
+
+### Attended private signing passed — 5 November 2026
+
+The fresh attended plan after manager `b72eadf` / companion `90e2459` succeeds via
+maintained CLI real-terminal exact-plan confirmation, durable consumption and its
+default bounded backend. The 32 committed files and frozen bindings match. All
+seventeen commands and 46 native workers pass in 926.436 seconds. Four child/outer
+selected-key signatures with Apple timestamps pass offline staged and extracted
+checks for exact public leaf, IDs/team, hardened flags, entitlements and timestamps;
+all six code identities, full app tree, post-child-sign seal and 45 resource files
+survive archive roundtrip. The private ZIP is 172,869,773 bytes with matching receipt
+digest; all 49 frozen reference files remain unchanged.
+
+All 63 roots/workers have quiet groups/reap/closed descriptors/no pending handles
+and are absent in a bounded recorded-PID snapshot. All 13,570 old artifact entries/
+pins, failed output, consumed plans and audits are preserved. No export/import/
+enumeration, orchestrator unlock/relock/ACL/search-list change, scope recapture or
+product/shared approval change. The plan stays consumed without retry. No new
+notarization, publishing, SSH/Ansible, install or app/daemon/runtime/VM execution.
+UI method/prompt count and post-run lock state are not captured. Result is signed/
+offline-static only: original-Mac scope, loaded-child and guest acceptance remain
+TO PROVE under separate reviewed consent. See the manager runbook's Attended
+private signing passed section.
