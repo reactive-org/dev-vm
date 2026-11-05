@@ -2233,3 +2233,30 @@ for a new attended signing plan. No signing, key access, Apple request, SSH/Ansi
 install, normal app/UI/runtime action or VM launch occurs. See the manager runbook's
 Fresh private candidate review for 4a0f30a section. Private packets/paths/pins remain
 out of both repositories.
+
+### Fresh 4a0f30a native inspection passed — 5 November 2026
+
+Preparation docs are committed as manager `e04f20a` / companion `f51fc47`. The user
+approves the exact fresh merged-source review's bounded read-only native inspection.
+Its 173 sealed files, 32 committed tooling files, seventeen-file engine and corrected
+guard/composition match. The exact in-memory inspection-only authority consumes
+the request once; old approvals/receipts are not replayed.
+
+All 31 workers pass in 77.816 seconds: pinned dependency/source checks, interaction-
+disabled locked-before/after named-keychain status with unchanged metadata, public
+profile policy/leaf membership/certificate identity/typed dates, and 23 no-network
+static checks over 22 runtime Mach-O files plus the bundle. All owned groups are
+quiet, roots reaped and descriptors closed; no unresolved handles and no recorded
+roots remain in a bounded PID-only snapshot. All 18,881 old private entries, sealed
+review/pins, prior successful/failed outputs and consumed plans remain unchanged.
+Source admission and 173 sealed review hashes independently revalidate. The original
+Stable disposable scope, product approval and shared package/code/pins are unchanged.
+
+Result is OFFLINE_STATIC_INSPECTION_ONLY. CMS signer authenticity, certificate trust,
+online revocation/fresh notarization, private-key availability, original-Mac scope,
+loaded-child and guest acceptance remain unproven. The request stays consumed with
+no retry. A fresh attended signing plan may now be prepared from this new receipt;
+actual build/sign/key/secure UI/timestamps need separate approval. No signing plan
+or candidate build, signing, private-key access, Apple request, SSH/Ansible, install,
+UI/app/runtime or VM action occurs. See the manager runbook's Fresh 4a0f30a native
+inspection passed section. Raw evidence and pins remain private.
