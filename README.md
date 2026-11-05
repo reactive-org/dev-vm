@@ -2468,3 +2468,15 @@ Existing profiles and credential authorization are unchanged. Synthetic/local
 coverage passes 75 core tests and 130 offscreen UI checks/27 screenshots; no real
 Keychain, SSH/Ansible or VM is used. Shared package sources/resources and frozen
 pins remain unchanged; real first boot of the revised flow remains TO PROVE.
+
+### Disposable Dev execution preparation — 5 November 2026
+
+The manager fixes setup CLI routing and restores a saved New VM preview after
+restart only from retained private inputs matching the profile's plan/input/engine
+receipts. It restores no consent or execution authority. Seventy-one fake/local
+core tests and 130 offscreen UI checks pass. A separate private Dev candidate binds
+one explicitly approved disposable root in manager/helper; exact read-only scope
+checks pass and same-team signing admission correctly refuses the ad-hoc build.
+Real identity authorization and the actual guest apply remain pending. No shared
+package/resource/pin, historical frozen artifact, Main or guest is changed by this
+preparation; private scope and review material stay outside Git.
