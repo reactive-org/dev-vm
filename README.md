@@ -2522,3 +2522,16 @@ ordering, cleanup priority, finished-state text and pipe-LF/split-CRLF display.
 A separately signed UI-only Dev replacement shows the persisted successful result
 without another guest apply/launch; its ZIP roundtrip/signatures pass. The engine,
 approved scope, saved bytes and all prior private artifacts remain unchanged.
+
+
+### Manager terminal defaults — 6 November 2026
+
+The owned terminal starts at 120 columns by 30 rows, including reserved input
+before a viewer clicks to claim it. Piped Ansible output receives matching
+`COLUMNS=120` / `LINES=30` hints. This changes display defaults only: no input is
+enabled by reservation, and ownership, scope, no-echo, cleanup and resize checks
+remain in force. All 86 Swift and 239 Python/local Ansible tests pass (one skip);
+only disposable local fixtures run. No real SSH/Ansible, host install or guest
+operation occurs. Historical candidate artifacts and frozen pins stay private
+and unchanged. The manager provides an 11-point responsive live display, click
+to claim typing, Follow output enabled by default and no expand control.
