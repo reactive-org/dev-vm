@@ -59,6 +59,10 @@ records 31 bounded workers, cleanup/PID evidence and unchanged historical pins.
 The new receipt supports a later signing-plan review without granting signing,
 key access, Apple requests or guest execution.
 
+[Signed manager 007bc66 test build](../README.md#signed-manager-007bc66-test-build--5-november-2026)
+records the separately authorized signed app/ZIP, complete static/archive checks
+and preserved historical pins. Installation and real guest acceptance are pending.
+
 [Shared Swift provisioning](../README.md#swift-provisioning-foundation) provides offline manifest validation, profile resolution and source-snapshotted planning; the Python operational commands remain unchanged.
 
 [Transport/authorization contracts](../README.md#transport-and-authorization-sequencing-fake-adapters-only) add a shared sequencer tested solely with in-memory guest adapters; the concrete command adapter continuation below adds process specifications without enabling operational Swift commands.

@@ -2417,3 +2417,24 @@ candidate build/output, signing, private-key access, Apple request, real SSH/Ans
 install, normal app/runtime action or VM launch occurs. The request stays consumed
 without retry. See the manager runbook's Fresh 007bc66 native inspection passed
 section. Raw receipts, selectors, paths, inventories and evidence remain private.
+
+### Signed manager 007bc66 test build — 5 November 2026
+
+Inspection-result docs commit as manager `96319b0` / companion `79399ae`. The user
+requests a test build and explicitly approves selected-key use, secure-key UI and
+Apple timestamps. A fresh exact-receipt plan passes fourteen checks and 44 fake
+tests before real-terminal confirmation and durable one-shot consumption.
+
+The private build/sign/verify run passes all 17 command roots and 46 native workers
+in 903.341 seconds: five timestamp signatures, 23 runtime static checks and twelve
+staged/extracted candidate checks. Six code identities, full app inventory and
+post-sign helper/resource seals match across ZIP roundtrip. All 63 roots are
+quiet/reaped/closed and absent in a bounded PID-only snapshot. Prior artifacts,
+173 review hashes, ten plan hashes and four manager pins remain unchanged.
+Package `5770d0f` and the original Stable disposable scope are preserved.
+
+The signed app and 176,350,211-byte ZIP remain private and ready for user testing.
+No install, notarization, SSH/Ansible, ordinary app/runtime or VM launch occurs.
+Native UI, daemon/loaded-child/original-Mac and guest acceptance remain TO PROVE.
+The plan is consumed with no automatic retry; raw materials, paths, pins and hashes
+stay out of Git. See the manager runbook's Signed 007bc66 test build section.
