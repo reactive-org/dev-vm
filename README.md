@@ -2313,3 +2313,9 @@ observation/recapture or ordinary approval change occurs. No notarization, SSH/
 Ansible, installs, publication, normal app/UI/runtime or VM action occurs. The plan
 remains consumed; actual signed completion and original-Mac/loaded-child/guest
 acceptance remain unproven. See the manager runbook's Attended 4a0f30a run result.
+
+**Operator follow-up:** the user reports completing the macOS dialog for the
+4a0f30a attempt. Exact dialog type and timing relative to the 120-second limit are
+unrecorded; this does not establish key/ACL/timestamp outcome or timeout cause. The
+automated stopped/unchanged-helper evidence and consumed plan remain unchanged.
+No retry, new plan or additional native/key/network operation follows.
