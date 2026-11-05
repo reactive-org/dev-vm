@@ -165,6 +165,11 @@ private func jsonFile(_ url: URL) throws -> [String: ManifestValue] { try PlainD
     let config = try String(contentsOf: root.appendingPathComponent("ssh_config"), encoding: .utf8)
     for expected in ["HostName 127.0.0.1", "StrictHostKeyChecking yes", "IdentityAgent none", "ProxyCommand none", "ProxyJump none", "EscapeChar none", "BatchMode yes", "%%h", "ControlMaster no"] { #expect(config.contains(expected)) }
     #expect(!config.contains("synthetic-private-key-never-read"))
+    // Ansible's CLI defaults otherwise override ssh_config and synthesize a
+    // multiplex socket under HOME, exceeding macOS's Unix-socket path limit.
+    let ansibleConfig = try String(contentsOf: root.appendingPathComponent("ansible.cfg"), encoding: .utf8)
+    #expect(ansibleConfig.contains("ssh_args=-o ControlMaster=no -o ControlPersist=no -o ControlPath=none"))
+
     let features = try #require(invocations.first { $0.purpose == .features })
     #expect(features.executable == fixture.tools.playbook.target)
     #expect(features.arguments.contains("--tags") && !features.arguments.contains("--check"))
