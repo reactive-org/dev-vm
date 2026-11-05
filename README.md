@@ -2535,3 +2535,17 @@ only disposable local fixtures run. No real SSH/Ansible, host install or guest
 operation occurs. Historical candidate artifacts and frozen pins stay private
 and unchanged. The manager provides an 11-point responsive live display, click
 to claim typing, Follow output enabled by default and no expand control.
+
+
+Manager validation for these defaults also passes fifteen terminal/UI tests and
+140 offscreen screen checks/27 screenshots. A synthetic click acquires the
+existing single-writer lease and delivers a character through a disposable PTY;
+a second viewer cannot steal input and needs a fresh click after release.
+Layout/output scroll callbacks preserve Follow output, and the expand control
+is removed. The separate private signed Dev candidate passes scope, signature,
+resource-seal and archive-roundtrip checks; only its idle manager is reopened.
+No guest job or lifecycle action, real SSH/Ansible, host install or Main operation
+occurs. Actual typing/sizing in a future live guest prompt remains TO PROVE.
+Private artifacts, target/signing selectors and frozen candidate pins stay out
+of Git. The manager's immutable code export remains at `99a8b55`; this later
+documentation does not require repinning or replacing that tested candidate.
