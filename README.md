@@ -2390,3 +2390,30 @@ real SSH/Ansible, install, normal app/runtime action or VM launch occurs. A fres
 successful exact-input inspection receipt is required before an attended signing
 plan can be prepared. See the manager runbook's Fresh private candidate review for
 007bc66 section. Private packets, raw materials, paths and pins stay out of Git.
+
+### Fresh 007bc66 native inspection passed — 5 November 2026
+
+Preparation docs commit as manager `467f979` / companion `8cf7f8d`, then the user
+approves the exact new review's bounded read-only native inspection. The 173 sealed
+files, corrected guard/composition, 32 committed tooling files and seventeen-file
+engine match. Exact typed in-memory inspection authority consumes the request once;
+prepared review files and old receipts/plans remain unchanged.
+
+All 31 workers pass in 76.504 seconds: pinned dependency checks before/after,
+interaction-disabled named-keychain locked status before/after with unchanged
+metadata, public profile/certificate policy and 23 no-network static checks over
+22 runtime Mach-O files plus the bundle. Every group is quiet before root reaping,
+descriptors close and no handles remain unresolved. A bounded PID-only snapshot
+finds all 31 recorded roots absent. All 24,204 pre-run private entries, 173 sealed
+review hashes and four manager pin files remain unchanged. Source admission and
+frozen overlay reconstruction pass again; the original disposable scope/root is
+neither observed nor recaptured. Shared package sources/resources/pins are unchanged.
+
+Result is OFFLINE_STATIC_INSPECTION_ONLY. CMS signer authenticity, certificate
+trust, online revocation/fresh notarization/Gatekeeper, private-key availability
+and original-Mac/loaded-child/guest acceptance remain unestablished. A fresh
+attended signing plan may now be prepared from the exact new receipt, but no plan,
+candidate build/output, signing, private-key access, Apple request, real SSH/Ansible,
+install, normal app/runtime action or VM launch occurs. The request stays consumed
+without retry. See the manager runbook's Fresh 007bc66 native inspection passed
+section. Raw receipts, selectors, paths, inventories and evidence remain private.

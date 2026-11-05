@@ -54,6 +54,11 @@ manager package or establish real guest/signing acceptance.
 records the new source/runtime bindings, unchanged disposable scope and offline/
 fake preparation. Native inspection and all execution effects remain unapproved.
 
+[Fresh manager 007bc66 native inspection passed](../README.md#fresh-007bc66-native-inspection-passed--5-november-2026)
+records 31 bounded workers, cleanup/PID evidence and unchanged historical pins.
+The new receipt supports a later signing-plan review without granting signing,
+key access, Apple requests or guest execution.
+
 [Shared Swift provisioning](../README.md#swift-provisioning-foundation) provides offline manifest validation, profile resolution and source-snapshotted planning; the Python operational commands remain unchanged.
 
 [Transport/authorization contracts](../README.md#transport-and-authorization-sequencing-fake-adapters-only) add a shared sequencer tested solely with in-memory guest adapters; the concrete command adapter continuation below adds process specifications without enabling operational Swift commands.
