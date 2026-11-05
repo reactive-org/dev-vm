@@ -2093,3 +2093,33 @@ Next combine compiled-vs-frozen resource/signature fixtures, narrow assembly/fin
 seal validation and a fresh review, keeping generic inventories and pins intact.
 Real signing/candidate/guest proof remains unestablished. See the manager runbook's
 Fresh candidate attempt section.
+
+### Resource payload/signature admission and fresh review — 5 November 2026
+
+Result docs are committed as manager `12247e2` / companion `ff2c82d`. The manager
+now admits exact frozen provisioning payload/wrapper bytes separately from the
+complete known four-file inherited signature block (or none). Resources also match
+the package lock; built signatures, partial/unknown reference blocks, changed or
+extra/missing payload/wrappers and unsafe entries refuse. Generic inventories and
+pins are unchanged. Payload is rechecked before outer signing and staged/roundtrip
+verification; child digest seal, outer/static verification and archive equality
+remain required. Old signature records are not current cryptographic authority.
+
+Fourteen new fake/local cases; full audited manager Python suite has 291 passes,
+five signing/PKCS12 skips (296 discovered), Git/Python only, no native-library
+attempts. Signed-reference/unsigned-build receipt/operator fixtures and fake sealed
+archive roundtrip pass. Retained bytes compare as 45 exact payload files plus four
+old reference signature records; no build or native inspection is rerun.
+
+Fresh private review binds seventeen engine files, separate operator code and a
+32-file exact uncommitted snapshot against `12247e2`. Maintained prepare/check
+creates a new public-input-only plan; all effects remain NOT_GRANTED, no backend
+or authority is constructed, and candidate output/consumed marker are absent.
+All 8,691 previous private entries/pins and failure artifacts remain unchanged.
+Credential content stays unopened, originals/keychain unqueried, no scope root
+observed/recaptured and product/shared code/approval unchanged. No real inspection,
+signing, key access, Apple request, SSH/Ansible, install, UI or app/runtime/VM action
+occurs. Commit before separately approving a new run with fresh confirmation;
+real final resource/signature/candidate/guest proof remains TO PROVE. See the manager
+runbook's Resource payload admission section. No Ansible-bearing companion workflow
+is run for this documentation-only change.
