@@ -2207,3 +2207,29 @@ UI method/prompt count and post-run lock state are not captured. Result is signe
 offline-static only: original-Mac scope, loaded-child and guest acceptance remain
 TO PROVE under separate reviewed consent. See the manager runbook's Attended
 private signing passed section.
+
+### Fresh private merged-source review — 5 November 2026
+
+The manager's new private review binds committed `4a0f30a` and updated runtime
+source `d6dd3dbe860f`, using a matching existing local signed-runtime artifact from
+stable `v0.11.1`. Archive/lock/inventory and permitted-payload checks are local file
+data, not fresh native signature/trust/notarization proof. The original Stable
+disposable scope definition/JSON/receipt and all old pins stay verbatim; next is
+the manager's merge target, not a scope/channel migration. Shared package code,
+resources and pins are unchanged.
+
+Source-only admission, independent private-overlay reconstruction, 25 packet/refusal
+checks and 170 fake API/process tests pass. A committed 32-file tooling snapshot,
+seventeen-file engine digest, operator, corrected guard and named public-material
+copies bind a fresh bounded-inspection request. The old receipt, even with
+relabeled review fields, cannot transfer to this source/runtime. Existing private
+artifacts, successful/failed outputs and consumed plans remain unchanged.
+
+The new native inspection is prepared, not run; current keychain state and key
+availability are unqueried. No authority, native inspection output, signing operator
+plan or candidate build is created. All execution effects remain NOT_GRANTED; a
+new successful exact-input inspection receipt and separate approval are prerequisites
+for a new attended signing plan. No signing, key access, Apple request, SSH/Ansible,
+install, normal app/UI/runtime action or VM launch occurs. See the manager runbook's
+Fresh private candidate review for 4a0f30a section. Private packets/paths/pins remain
+out of both repositories.
