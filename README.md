@@ -2577,3 +2577,11 @@ checks pass on the already running Docker daemon; no new VM is started. All
 remains PENDING PUBLICATION APPROVAL, not a reported test pass. No rejected push
 is retried, Main operation performed, real signing identity used or product
 guest launched. Signed normal-Dev and live guest acceptance remain TO PROVE.
+
+
+After the user approves source publication, draft PR #8 starts hosted no-VM CI.
+The first package run times out in parallel local PTY fixtures. The package test
+recipe now uses --no-parallel, matching its successful local run; explicit
+concurrency, cancellation, resize, echo and deadline checks inside tests remain.
+No production code/resource, manager pin, private artifact or timeout is changed.
+Hosted results are tracked in the draft PR; no real signing or VM is authorized.

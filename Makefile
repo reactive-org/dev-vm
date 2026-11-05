@@ -13,7 +13,7 @@ build-provisioning: provisioning-inventory ## Build the offline Swift provisioni
 
 test-provisioning: provisioning-inventory ## Run offline Swift manifest/planning tests (no host probes or guests)
 	@mkdir -p .build/module-cache .build/cache .build/configuration .build/security
-	swift test $(SWIFT_PROVISIONING_FLAGS)
+	swift test $(SWIFT_PROVISIONING_FLAGS) --no-parallel
 
 .PHONY: provisioning-inventory
 provisioning-inventory:
