@@ -82,3 +82,12 @@ The ordinary Ansible installation/legacy validation job is skipped for this
 branch. That broader validation remains separately scoped. The manager's shared
 source pin stays at `df5e2c8`; this publication follow-up changes only workflow and
 documentation, with no exported package source/resource changes.
+
+The first hosted factory run refused regenerated resource bytes under its newer
+Python toolchain. The read-only oracle check now compares the canonical
+uncompressed tar against the maintained staging output, then verifies that the
+committed compressed bytes still match recipe.json and the compiled Swift pin.
+It never recompresses or rewrites a check input. Three local tests verify no-write
+behavior, refusal of changed archive contents, and refusal of an equivalent gzip
+re-encoding without matching recipe/pin changes. Existing resources and all source
+pins remain unchanged; the fresh hosted result is reported separately.

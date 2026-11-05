@@ -17,6 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "Sources/DevVMProvisioningCore/Resources/FactoryBuild"
 
 
+def compress_template(data):
+    compressed = io.BytesIO()
+    with gzip.GzipFile(fileobj=compressed, mode="wb", filename="", mtime=0, compresslevel=9) as zipped:
+        zipped.write(data)
+    return compressed.getvalue()
+
+
 def generate(check=False):
     spec = importlib.util.spec_from_file_location("factory_oracle", ROOT / "scripts/omarchy_image.py")
     oracle = importlib.util.module_from_spec(spec)
@@ -42,10 +49,16 @@ def generate(check=False):
                     archive.addfile(info, io.BytesIO(data))
                 else:
                     archive.addfile(info)
-        compressed = io.BytesIO()
-        with gzip.GzipFile(fileobj=compressed, mode="wb", filename="", mtime=0) as zipped:
-            zipped.write(stream.getvalue())
-        payload = compressed.getvalue()
+        if check:
+            # Python/zlib releases can encode the same tar differently. Compare
+            # the exact canonical tar against the oracle, without rewriting or
+            # recompressing the committed payload. The recipe/pin checks below
+            # still bind the exact compressed bytes shipped to Swift.
+            payload = (OUT / "template.tar.gz").read_bytes()
+            if gzip.decompress(payload) != stream.getvalue():
+                raise ValueError("Prepared Swift factory archive contents differ from the maintained staging oracle")
+        else:
+            payload = compress_template(stream.getvalue())
         _, provenance = oracle.input_identity(lock["managed_try_commit"], 20)
         provenance["integration_package"] = {**lock["reviewed_integration"], "reused_reviewed_archive": True}
         downloads = [{"name": f"{repo}-{commit}.tar.gz", "url": f"https://codeload.github.com/omacom/{repo}/tar.gz/{commit}", "sha256": lock["archives"][repo]} for repo, commit in (("omarchy", lock["omarchy_commit"]), ("omarchy-pkgs", lock["recipes_commit"]))]
@@ -60,7 +73,7 @@ def generate(check=False):
         for path, contents in outputs.items():
             if check:
                 if not path.is_file() or path.read_bytes() != contents:
-                    raise ValueError("Prepared Swift factory resources differ from the maintained staging oracle")
+                    raise ValueError(f"Prepared Swift factory resource {path.name} differs from the maintained staging oracle")
             else:
                 path.parent.mkdir(exist_ok=True)
                 path.write_bytes(contents)

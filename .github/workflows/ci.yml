@@ -93,4 +93,6 @@ jobs:
           swift --version
           python3 -c 'import sys; assert sys.version_info >= (3, 11), "Preinstalled Python 3.11+ is required"'
       - name: Pinned Linux recipe parity and fake Docker process tests
-        run: make check-factory-resources build-provisioning test-provisioning
+        run: |
+          python3 -m unittest discover -s tests -p test_swift_factory_resources.py -v
+          make check-factory-resources build-provisioning test-provisioning
