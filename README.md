@@ -2549,3 +2549,31 @@ occurs. Actual typing/sizing in a future live guest prompt remains TO PROVE.
 Private artifacts, target/signing selectors and frozen candidate pins stay out
 of Git. The manager's immutable code export remains at `99a8b55`; this later
 documentation does not require repinning or replacing that tested candidate.
+
+
+### Normal Dev manager integration — 6 November 2026
+
+The manager integrates current next and prepares ordinary Dev-only provisioning
+eligibility for verified manager-owned Dev UUID roots. Stable execution stays
+disabled, and private acceptance overlays retain their original narrower scope.
+The helper resolves its account home independently of isolated HOME. Frozen
+review and separate permissions, session/host-key/UID checks, pinned package and
+transport, same-team helper and cleanup/replay rules remain mandatory. A ready
+dependency report is not consent. No real guest operation or signing occurs in
+this source/integration pass. Signed normal-Dev and fresh guest acceptance remain
+TO PROVE. This companion package's tested implementation remains `99a8b55`; no
+shared source/resource or frozen candidate pin is changed. Publishing this branch
+for CI/review is pending explicit permission after automatic review rejected the
+push; no rejected publication is retried.
+
+
+The manager's consolidated local pass now succeeds: 531 Swift tests per channel,
+337 script cases, 140 UI checks, all three optimized policy modes and fresh
+ad-hoc Stable/Dev bundle/channel checks. The pinned upstream's 566 Swift tests
+and no-VM contracts/shell/package checks pass on TEST_JOBS=1 after one concurrent
+lease assertion failure; its exact cause remains unproven. Isolated SSH-container
+checks pass on the already running Docker daemon; no new VM is started. All
+86,034 prior private artifact entries and six pins match baseline. Hosted CI
+remains PENDING PUBLICATION APPROVAL, not a reported test pass. No rejected push
+is retried, Main operation performed, real signing identity used or product
+guest launched. Signed normal-Dev and live guest acceptance remain TO PROVE.
