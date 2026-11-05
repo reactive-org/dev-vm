@@ -7,6 +7,8 @@ import sys
 import os
 import shlex
 import tempfile
+import tarfile
+import shutil
 import unittest
 from contextlib import ExitStack, redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -47,26 +49,34 @@ def factory_fixture(root, *, prepared=False):
     app = root / "Omarchy VM Manager.app"
     resources = app / "Contents/Resources"
     resources.mkdir(parents=True)
-    contract = {"programs": {"/usr/bin/omarchy-provision-owner": "b" * 64,
-                             "/usr/share/omarchy/install/provisioning/progress-icon.sh": "c" * 64}}
-    contract_path = resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/Contents/Resources/LeanOwnerSetupContract.json"
+    with tarfile.open(REPOSITORY / "omarchy/image/try-guest-source.tar.gz") as archive:
+        contract_bytes = archive.extractfile(
+            "guest/package/try-omarchy/files/usr/share/try-omarchy/lean-owner-setup-contract.json").read()
+    contract = json.loads(contract_bytes)
+    policy = json.loads(CONTROLLER.GUEST_INTEGRATION_POLICY.read_text())
+    contract_path = resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract.json"
     contract_path.parent.mkdir(parents=True)
-    contract_path.write_text(json.dumps(contract))
+    contract_path.write_bytes(contract_bytes)
     package = "Contents/Resources/guest-packages/try-omarchy-0.1.0-43-aarch64.pkg.tar.zst"
     runtime = {name: "d" * 64 for name in (package, "Contents/MacOS/omarchy-vm-helper",
                "Contents/Resources/runtime/bin/Try Omarchy", "Contents/Resources/firmware/edk2-aarch64-code.fd",
                "Contents/Resources/scripts/run-qemu-gpu.sh", "Contents/Resources/owner-setup-provenance.json")}
+    runtime[package] = policy["runtimePackageSHA256"]
     lock = {key: 1 for key in ("customFactoryVersion", "managedSSHVersion", "managedSetupVersion",
-                              "ownerSetupReportVersion", "ownerSetupContractsVersion")}
+                              "ownerSetupReportVersion", "ownerSetupContractsVersion", "factoryCompatibilityVersion")}
     lock.update(files=runtime, patchCommit="e" * 40)
     (resources / "TryOmarchyRuntime.lock.json").write_text(json.dumps(lock))
     if not prepared:
+        (source / "packages").mkdir()
+        shutil.copyfile(REPOSITORY / "omarchy/image/reviewed-packages" / CONTROLLER.LEAN_INTEGRATION_PACKAGE,
+                        source / "packages" / CONTROLLER.LEAN_INTEGRATION_PACKAGE)
         (source / "compatibility.json").write_text(json.dumps({
-            "owner_programs": {"/usr/bin/omarchy-provision-owner": "b" * 64},
+            "owner_programs": {key: value for key, value in contract["programs"].items()
+                               if not key.endswith("/progress-icon.sh")},
             "packages": {"try-omarchy": "0.1.0-43.1"}}))
         (source / "image-build.json").write_text(json.dumps({"try_commit": "e" * 40}))
-        hashes = {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
-                  for path in source.iterdir() if path.name != "SHA256SUMS"}
+        hashes = {path.relative_to(source).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in source.rglob("*") if path.is_file() and path.name != "SHA256SUMS"}
         (source / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in hashes.items()))
     return source, app
 
@@ -138,20 +148,33 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                 CONTROLLER.installed_app(args)
 
     def test_installed_app_metadata_rejects_incompatible_images_before_import(self):
-        for problem in ("source", "programs", "package", "capability", "runtime-path", "missing-contract"):
+        for problem in ("source", "programs", "package", "capability", "compatibility-capability",
+                        "runtime-path", "runtime-package", "contract-hash", "missing-contract"):
             with self.subTest(problem=problem), tempfile.TemporaryDirectory() as temporary:
                 source, app = factory_fixture(Path(temporary))
                 resources = app / "Contents/Resources"
                 lock_path = resources / "TryOmarchyRuntime.lock.json"
                 lock = json.loads(lock_path.read_text())
                 if problem == "source":
-                    lock["patchCommit"] = "f" * 40
+                    path = source / "image-build.json"
+                    path.write_text(json.dumps({"try_commit": "malformed"}))
+                    sums = source / "SHA256SUMS"
+                    lines = [line for line in sums.read_text().splitlines() if not line.endswith("  image-build.json")]
+                    lines.append(hashlib.sha256(path.read_bytes()).hexdigest() + "  image-build.json")
+                    sums.write_text("\n".join(lines) + "\n")
                 elif problem == "capability":
                     lock["ownerSetupContractsVersion"] = True
+                elif problem == "compatibility-capability":
+                    lock["factoryCompatibilityVersion"] = True
                 elif problem == "runtime-path":
                     lock["files"]["Contents/../escape"] = "a" * 64
+                elif problem == "runtime-package":
+                    lock["files"]["Contents/Resources/guest-packages/try-omarchy-0.1.0-43-aarch64.pkg.tar.zst"] = "a" * 64
+                elif problem == "contract-hash":
+                    path = resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract.json"
+                    path.write_bytes(path.read_bytes() + b"\n")
                 elif problem == "missing-contract":
-                    (resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/Contents/Resources/LeanOwnerSetupContract.json").unlink()
+                    (resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract.json").unlink()
                 else:
                     path = source / "compatibility.json"
                     evidence = json.loads(path.read_text())
@@ -160,8 +183,8 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                     else:
                         evidence["packages"]["try-omarchy"] = "0.1.0-36.1"
                     path.write_text(json.dumps(evidence))
-                    hashes = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                              for p in source.iterdir() if p.name != "SHA256SUMS"}
+                    hashes = {p.relative_to(source).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                              for p in source.rglob("*") if p.is_file() and p.name != "SHA256SUMS"}
                     (source / "SHA256SUMS").write_text("".join(f"{digest}  {name}\n" for name, digest in hashes.items()))
                 lock_path.write_text(json.dumps(lock))
                 args = CONTROLLER.build_parser().parse_args([
@@ -552,7 +575,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
     def test_build_directory_and_image_path_are_checked_and_prepared_without_modifying_source(self):
         with tempfile.TemporaryDirectory() as temporary:
             source, manager = factory_fixture(Path(temporary))
-            before = {path.name: path.read_bytes() for path in source.iterdir()}
+            before = {path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()}
             for selected in (source, source / "omarchy-workstation-aarch64-edge.img.zst"):
                 args = CONTROLLER.build_parser().parse_args(["--factory", str(selected), "--manager-app", str(manager), "bootstrap"])
                 with self.subTest(selected=selected), mock.patch.object(CONTROLLER, "prepare_factory_descriptor", side_effect=prepare_fixture_bundle) as run:
@@ -564,8 +587,74 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                         descriptor = json.loads((snapshot / "reviewed-factory.json").read_text())
                         self.assertEqual(descriptor["imageIntegrationVersion"], "0.1.0-43.1")
                         self.assertEqual(descriptor["imageIntegrationSourceCommit"], "e" * 40)
+                        self.assertEqual(descriptor["format"], 2)
+                        policy = json.loads(CONTROLLER.GUEST_INTEGRATION_POLICY.read_text())
+                        self.assertEqual(descriptor["guestIntegration"], {
+                            "contractVersion": 1, "capabilities": policy["capabilities"],
+                            "packageFile": CONTROLLER.LEAN_INTEGRATION_PACKAGE,
+                            "packageSHA256": policy["leanPackageSHA256"],
+                        })
+                        self.assertEqual(descriptor["provisioning"][CONTROLLER.LEAN_INTEGRATION_PACKAGE],
+                                         policy["leanPackageSHA256"])
                     self.assertFalse(snapshot.exists())
-            self.assertEqual(before, {path.name: path.read_bytes() for path in source.iterdir()})
+            self.assertEqual(before, {path.relative_to(source): path.read_bytes() for path in source.rglob("*") if path.is_file()})
+
+    def test_format_two_preserves_different_guest_source_and_host_runtime_provenance(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source, manager = factory_fixture(Path(temporary))
+            lock_path = manager / "Contents/Resources/TryOmarchyRuntime.lock.json"
+            lock = json.loads(lock_path.read_text())
+            lock["patchCommit"] = "f" * 40
+            lock["files"]["Contents/MacOS/omarchy-vm-helper"] = "a" * 64
+            lock_path.write_text(json.dumps(lock))
+            args = CONTROLLER.build_parser().parse_args([
+                "--factory", str(source), "--manager-app", str(manager), "bootstrap"])
+            with CONTROLLER.prepare_factory_input(args) as factory:
+                descriptor = json.loads((factory.bundle / "reviewed-factory.json").read_text())
+                self.assertEqual(descriptor["imageIntegrationSourceCommit"], "e" * 40)
+                self.assertEqual(descriptor["runtimeFiles"], lock["files"])
+
+    def test_unreviewed_original_archive_cannot_be_replaced_with_reviewed_evidence(self):
+        for problem in ("missing", "corrupt", "rehashed", "linked"):
+            with self.subTest(problem=problem), tempfile.TemporaryDirectory() as temporary:
+                source, manager = factory_fixture(Path(temporary))
+                package = source / "packages" / CONTROLLER.LEAN_INTEGRATION_PACKAGE
+                if problem == "missing":
+                    package.unlink()
+                elif problem == "linked":
+                    package.unlink()
+                    package.symlink_to(REPOSITORY / "omarchy/image/reviewed-packages" / package.name)
+                else:
+                    package.write_bytes(b"same version, unreviewed archive")
+                    if problem == "rehashed":
+                        sums = source / "SHA256SUMS"
+                        old = json.loads(CONTROLLER.GUEST_INTEGRATION_POLICY.read_text())["leanPackageSHA256"]
+                        sums.write_text(sums.read_text().replace(old, hashlib.sha256(package.read_bytes()).hexdigest()))
+                args = CONTROLLER.build_parser().parse_args([
+                    "--factory", str(source), "--manager-app", str(manager), "bootstrap"])
+                with mock.patch.object(CONTROLLER, "cli_call") as cli:
+                    with self.assertRaises(CONTROLLER.WorkstationError):
+                        with CONTROLLER.prepare_factory_input(args):
+                            self.fail("Unsupported archive accepted")
+                cli.assert_not_called()
+
+    def test_import_only_command_confirms_and_checks_native_identity_without_vm_operations(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source, manager = factory_fixture(Path(temporary))
+            args = CONTROLLER.build_parser().parse_args([
+                "--factory", str(source), "--manager-app", str(manager), "import-factory"])
+            events = []
+
+            def cli(_args, command, bundle):
+                events.append(command)
+                manifest = Path(bundle) / "reviewed-factory.json"
+                return {"factories": [{"kind": "custom", "manifestSHA256": hashlib.sha256(manifest.read_bytes()).hexdigest()}]}
+
+            with mock.patch.object(CONTROLLER, "preflight"), \
+                    mock.patch.object(CONTROLLER, "confirm", side_effect=lambda _: events.append("confirm")), \
+                    mock.patch.object(CONTROLLER, "cli_call", side_effect=cli), redirect_stdout(io.StringIO()):
+                CONTROLLER.import_factory_command(args)
+            self.assertEqual(events, ["confirm", "factory-import"])
 
     def test_prepared_bundle_is_snapshotted_verbatim_and_latest_is_pinned_once(self):
         with tempfile.TemporaryDirectory() as temporary:

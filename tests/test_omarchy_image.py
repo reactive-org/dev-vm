@@ -326,23 +326,12 @@ class ImageCompatibilityTests(unittest.TestCase):
             self.assertFalse((self.root / "escape").exists())
 
     def test_staging_keeps_the_foundation_bare_and_configuration_inputs_unchanged(self):
-        recipe = self.integration_recipe()
         original = {name: (IMAGE.PROFILE / name).read_bytes()
                     for name in ("base.packages", "excluded.packages")}
-        run = IMAGE.run
-
-        def export(argv, **kwargs):
-            if argv[0] != "git":
-                return run(argv, **kwargs)
-            with tarfile.open(fileobj=kwargs["stdout"], mode="w") as archive:
-                archive.add(FIXTURES / "build-image.sh", arcname="guest/factory/build-image.sh")
-                archive.add(recipe, arcname="guest/package/try-omarchy")
-                archive.add(IMAGE.PROFILE / "UPSTREAM-LICENSE", arcname="LICENSE")
-
         stage = self.root / "foundation"
         stage.mkdir()
-        with mock.patch.object(IMAGE, "run", side_effect=export):
-            IMAGE.stage_inputs(self.root, stage, LOCK, LOCK["managed_try_commit"])
+        IMAGE.stage_inputs(IMAGE.PROFILE / LOCK["guest_source"]["archive"], stage, LOCK,
+                           LOCK["managed_try_commit"])
         required, excluded = IMAGE.package_profile()
         self.assertEqual(COMPAT.package_list(stage / "profile/base.packages"), required)
         self.assertEqual(COMPAT.package_list(stage / "profile/resolved-base.packages"), required)
@@ -351,6 +340,37 @@ class ImageCompatibilityTests(unittest.TestCase):
                          (IMAGE.PROFILE / "preferences/first-login.sh").read_bytes())
         self.assertFalse((stage / "profile/layout.lua").exists())
         self.assertEqual(original, {name: (IMAGE.PROFILE / name).read_bytes() for name in original})
+
+    def test_reviewed_integration_reuse_rejects_archive_and_complete_recipe_changes(self):
+        IMAGE.stage_inputs(IMAGE.PROFILE / LOCK["guest_source"]["archive"], self.root, LOCK,
+                           LOCK["managed_try_commit"])
+        profile = self.root / "profile"
+        recipe = self.root / "upstream/guest/package/try-omarchy"
+        archive = profile / LOCK["reviewed_integration"]["archive"]
+        original = archive.read_bytes()
+        self.assertEqual(COMPAT.digest(archive), LOCK["reviewed_integration"]["sha256"])
+        for problem in ("bytes", "mode", "addition", "license"):
+            with self.subTest(problem=problem):
+                target = recipe / ("LICENSE" if problem == "license" else "PKGBUILD")
+                contents, mode = target.read_bytes(), target.stat().st_mode & 0o777
+                if problem == "mode":
+                    target.chmod(0o755)
+                elif problem == "addition":
+                    (recipe / "unexpected").write_text("unreviewed")
+                else:
+                    target.write_bytes(contents + b"changed")
+                with self.assertRaisesRegex(COMPAT.CompatibilityError, "manager policy review"):
+                    IMAGE.verify_reviewed_integration(profile, recipe, LOCK)
+                target.write_bytes(contents)
+                target.chmod(mode)
+                (recipe / "unexpected").unlink(missing_ok=True)
+        archive.write_bytes(original + b"repacked")
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "archive checksum"):
+            IMAGE.verify_reviewed_integration(profile, recipe, LOCK)
+        archive.unlink()
+        archive.symlink_to(IMAGE.PROFILE / LOCK["reviewed_integration"]["archive"])
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "archive checksum"):
+            IMAGE.verify_reviewed_integration(profile, recipe, LOCK)
 
     def test_foundation_artifacts_publish_checksums_and_unproven_validation_flags(self):
         def stage_inputs(source, stage, lock, commit):

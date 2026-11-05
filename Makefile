@@ -130,7 +130,14 @@ apply-omarchy-setup: ## Apply external features, dotfiles and explicitly trusted
 bootstrap-omarchy-setup: ## Create/configure a VM from an external setup repository
 	@python3 ./scripts/omarchy_setup.py bootstrap $(OMARCHY_SETUP_ARGS) $(OMARCHY_SETUP_RESOURCE_ARGS)
 
-.PHONY: build-omarchy-image check-omarchy-image
+.PHONY: build-omarchy-image check-omarchy-image import-omarchy-factory
+
+import-omarchy-factory: ## Verify/import a lean factory through VM Manager without operating a VM
+	@python3 ./scripts/omarchy_vm_manager.py \
+		$(if $(OMARCHY_VM_MANAGER_CLI),--cli-path "$(OMARCHY_VM_MANAGER_CLI)",) \
+		$(if $(OMARCHY_VM_MANAGER_APP),--manager-app "$(OMARCHY_VM_MANAGER_APP)",) \
+		--factory "$(OMARCHY_VM_FACTORY)" \
+		$(if $(filter yes true 1,$(OMARCHY_VM_YES)),--yes,) import-factory
 
 build-omarchy-image: ## Build a minimal ARM64 Omarchy factory without operating a VM
 	@python3 ./scripts/omarchy_image.py \

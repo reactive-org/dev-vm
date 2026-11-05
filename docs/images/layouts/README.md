@@ -1,6 +1,6 @@
 # Layout screenshots
 
-These are actual guest desktop captures taken on 1 November 2026 with
+The four single-workspace images are actual guest desktop captures taken on 1 November 2026 with
 Omarchy VM Manager 0.9.3 (16). One disposable lean ARM64 guest was used for
 all four presets with VM Manager's native display integration. Three captures
 used `4960×2790` at Retina scale 2. The VS Code capture used `1920×1080` at
@@ -33,3 +33,112 @@ results remain in the ignored
 `.artifacts/layout-validation/20261101-four-terminals/` directory.
 See the [live layout validation record](../../omarchy-layouts.md#four-terminal-validation--1-november-2026)
 for the four-terminal test's scope and results.
+
+## Three-workspace captures — 5 November 2026
+
+These three images show `claude-browser-code-terminals.lua` running in one new
+disposable lean ARM64 guest with Omarchy VM Manager **0.11.0 (27)**. Each frame
+was captured with the guest's native `grim`, over pinned managed SSH, after
+switching to and checking the requested workspace through Hyprland's Lua API.
+
+| Screenshot | Workspace |
+| --- | --- |
+| [Claude Desktop and Chromium](claude-browser-code-terminals-workspace-1.webp) | 1 |
+| [VS Code](claude-browser-code-terminals-workspace-2.webp) | 2 |
+| [Four Foot terminals](claude-browser-code-terminals-workspace-3.webp) | 3 |
+
+The native display was `2080×1170` at scale 1. Before capture, the four empty
+Foot windows were relaunched with their original app IDs and neutral labeled
+Bash prompts. Native notification banners and VS Code's first-run sign-in
+overlay were dismissed. No application accounts were signed in and no window
+positions or sizes were changed. Layout-source hashes, all seven window
+placements, workspace counts, rendering and service health passed before
+capture preparation and again afterward.
+
+The complete frames were resized to `1920×1080` with the existing `cwebp` tool
+and encoded at quality 86, method 6, without cropping or overlays. All three
+WebP outputs decoded successfully and contain no EXIF, XMP or ICC metadata;
+they total 93,264 bytes. The separate
+[manifest](claude-browser-code-terminals-manifest.json) records raw/output
+hashes, dimensions, display scale and the corresponding layout source hash.
+The original 1 November manifest remains specific to its four captures.
+
+Raw PNGs and private validation evidence are under ignored
+`.artifacts/layout-validation/20261105-claude-code/`. See the
+[live validation record](../../omarchy-layouts.md#claude-browser-code-and-terminals-validation--5-november-2026)
+and the [layout runbook](../../omarchy-layout-claude-browser-code-terminals.md).
+
+## Original multi-workspace captures — 5 November 2026
+
+These images show the corrected `multi-workspace.lua` preset in a separate new
+disposable lean ARM64 guest with Omarchy VM Manager **0.11.0 (27)**.
+
+| Screenshot | Workspace |
+| --- | --- |
+| [VS Code and Chromium](multi-workspace-1.webp) | 1 |
+| [Four Foot terminals](multi-workspace-2.webp) | 2 |
+| [Claude Desktop and two terminals](multi-workspace-3.webp) | 3 |
+
+Live validation found a one-pixel overlap between the workspace 3 terminals;
+the lower position was corrected to restore the usual 12-pixel gap, reapplied
+through the controller and verified after another restart. All 47 assertions
+passed both before and after screenshot preparation, including the exact
+layout-source hash, nine window placements, workspace counts, absence of
+overlap, rendering, service health and sudo cleanup.
+
+For capture, six empty Foot windows were relaunched with their original app
+IDs and neutral labeled Bash prompts. Native notification banners and VS Code's
+first-run sign-in overlay were dismissed. No application accounts were signed
+in, and no window positions or sizes were changed for capture. The guest's
+native `grim` captured each workspace over pinned managed SSH, after the native
+Hyprland Lua API switched to and confirmed the destination workspace.
+
+The complete native `2080×1170`, scale-1 frames were resized to `1920×1080`
+with existing `cwebp`, quality 86 and method 6, without cropping or overlays.
+All three WebP outputs decoded successfully and contain no EXIF, XMP or ICC
+metadata; they total 85,378 bytes. The separate
+[manifest](multi-workspace-manifest.json) records source/output hashes,
+dimensions, display scale and the corrected layout-source hash.
+
+Raw PNGs and private evidence are under ignored
+`.artifacts/layout-validation/20261105-multi-workspace/`. See the
+[live validation record](../../omarchy-layouts.md#original-multi-workspace-validation--5-november-2026)
+and the [layout runbook](../../omarchy-layout-multi-workspace.md).
+
+## Small-screen captures — 5 November 2026
+
+These four images show `small-screen.lua` in a new disposable lean ARM64 guest
+with Omarchy VM Manager **0.11.0 (27)**, at a measured laptop-sized Retina
+viewport of **1794×1089 logical pixels** (`3588×2178` backing pixels, scale 2).
+This is the actual native guest mode after the operator resized its VM window,
+not a larger logical desktop reduced to imitate a smaller screen.
+
+| Screenshot | Workspace |
+| --- | --- |
+| [Claude Desktop](small-screen-1.webp) | 1 |
+| [Chromium](small-screen-2.webp) | 2 |
+| [VS Code](small-screen-3.webp) | 3 |
+| [Two Foot terminals](small-screen-4.webp) | 4 |
+
+The floating placement rules apply when windows open. The test apps were
+reopened after the native display resize; automatic refitting of already-open
+windows did not pass and is not claimed. Before capture, the two empty Foot
+windows were relaunched with their original app IDs and neutral labeled Bash
+prompts. Native notification banners and VS Code's first-run sign-in overlay
+were dismissed. No application accounts were signed in and no window geometry
+was manually adjusted. All 43 live checks passed before and after preparation,
+including source hashes, placement, workspace counts, non-overlap, display
+bounds, rendering, service health and sudo cleanup.
+
+The guest's native `grim` captured each full workspace over pinned managed SSH,
+after the native Hyprland Lua API switched to and confirmed the destination.
+Existing `cwebp` encoded the complete frames at logical size `1794×1089`,
+quality 86 and method 6, without cropping or overlays. All four outputs decoded
+successfully and contain no EXIF, XMP or ICC metadata; they total 105,570 bytes.
+The [manifest](small-screen-manifest.json) records source/output hashes,
+physical and logical dimensions, display scale and the layout-source hash.
+
+Raw PNGs and private evidence are under ignored
+`.artifacts/layout-validation/20261105-small-screen/`. See the
+[live validation record](../../omarchy-layouts.md#small-screen-validation--5-november-2026)
+and the [layout runbook](../../omarchy-layout-small-screen.md).

@@ -44,11 +44,14 @@ make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" OMARCHY_VM_FACTORY=official
 **Lean, mean coding image:** Standard ARM64 Omarchy with a smaller app selection,
 Git, Python and build tools, prepared for QEMU on your Mac using Try Omarchy’s
 factory approach and Omarchy VM Manager’s native integration
-([image details](docs/omarchy-image.md)).
+([image details](docs/omarchy-image.md)). Lean factory admission targets manager
+0.11.0 and reuses its reviewed integration archive; see
+[what was validated on 0.11](docs/omarchy-lean-011-validation.md).
 
 ```bash
 make build-omarchy-image
 make bootstrap-omarchy-vm VM_NAME="Dev Omarchy" \
+  OMARCHY_VM_MANAGER_APP="/Applications/Omarchy VM Manager.app" \
   OMARCHY_VM_FACTORY=.artifacts/omarchy-image/latest
 ```
 
@@ -70,6 +73,9 @@ Every runbook shows both image choices with copy-and-paste commands.
 - [Terminal left 40%, browser right 60%](docs/omarchy-layout-terminal-browser.md)
 - [VS Code left 60%, browser right 40%](docs/omarchy-layout-vscode-browser.md)
 - [Claude, two terminals and a floating browser](docs/omarchy-layout-claude-two-terminals-browser.md)
+- [VS Code, four terminals and Claude across three workspaces](docs/omarchy-layout-multi-workspace.md)
+- [Claude and browser, VS Code, and four terminals across three workspaces](docs/omarchy-layout-claude-browser-code-terminals.md)
+- [Small screen: Claude, Chromium, VS Code, and two terminals across four workspaces](docs/omarchy-layout-small-screen.md)
 
 Next: [add developer tools](docs/omarchy-features.md) or [choose a theme](docs/omarchy-themes.md).
 
@@ -2319,3 +2325,44 @@ acceptance remain unproven. See the manager runbook's Attended 4a0f30a run resul
 unrecorded; this does not establish key/ACL/timestamp outcome or timeout cause. The
 automated stopped/unchanged-helper evidence and consumed plan remain unchanged.
 No retry, new plan or additional native/key/network operation follows.
+
+### Main merged into the Swift package branch — 5 November 2026
+
+Merge `origin/main` at `c30f213` into `codex/swift-provisioning-package`, whose
+previous head is `41bbfe3` (51 branch commits ahead and three main commits behind).
+The merge applies without conflicts. It brings the manager 0.11 lean-factory
+compatibility/import contract, reviewed integration package and three additional
+repository layout examples, with their validation records. Shared Swift sources
+and the four bundled Swift layout cards are unchanged; the new Lua examples do
+not automatically expand that catalogue.
+
+Offline/local validation passes:
+
+- All 86 Swift tests pass serially, including disposable local process/PTY fixtures
+  and fake SSH/Ansible runners. Two PTY cases time out inside the filesystem sandbox,
+  including on a serial retry; the serial run outside that sandbox passes without
+  changing test deadlines or implementation.
+- The existing `make test-omarchy` suite discovers 239 tests: 228 pass and eleven
+  skip. A private runner excludes ten tests that execute actual Ansible, and one
+  Lua test skips because its interpreter is unavailable. Python uses the already
+  installed Homebrew Ansible environment's interpreter/PyYAML, without executing
+  Ansible or installing anything. Local shell fixtures and dry-run Make checks
+  use fake services; no real manager/guest operations run.
+- The parser oracle passes 18 plain-data fixtures, and the planning oracle passes
+  66 complete proposal/error fixtures. SwiftPM uses existing local dependencies,
+  with updates and automatic dependency resolution disabled.
+- All five incoming Python files parse, the incoming shell file passes `bash -n`,
+  and the Git whitespace check passes. New Lua sources are read but Lua syntax/
+  execution is untested. Ansible syntax checks are excluded by the user's scope;
+  the merge introduces no YAML changes.
+
+The before/after private inventory matches all 23,951 entries, and all four manager
+frozen-pin files remain byte-identical. Credential/disk-image contents are not
+opened by that inventory. The manager worktree, vendored package and existing
+private candidate inputs/outputs/receipts/consumed plans stay unchanged; their
+earlier source bindings do not transfer to this merge. A manager package refresh
+or expanded Swift layout catalogue requires a separate change.
+
+No signing, key access, native inspection, Apple request, real SSH/Ansible, install,
+container/image build, normal app/runtime action or VM launch occurs. This record
+establishes offline/fake validation only, not guest or signed-candidate acceptance.

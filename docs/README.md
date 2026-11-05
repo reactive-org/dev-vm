@@ -15,6 +15,9 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 - [Terminal and browser](omarchy-layout-terminal-browser.md)
 - [VS Code and browser](omarchy-layout-vscode-browser.md)
 - [Claude, terminals and browser](omarchy-layout-claude-two-terminals-browser.md)
+- [Multi-workspace workstation](omarchy-layout-multi-workspace.md)
+- [Claude and browser, VS Code, and four terminals](omarchy-layout-claude-browser-code-terminals.md)
+- [Small-screen workstation across four workspaces](omarchy-layout-small-screen.md)
 
 ## Reference
 
@@ -36,10 +39,16 @@ and layouts. Optionally [build your lean, mean coding image once](omarchy-layout
 - [Official factory / manager 0.9.2 acceptance](omarchy-official-43-validation.md)
 - [Feature playbook acceptance](omarchy-playbook-validation.md)
 - [Lean 42.1 acceptance and historical timer failure](omarchy-lean-42-validation.md)
+- [Lean factory admission, full bootstrap on manager 0.11.0 and remaining checks](omarchy-lean-011-validation.md)
 - [Lean 43.1 acceptance and remaining checks](omarchy-lean-43-validation.md)
 - [Manager report-timer handoff](omarchy-manager-report-timer-handoff.md)
 
 These records describe the exact builds tested, rather than later rebuilds or updates.
+
+[Main merge into the Swift package branch](../README.md#main-merged-into-the-swift-package-branch--5-november-2026)
+records the `c30f213` integration, offline/fake test results and exclusions, and
+preservation of private artifacts and manager pins. It does not refresh the
+manager package or establish real guest/signing acceptance.
 
 [Shared Swift provisioning](../README.md#swift-provisioning-foundation) provides offline manifest validation, profile resolution and source-snapshotted planning; the Python operational commands remain unchanged.
 

@@ -1,5 +1,9 @@
 # Lean 43.1 acceptance — 1 November 2026
 
+This historical record covers manager 0.9.2. See the separate
+[manager 0.11 validation record](omarchy-lean-011-validation.md) for current
+factory admission evidence and unproven live checks.
+
 The rebuilt lean factory passed unattended owner setup, completion reporting
 after host cleanup, hardware rendering and playbook idempotence before and
 after restart. Validation used the reviewed 0.9.2 (15) manager preview without

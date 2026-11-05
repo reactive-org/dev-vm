@@ -1,0 +1,61 @@
+{
+  "capture_date": "2026-11-05",
+  "timezone": "Australia/Melbourne",
+  "manager_version": "0.11.0 (27)",
+  "guest_platform": "aarch64",
+  "factory": "lean",
+  "factory_manifest_sha256": "dd76d38cab9343cbd68989cfef5f45a53d3bb2352a53ed05929e06859f4c9dcc",
+  "layout": "omarchy/examples/layouts/multi-workspace.lua",
+  "layout_sha256": "adff65d20ba6ac3eb888609a00da071bbb814acec70bf38455b322b8293489f2",
+  "preparation": "Six empty Foot windows relaunched with their original app IDs and neutral labeled Bash prompts; native notification banners and VS Code first-run sign-in overlay dismissed. No window positions or sizes changed; no application accounts signed in.",
+  "encoding": {
+    "format": "WebP",
+    "quality": 86,
+    "method": 6,
+    "resampling": "cwebp resize",
+    "crop": false,
+    "metadata": "none"
+  },
+  "images": [
+    {
+      "workspace": 1,
+      "file": "multi-workspace-1.webp",
+      "sha256": "ee44b6e6ed1a4e5ccf08926fcd4f58d8ea71bf7121669d58266a69ff5026e184",
+      "bytes": 38404,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261105-multi-workspace/workspace-1.png",
+      "source_sha256": "a54cd6308c50ae98bc5ae84592881646f1bb472bf2406e8ac4c47ffebff624b1",
+      "source_width": 2080,
+      "source_height": 1170,
+      "display_scale": 1
+    },
+    {
+      "workspace": 2,
+      "file": "multi-workspace-2.webp",
+      "sha256": "28054c17e2960e613b479980ec855f2196452ad633ca747d47c62bdef04e12ba",
+      "bytes": 23050,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261105-multi-workspace/workspace-2.png",
+      "source_sha256": "2b5f6605ffee4c5278cb395ba396500f6fe98f07e237e321af60d4949366507b",
+      "source_width": 2080,
+      "source_height": 1170,
+      "display_scale": 1
+    },
+    {
+      "workspace": 3,
+      "file": "multi-workspace-3.webp",
+      "sha256": "970dfaed4e01be5637c117079b8b57d0bdd24a16ab0e8f29fa13a1dce6885c5e",
+      "bytes": 23924,
+      "width": 1920,
+      "height": 1080,
+      "source": ".artifacts/layout-validation/20261105-multi-workspace/workspace-3.png",
+      "source_sha256": "af31b42a00de06f51f01cb3bc978b1140948df0dee2a45df95f12068fa899bcb",
+      "source_width": 2080,
+      "source_height": 1170,
+      "display_scale": 1
+    }
+  ],
+  "total_bytes": 85378
+}

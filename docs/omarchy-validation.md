@@ -1,5 +1,10 @@
 # Validate and recover a workstation
 
+Lean factory admission and full default bootstrap on manager 0.11.0 are recorded
+in the [0.11 validation record](omarchy-lean-011-validation.md), including live
+owner setup, pinned SSH and hardware VirGL after restart. Broader desktop checks
+remain separate; import or preparation alone does not establish them.
+
 After the first graphical login, re-run the non-persistent host-side validation
 without installing diagnostic packages:
 
