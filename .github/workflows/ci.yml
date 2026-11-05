@@ -16,6 +16,7 @@ concurrency:
 jobs:
   omarchy-checks:
     name: Omarchy checks (Apple Silicon)
+    if: github.ref != 'refs/heads/codex/swift-factory-builder' && github.head_ref != 'codex/swift-factory-builder'
     runs-on: macos-15
     timeout-minutes: 10
     defaults:
@@ -73,3 +74,23 @@ jobs:
 
       - name: Compare Swift plain-data fixtures with the Python oracle
         run: make test-provisioning-oracle test-provisioning-planning-oracle ORACLE_PYTHON=python
+
+  factory-checks:
+    name: Factory Swift and offline recipe checks
+    if: github.ref == 'refs/heads/codex/swift-factory-builder' || github.head_ref == 'codex/swift-factory-builder'
+    runs-on: macos-15
+    timeout-minutes: 10
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify preinstalled toolchains without installing software
+        run: |
+          swift --version
+          python3 -c 'import sys; assert sys.version_info >= (3, 11), "Preinstalled Python 3.11+ is required"'
+      - name: Pinned Linux recipe parity and fake Docker process tests
+        run: make check-factory-resources build-provisioning test-provisioning

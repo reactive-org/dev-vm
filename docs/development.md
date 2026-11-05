@@ -67,3 +67,18 @@ when upgrading CI dependencies.
 CI validates repository code and local fixtures. Factory builds and real-VM
 acceptance remain separate checks requiring the documented build environment
 and an explicitly selected disposable guest.
+
+## Factory branch test-only publication
+
+`codex/swift-factory-builder` uses the dedicated Factory Swift and offline recipe
+checks job for push/PR selection (feature-branch pushes create no run until a PR
+is opened under the existing trigger policy). It uses preinstalled Swift 6.2+ and
+Python 3.11+, verifies the pinned Linux staging export and runs shared Swift tests
+with fake Docker adapters and disposable local processes. It installs no software
+and performs no factory download/build, signing or VM operation. Repository and
+pinned source-dependency checkout remain normal hosted CI inputs.
+
+The ordinary Ansible installation/legacy validation job is skipped for this
+branch. That broader validation remains separately scoped. The manager's shared
+source pin stays at `df5e2c8`; this publication follow-up changes only workflow and
+documentation, with no exported package source/resource changes.
