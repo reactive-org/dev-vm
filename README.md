@@ -2605,16 +2605,22 @@ Use `--check` to compare committed resources with the original staging contract.
 
 Docker must already be installed/running. Only explicit local Unix-socket ARM64
 Linux engines are accepted; the engine and CLI identities are rechecked. New
-UUID-derived containers/volumes carry an ownership label. Cleanup checks that
-label and never prunes unrelated resources. Image creation requires a deliberate
+UUID-derived containers/volumes carry an ownership label. Containers are created
+stopped, then started by immutable ID only after acknowledgement. Cleanup finds
+the labeled container even after a rename, rechecks its ID/label and removes only
+that ID and the owned volume; it never prunes unrelated resources. A lost create
+acknowledgement stays cleanup-required and never triggers a speculative start. Image creation requires a deliberate
 caller action and a privileged container. Archives are checksum-bound; Arch
 repositories remain live, so this does not promise byte-identical rebuilds.
 The existing Python entry points remain migration oracles until an explicit
 standalone cutover; the app never falls back to host Python.
 
-**VERIFIED — fake/local:** initial tests cover offline inputs/plans, remote and
-wrong-architecture refusal, successful/failed fake builds, foreign-resource
-refusal, bounded output and disposable local tar/process fixtures. **TO PROVE:**
+**VERIFIED — fake/local:** 92 Swift tests pass, including offline inputs/plans,
+remote/wrong-architecture/changed-engine refusal, successful/failed fake builds,
+lost-create acknowledgement and renamed-container reconciliation, foreign-resource
+refusal, bounded output and disposable local tar/process fixtures. The offline
+resource check matches all 162 staged inputs against the Python oracle. CI checks
+this parity before the Swift suite. **TO PROVE:**
 real Docker, privileged mount/loop behavior, downloads, full image creation,
 independent manager import and later disposable-guest boot/graphics acceptance.
 No real build, download, host install, signing, Apple request or VM launch is

@@ -37,7 +37,7 @@ jobs:
           architecture: arm64
 
       - name: Test Swift manifest package without guests
-        run: make build-provisioning test-provisioning
+        run: make check-factory-resources build-provisioning test-provisioning
 
       - name: Install Ansible for local validation
         run: |

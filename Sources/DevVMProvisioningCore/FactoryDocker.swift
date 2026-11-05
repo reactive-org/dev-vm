@@ -59,9 +59,12 @@ public protocol FactoryBuildDownloading: Sendable {
 }
 private final class FactoryDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     let host: String
+    private let lock = NSLock()
+    private var redirects = 0
     init(host: String) { self.host = host }
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
-        completionHandler(request.url?.scheme == "https" && request.url?.host == host && task.countOfBytesReceived < 256 * 1024 * 1024 ? request : nil)
+        let allowed = lock.withLock { redirects += 1; return redirects <= 3 }
+        completionHandler(allowed && request.url?.scheme == "https" && request.url?.host == host && request.url?.user == nil && request.url?.password == nil && request.url?.port == nil && task.countOfBytesReceived < 256 * 1024 * 1024 ? request : nil)
     }
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {}
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
