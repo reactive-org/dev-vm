@@ -2123,3 +2123,41 @@ occurs. Commit before separately approving a new run with fresh confirmation;
 real final resource/signature/candidate/guest proof remains TO PROVE. See the manager
 runbook's Resource payload admission section. No Ansible-bearing companion workflow
 is run for this documentation-only change.
+
+### Maintained operator run — first signing timeout, 5 November 2026
+
+**LATEST USER CLARIFICATION:** the operator says “I missed the prompt.” This
+supports a missed secure-UI response as the explanation for the signing timeout;
+it does not independently prove key use or timestamp success/failure. Keep the
+earlier completed-dialog report and automated evidence as historical records;
+exact dialog type/timing is not reconstructed. The plan remains consumed.
+
+**USER-REPORTED FOLLOW-UP:** the operator reports completing a macOS secure-key/
+keychain dialog. Exact dialog type and timing relative to the timeout are unknown;
+key use, timestamps and timeout cause remain unproven. This separate observation
+supplements unchanged automated evidence and authorizes no retry/native/key action.
+
+The user approves the fresh manager `b3171b0` / companion `9d3b4b6` plan with
+selected-key/secure-UI/Apple-timestamp effects. The 32-file snapshot and engine/
+operator/plan bindings pass. Maintained CLI real-terminal exact-plan confirmation,
+recheck and durable consumption precede the default backend. Frozen preparation,
+23 runtime checks, public certificate/dependencies, release build, compiled scope
+and corrected 45-file payload assembly pass; the 49-file reference is unchanged.
+
+The first selected signing command reaches its 120-second limit and is killed/
+reaped (-9). Total audited elapsed 715.494 seconds, CLI exit 1, plan consumed with
+no retry. All 43 command/native roots have quiet groups/closed descriptors/no
+pending handles and are absent from a bounded recorded-PID snapshot. All 8,713 old
+artifact entries/pins/reviews/audits are preserved; failed output and new consumed/
+attempt records remain private. Retained credential content stays unopened; selected
+keychain admission is metadata-only, lock state unqueried. No automatic unlock/
+relock/import/export/enumeration/ACL/search-list change or scope recapture occurs.
+
+Storage-helper bytes match compiled input. Incomplete stderr (274 bytes) is not
+retained raw; actual key use, secure UI display/response and timestamp outcome
+are unestablished. The exact wait cause stays unknown. No later signing/final app
+validation/seal/archive/success receipt, notarization, SSH/Ansible, install, app/
+runtime/VM operation or product/shared approval change occurs. Next collect
+operator UI observations and review key readiness versus timestamp connectivity
+before a new plan and fresh explicit approval. No further native/key operation or
+retry is performed here. See the manager runbook's First maintained operator run.
