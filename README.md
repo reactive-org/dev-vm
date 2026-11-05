@@ -2585,3 +2585,37 @@ recipe now uses --no-parallel, matching its successful local run; explicit
 concurrency, cancellation, resize, echo and deadline checks inside tests remain.
 No production code/resource, manager pin, private artifact or timeout is changed.
 Hosted results are tracked in the draft PR; no real signing or VM is authorized.
+
+## Shared Swift factory builder — 6 November 2026
+
+The factory-builder integration lives on `codex/swift-factory-builder`, following
+its tested shared provisioning dependency. `FactoryBuildPlan`, the pinned
+`FactoryRecipe`, typed Docker admission and `FactoryBuildEngine` provide a
+Mac-Python-free host path. `LocalFactoryBuildProcess` reuses the existing C
+session/group bridge with closed input, bounded capture/streaming, deadlines,
+cancellation and retained cleanup ownership. It creates no guest/session identity.
+
+`scripts/sync_swift_factory_resources.py` performs **offline release preparation**
+using the maintained Python staging oracle: it exports the exact reviewed guest
+source, transformed recipe and Linux checks into a deterministic archive and
+compiled digest. It never downloads sources, builds packages/images or starts
+Docker. The installed Swift controller verifies the archive and all 162 staged
+files; Bash/Python package/image checks run only inside the Linux builder.
+Use `--check` to compare committed resources with the original staging contract.
+
+Docker must already be installed/running. Only explicit local Unix-socket ARM64
+Linux engines are accepted; the engine and CLI identities are rechecked. New
+UUID-derived containers/volumes carry an ownership label. Cleanup checks that
+label and never prunes unrelated resources. Image creation requires a deliberate
+caller action and a privileged container. Archives are checksum-bound; Arch
+repositories remain live, so this does not promise byte-identical rebuilds.
+The existing Python entry points remain migration oracles until an explicit
+standalone cutover; the app never falls back to host Python.
+
+**VERIFIED — fake/local:** initial tests cover offline inputs/plans, remote and
+wrong-architecture refusal, successful/failed fake builds, foreign-resource
+refusal, bounded output and disposable local tar/process fixtures. **TO PROVE:**
+real Docker, privileged mount/loop behavior, downloads, full image creation,
+independent manager import and later disposable-guest boot/graphics acceptance.
+No real build, download, host install, signing, Apple request or VM launch is
+performed by this implementation pass. Existing artifacts/pins are preserved.

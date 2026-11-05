@@ -206,3 +206,10 @@ repair-omarchy-vm-black-screen: ## Repair the Hyprland 0.57 VirGL alpha regressi
 
 test-omarchy: ## Run focused Omarchy bootstrap safety tests
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_omarchy*.py' -v
+
+.PHONY: factory-resources check-factory-resources
+factory-resources: ## Prepare reviewed Swift factory inputs offline; no image build
+	python3 scripts/sync_swift_factory_resources.py
+	python3 scripts/update_swift_engine_inventory.py
+check-factory-resources: ## Compare packaged factory inputs with the Python staging oracle
+	python3 scripts/sync_swift_factory_resources.py --check
