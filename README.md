@@ -2517,4 +2517,8 @@ selectors, receipts, review packets and binaries stay outside Git.
 This proves one existing approved disposable Dev VM's saved-setup application,
 not a fresh creation/factory matrix or unrestricted execution. Other option,
 authentication and lifecycle acceptance remains bounded by the manager runbook;
-live-terminal wrapping/completed-state messaging still needs polish.
+final UI follow-up verifies 136 fake-service checks/27 screenshots for history
+ordering, cleanup priority, finished-state text and pipe-LF/split-CRLF display.
+A separately signed UI-only Dev replacement shows the persisted successful result
+without another guest apply/launch; its ZIP roundtrip/signatures pass. The engine,
+approved scope, saved bytes and all prior private artifacts remain unchanged.
