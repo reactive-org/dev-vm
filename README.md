@@ -2260,3 +2260,28 @@ actual build/sign/key/secure UI/timestamps need separate approval. No signing pl
 or candidate build, signing, private-key access, Apple request, SSH/Ansible, install,
 UI/app/runtime or VM action occurs. See the manager runbook's Fresh 4a0f30a native
 inspection passed section. Raw evidence and pins remain private.
+
+### Fresh 4a0f30a attended signing plan prepared — 5 November 2026
+
+After manager `28b758c` / companion `7b8fcb2` record the successful new inspection,
+the maintained private operator prepares/checks a distinct attended plan for
+`4a0f30a`, the updated runtime and original Stable disposable scope. It binds the
+new receipt/request/implementation and exact staged public material/selector/code
+inputs; 32 committed tooling files, seventeen engine files and 173 sealed review
+files remain exact. Shared package/product code and pins are unchanged.
+
+Fourteen actual-plan data/refusal checks and 44 fake API/process tests pass without
+actual child processes or native-library attempts. All 18,916 prior private entries,
+old/new receipts, signed/failed outputs, consumed plans and pins remain unchanged.
+Original signing-material/keychain metadata and content are unqueried. The plan is
+CHECKED_PUBLIC_INPUTS_ONLY; all five proposed effects remain NOT_GRANTED. No real
+authority/backend, candidate output, consumed marker or attempt record exists.
+
+Private attendance notes specify exact-plan real-terminal confirmation, a quoted
+CLI command, prompt handling with UI wait inside the 120-second signing limit,
+bounded cleanup and no retry. Actual selected-key use/secure UI/Apple timestamps
+require separate approval; current key availability and Touch ID method are not
+established. No build, native inspection, signing, private-key access, Apple
+request, SSH/Ansible, install, normal app/runtime or VM action occurs. Private data/
+pins stay out of Git. Documentation is updated in both worktrees without committing
+this preparation; see the manager runbook's Fresh 4a0f30a attended signing plan.
