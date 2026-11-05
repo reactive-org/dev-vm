@@ -2161,3 +2161,26 @@ runtime/VM operation or product/shared approval change occurs. Next collect
 operator UI observations and review key readiness versus timestamp connectivity
 before a new plan and fresh explicit approval. No further native/key operation or
 retry is performed here. See the manager runbook's First maintained operator run.
+
+### Read-only readiness after missed prompt — 5 November 2026
+
+Result/observation docs are committed as manager `f67c5e4` / companion `b260d8f`.
+The operator reports missing the prompt; source confirms the 120-second signing
+deadline includes secure-UI waiting. That supports the timeout explanation without
+proving a timestamp-service failure. No network/timestamp diagnostic is run.
+
+One network/file-write-denied worker with optional UI disabled checks only the
+named keychain reference/status and staged public-certificate metadata. Status is
+7/unlocked before/after; public selector/digest/date validity and reviewed-profile
+membership/policy match. It completes in 0.218 seconds under a 15-second/4-KiB-stream
+bound with references released, owned root group-quiet/reaped/closed and recorded
+PID absent. All 13,565 old artifact entries/pins and failed/consumed records remain
+unchanged; keychain metadata and unlocked state stay as found. No private-key/
+identity/item, trust/signing/timestamp or unlock/ACL/search-list operation occurs.
+
+Container/public readiness is established; private-key presence/association/ACL,
+Touch ID and actual signing/timestamps remain unproven. No new signing, private-key
+access, Apple request, SSH/Ansible, install, UI/app/runtime/VM operation, source/
+product approval change or scope recapture occurs. The plan remains consumed;
+a new attended attempt needs a distinct plan and fresh approval. No retry/new plan
+is prepared here. See the manager runbook's Read-only signing readiness diagnosis.
