@@ -2285,3 +2285,31 @@ established. No build, native inspection, signing, private-key access, Apple
 request, SSH/Ansible, install, normal app/runtime or VM action occurs. Private data/
 pins stay out of Git. Documentation is updated in both worktrees without committing
 this preparation; see the manager runbook's Fresh 4a0f30a attended signing plan.
+
+### Attended 4a0f30a run — first-signing timeout, 5 November 2026
+
+Preparation docs commit as manager `5a902cd` / companion `292da85`. The user approves
+the fresh plan with selected-key use, secure UI and Apple timestamps and says
+they will watch for the prompt. Exact sealed source/plan/receipt/code bindings and 32 committed
+tooling files match; maintained CLI real-terminal confirmation consumes the plan
+before its bounded default backend. All twelve preparation/build/location commands
+and thirty pre-sign native workers pass, including 23 runtime checks. The staged
+45-file resource payload matches; shared package/code/pins remain unchanged.
+
+The first storage-helper signature reaches its 120-second deadline and the owned
+process group is killed/reaped/closed. Audited elapsed is 752.079 seconds, CLI exit 1.
+Staged helper bytes equal compiled input; no later signing/final validation/archive
+or success receipt is reached. Incomplete 248-byte stderr permits only fixed
+sign/incomplete-output diagnostics. Key use, secure UI display/response and Apple
+timestamp outcome/cause are not established; the operator's prompt observation
+is pending. No native/key/network diagnosis, state change, retry or new plan occurs.
+
+All 43 command/native roots have quiet groups, reap/closed descriptors and zero
+unresolved handles, and are absent in a bounded PID-only snapshot. All 18,928 prior
+private entries/reviews/plans/receipts/failed outputs and frozen pins are unchanged;
+only approved new output/consumption/attempt evidence is added privately. No export/
+import/enumeration, orchestrator unlock/relock/ACL/search-list change, scope
+observation/recapture or ordinary approval change occurs. No notarization, SSH/
+Ansible, installs, publication, normal app/UI/runtime or VM action occurs. The plan
+remains consumed; actual signed completion and original-Mac/loaded-child/guest
+acceptance remain unproven. See the manager runbook's Attended 4a0f30a run result.
