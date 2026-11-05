@@ -78,7 +78,7 @@
     "Sources/DevVMProvisioningCore/SetupPlanner.swift": "acd8f8f5b0fe461b6ab29af0f96eb8637fef00f756b7649cd89ad01704c24a96",
     "Sources/DevVMProvisioningCore/SourceSnapshot.swift": "95ba352a7fe6b33664ff177b2326dbf774bfd05b7f93ab5dc1b837d11314fd5e",
     "Sources/DevVMProvisioningCore/ThemeSelection.swift": "e8ac8e76327c4c80cd574972086272a6fefdc5791d95c1d127a914e68b21b1cb",
-    "Sources/DevVMProvisioningCore/TransportWorkspace.swift": "9b4f0f736beb3708506435236cbaf4ea9105fd78d50ed4ac6c3326136101acf8",
+    "Sources/DevVMProvisioningCore/TransportWorkspace.swift": "d95e9873cd1d7911076239117b4fd3a16123355bad8af09d740074f2856eec8c",
     "Sources/dev-vm-process-host/main.c": "f9f5f3afb88d54d466dd10d183bf3323a17712c29932ad38d5289e8a67ac02aa",
     "Sources/dev-vm/main.swift": "550c97f885f3326477fea78cca65c93d7ee25ad9d7c9ad55a2cd3692f2cda681",
     "ThirdParty/ParserInventory.json": "3a64ef59bb137a2c4ba26f5812debabbdad9816d041f7e2b6ff52bb8fb6a8941"
