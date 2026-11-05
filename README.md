@@ -2438,3 +2438,33 @@ No install, notarization, SSH/Ansible, ordinary app/runtime or VM launch occurs.
 Native UI, daemon/loaded-child/original-Mac and guest acceptance remain TO PROVE.
 The plan is consumed with no automatic retry; raw materials, paths, pins and hashes
 stay out of Git. See the manager runbook's Signed 007bc66 test build section.
+
+### Manager Dev UI test build — 5 November 2026
+
+After the user clarifies that Stable must stay running, the manager builds its
+existing isolated Dev/debug target with package `5770d0f` and the unchanged runtime.
+The separate app uses `dev.omarchy.vm-manager.dev`, Dev data/locks and
+`omarchy-vm-dev`, with local ad-hoc signing. Bundle-only checks, packaged channel
+guards and ZIP roundtrip pass. All 29,481 prior private entries and four manager
+pins are unchanged; no installed/running manager, VM, real key or Apple service
+is touched. The earlier signed Stable candidate and original M6 disposable scope
+stay frozen. This Dev build enables UI testing; protected Touch ID and provisioning
+execution remain gated. Shared package sources/resources/pins are unchanged.
+
+The manager's New VM flow now uses **selections → Create VM**, removing the
+separate review action and selection-confirmation checkbox. Create VM freezes the
+pressed form selections internally and acknowledges only their metadata; separate
+task trust and execution permissions stay unchanged. Draft edits call no backend.
+Native fake acceptance passes 118 checks/24 offscreen screenshots plus 36 focused
+core tests, including Bundled/Local creation, held preparation, identical retries
+and safe preparation failures. A fresh isolated ad-hoc Dev app is rebuilt without
+touching main, real VMs, shared sources/resources or frozen pins. Existing guest
+Setup review/preview actions and shared core/API consent validation are unchanged.
+
+The manager also removes the global account-defaults enable checkbox. Saved
+account/password references now apply automatically to new profiles even when
+legacy metadata's old flag was off; an explicit per-VM manual choice remains.
+Existing profiles and credential authorization are unchanged. Synthetic/local
+coverage passes 75 core tests and 130 offscreen UI checks/27 screenshots; no real
+Keychain, SSH/Ansible or VM is used. Shared package sources/resources and frozen
+pins remain unchanged; real first boot of the revised flow remains TO PROVE.
