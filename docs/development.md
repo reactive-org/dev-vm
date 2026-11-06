@@ -188,3 +188,24 @@ EGL and compositor evidence were used. An optional Foot fixture could not run
 with the installed Lua dispatcher API. Real builder cancellation/recovery remains
 TO PROVE. The manager retains private detailed receipts; no factory build-time
 manifest or frozen pin was rewritten after this observation.
+
+
+## Factory merge-readiness repair — 6 November 2026
+
+A synthetic fragmented-output regression reproduced lost CLI log tails: four
+pages of eight small writes did not cover the retained 256 KiB ring. Factory
+output now uses opaque byte cursors and pages of at most 64 KiB. Four requests
+can drain the retained snapshot regardless of write size. Tests cover 17-,
+3,007- and 8,191-byte writes, tail preservation, gaps, future cursors and empty
+end-of-output pages. Output remains bounded, in-memory and absent from journals.
+
+The complete shared Swift suite passes 99 test functions; the three resource
+checks and 162-input offline staging parity pass. The source engine inventory
+changes with the shared implementation. The manager records this as a third
+checksummed patch over the same immutable package base; reviewed recipe/archive
+bytes, runtime and frozen private candidate pins stay unchanged. Companion PR #8
+is still the provisioning foundation dependency for factory PR #9. No merge or
+release is authorized by this review; fresh head CI results are recorded in the
+PRs. Real Docker cancellation/recovery and previously unexercised guest behavior
+remain separate acceptance obligations. No signing, installs, factory/runtime
+downloads, real Docker command or VM launch occurred in this repair.
