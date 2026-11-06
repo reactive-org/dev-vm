@@ -248,3 +248,18 @@ historical candidate and runtime pins remain unchanged. Frozen configuration
 inputs do not pin the versions served by the guest's configured repositories.
 Eight source-export tests and twenty focused Dev package/helper/review tests also
 pass after matching the vendored test export and regenerating its active pin.
+
+## Update-before-setup PR checks — 7 November 2026
+
+The `codex/setup-system-update` feature branch uses the existing test-only CI
+path: the manager's full macOS no-VM job runs once for the PR, with the Docker/SSH
+fixture skipped; the companion uses its Swift/offline resource job and skips
+Ansible installation and the legacy job. Local legacy validation is recorded
+above. These filters do not change normal integration/release jobs on `next` or
+`main`. Feature-branch publication cannot invoke the manager release job. Hosted
+success remains TO PROVE until the new runs finish. No private artifact or frozen
+candidate pin is included in either PR.
+
+Workflow YAML parsing and branch/event condition checks pass: feature push/PR
+events exclude installer, real SSH and release jobs, while normal integration
+and release conditions remain unchanged.
