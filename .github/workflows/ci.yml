@@ -16,7 +16,9 @@ concurrency:
 jobs:
   omarchy-checks:
     name: Omarchy checks (Apple Silicon)
-    if: github.ref != 'refs/heads/codex/swift-factory-builder' && github.head_ref != 'codex/swift-factory-builder'
+    if: >-
+      github.ref != 'refs/heads/codex/swift-factory-builder' && github.head_ref != 'codex/swift-factory-builder' &&
+      github.ref != 'refs/heads/codex/setup-system-update' && github.head_ref != 'codex/setup-system-update'
     runs-on: macos-15
     timeout-minutes: 10
     defaults:
@@ -77,7 +79,9 @@ jobs:
 
   factory-checks:
     name: Factory Swift and offline recipe checks
-    if: github.ref == 'refs/heads/codex/swift-factory-builder' || github.head_ref == 'codex/swift-factory-builder'
+    if: >-
+      github.ref == 'refs/heads/codex/swift-factory-builder' || github.head_ref == 'codex/swift-factory-builder' ||
+      github.ref == 'refs/heads/codex/setup-system-update' || github.head_ref == 'codex/setup-system-update'
     runs-on: macos-15
     timeout-minutes: 10
     env:
