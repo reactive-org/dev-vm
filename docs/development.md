@@ -209,3 +209,42 @@ release is authorized by this review; fresh head CI results are recorded in the
 PRs. Real Docker cancellation/recovery and previously unexercised guest behavior
 remain separate acceptance obligations. No signing, installs, factory/runtime
 downloads, real Docker command or VM launch occurred in this repair.
+
+
+## Native update before shared Swift setup — 7 November 2026
+
+The original Python bootstrap already runs `omarchy update -y` before setup.
+The Swift sequencer now restores that behavior for every reviewed apply: verify
+the target and native admin grant, update Omarchy and system packages, then apply
+manifest packages, optional-app trimming, features and repository configuration.
+A fresh image can contain pacman databases referencing archives removed from its
+mirror; replacing the factory alone cannot prevent those databases aging again.
+Feature helpers keep their no-refresh/no-upgrade policy; the reviewed orchestration
+owns the explicit full update. Omarchy retains ownership of migrations and upgrades.
+
+Review version 2 binds the update semantics. The apply-only `updateSystem` operation
+uses the pinned guest login shell, owned guest scope, interactive terminal lease,
+streamed output and existing 3600-second deadline. It never runs in preview, check
+or cleanup recovery. A nonzero updater exit reports `systemUpdateFailed`; timeout,
+cancellation and identity errors retain their existing distinctions. No package
+install or feature task follows a failed update. Cleanup still quiesces owned work,
+revokes/verifies admin access and removes payloads, retaining uncertainty when proof
+is missing. It does not undo package changes or silently retry an upgrade.
+
+Successful apply requests a separately reviewed restart/check, since a full update
+may replace the running kernel or desktop. Docker owner access remains separately
+opted in; a system restart requirement never implies Docker permission. Fake adapters
+and process runners cover these boundaries; real official/lean update and interrupted
+upgrade acceptance remain TO PROVE. No guest operation or host install is performed
+by this development validation.
+
+Validation: 104 shared Swift tests and 239 legacy tests pass (one existing Lua
+skip), as do 66 complete offline proposal/error cases and the 162-input factory
+resource parity check. The consuming manager passes 559 full tests, 283 Dev
+provisioning tests, 340 script tests and 141 offscreen UI checks/27 PNGs. PTY and
+fixture-socket checks require local process access outside the sandbox. The
+manager's active source export includes matching sequencer/transport test changes;
+historical candidate and runtime pins remain unchanged. Frozen configuration
+inputs do not pin the versions served by the guest's configured repositories.
+Eight source-export tests and twenty focused Dev package/helper/review tests also
+pass after matching the vendored test export and regenerating its active pin.
