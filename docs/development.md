@@ -127,3 +127,33 @@ installed Docker CLI, requires a local Unix socket and ARM64 Linux engine, and
 revalidates the engine identity. No real build/download/container mutation,
 credential access, installation or VM operation occurs. Engine-internal scratch
 free space and real factory/import/guest acceptance remain unmeasured/unperformed.
+
+## Anonymous public-image factory builds
+
+The first approved real Dev run verified all three pinned downloads, then failed
+before privileged image-container creation because Docker inherited a configured
+desktop credential helper unavailable on the restricted PATH. Preserve that job;
+do not install a helper or read host credentials to retry a public-image build.
+
+The builder now selects a private job-local Docker config containing only an
+empty Docker Hub auth object. Its nonempty auth map prevents Docker's automatic
+native-store detection, without storing credentials. The config is checksum
+checked before and after the build and never copied from the user's config.
+Container creation uses `--pull=never` with the acknowledged local image ID.
+Fake adapters cover unchanged user configuration, scoped config permissions,
+registry-build selection, local-image-only create and post-build tamper refusal.
+Real retry/import results remain TO PROVE until recorded by the manager; this
+repair authorizes no VM launch, host install, credential use or Main operation.
+
+**VERIFIED — authorized real Dev acceptance:** a mirror timeout caused one
+post-repair job to fail; the next unchanged-recipe job built and imported
+**Lean Omarchy Dev acceptance**. The 20 GiB image compressed to 1,716,254,279 bytes.
+The manager independently verified format-2 admission, the schema-2 receipt and
+catalog readback. Its recorded provenance keeps guest boot untested. The one
+privileged container had only six job-owned bind mounts and its owned work
+volume. Afterward all three attempt labels had zero containers/volumes, with
+caches, images and outputs preserved. No VM launch, host install, credential use
+or Main operation occurred. Local validation passes 97 shared Swift functions,
+542 Dev manager and 340 script tests, plus finalized export/bundle checks. Hosted
+CI for this follow-on fix and real guest/cancellation/recovery acceptance remain
+TO PROVE.
