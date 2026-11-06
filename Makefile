@@ -1,6 +1,33 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
+# Keep SwiftPM build state local; no host runtime or tool installation is involved.
+export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/module-cache
+export SWIFTPM_MODULECACHE_OVERRIDE := $(CURDIR)/.build/module-cache
+SWIFT_PROVISIONING_FLAGS := --disable-sandbox --cache-path .build/cache --config-path .build/configuration --security-path .build/security
+
+.PHONY: build-provisioning test-provisioning test-provisioning-oracle
+build-provisioning: provisioning-inventory ## Build the offline Swift provisioning CLI/library (no guest operations)
+	@mkdir -p .build/module-cache .build/cache .build/configuration .build/security
+	swift build $(SWIFT_PROVISIONING_FLAGS)
+
+test-provisioning: provisioning-inventory ## Run offline Swift manifest/planning tests (no host probes or guests)
+	@mkdir -p .build/module-cache .build/cache .build/configuration .build/security
+	swift test $(SWIFT_PROVISIONING_FLAGS) --no-parallel
+
+.PHONY: provisioning-inventory
+provisioning-inventory:
+	@PYTHONDONTWRITEBYTECODE=1 python3 ./scripts/sync_swift_provisioning_resources.py
+	@PYTHONDONTWRITEBYTECODE=1 python3 ./scripts/update_swift_engine_inventory.py
+
+ORACLE_PYTHON ?= python3
+.PHONY: test-provisioning-planning-oracle
+test-provisioning-planning-oracle: build-provisioning ## Compare complete offline proposals with existing Python 3.11+/PyYAML (development only)
+	@PYTHONDONTWRITEBYTECODE=1 $(ORACLE_PYTHON) ./scripts/check_swift_planning_oracle.py --binary "$$(swift build $(SWIFT_PROVISIONING_FLAGS) --show-bin-path)/dev-vm"
+
+test-provisioning-oracle: ## Compare synthetic plain-data fixtures with the existing Python loader (development only)
+	@PYTHONDONTWRITEBYTECODE=1 python3 ./scripts/check_swift_parser_oracle.py
+
 VM_NAME ?=
 OMARCHY_VM_MANAGER_CLI ?=
 OMARCHY_VM_MANAGER_APP ?=

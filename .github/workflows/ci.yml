@@ -36,6 +36,9 @@ jobs:
           python-version: "3.14"
           architecture: arm64
 
+      - name: Test Swift manifest package without guests
+        run: make build-provisioning test-provisioning
+
       - name: Install Ansible for local validation
         run: |
           python -m pip install 'ansible-core==2.21.5'
@@ -67,3 +70,6 @@ jobs:
 
       - name: Run Omarchy tests
         run: make test-omarchy
+
+      - name: Compare Swift plain-data fixtures with the Python oracle
+        run: make test-provisioning-oracle test-provisioning-planning-oracle ORACLE_PYTHON=python
