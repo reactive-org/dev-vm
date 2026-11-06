@@ -157,3 +157,34 @@ or Main operation occurred. Local validation passes 97 shared Swift functions,
 542 Dev manager and 340 script tests, plus finalized export/bundle checks. Hosted
 CI for this follow-on fix and real guest/cancellation/recovery acceptance remain
 TO PROVE.
+
+## Disposable factory boot acceptance — 6 November 2026
+
+**VERIFIED — separately approved Dev run:** a new manager-owned disposable UUID
+booted **Lean Omarchy Dev acceptance** using saved account defaults, 4 CPUs,
+8 GiB RAM and a 64 GiB system disk. Personal SSH-key inheritance, clipboard,
+sharing and guest Touch ID were disabled. The user completed the macOS secure
+guest-password prompt; the original pending launch continued despite its CLI
+connection timeout, without a duplicate VM or start.
+
+Thirteen account checks passed, including the configured identity, Git name/email,
+hostname, timezone/keymap, native completion and password-seed removal. The desktop
+keyboard matched and the system locale was `en_US.UTF-8`. New-key, host-pinned
+managed SSH was used without personal agent forwarding. Native Wayland EGL and
+the active compositor reported hardware-backed VirGL on Apple hardware; the
+2688×1512 output used scale 2 and approximately 120 Hz. Scoped window captures
+showed normal desktop/panel/text rendering. No software renderer was enabled.
+
+The new guest shut down gracefully with matching `Exited (0)`, closed SSH listener,
+released runtime lock and no remaining owned runtime processes. All recorded
+preexisting processes remained present. Its stopped disk, original factory,
+candidate artifacts and frozen pins were retained; Main and existing VMs were
+untouched. No signing, host install, download or Ansible run occurred.
+
+**LIMITS:** this proves one fresh boot, not permanent resolution of intermittent
+graphics startup. Password login, app-window/shortcut, resize, sleep/wake and
+crash acceptance were not exercised. GLX was unavailable over SSH; native Wayland
+EGL and compositor evidence were used. An optional Foot fixture could not run
+with the installed Lua dispatcher API. Real builder cancellation/recovery remains
+TO PROVE. The manager retains private detailed receipts; no factory build-time
+manifest or frozen pin was rewritten after this observation.
