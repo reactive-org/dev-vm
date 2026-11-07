@@ -23,7 +23,7 @@
     "Sources/DevVMProvisioningCore/FeatureContract.swift": "037bb4b8c8e700f0b8c30c00ce8945a06af61fb5fc4fcd6bd860b681440372ad",
     "Sources/DevVMProvisioningCore/FeaturePlanner.swift": "5e7fab041c36b3afc4380fb4aeb32629f0840d34e85dcd96b7dc3fca94388501",
     "Sources/DevVMProvisioningCore/FrozenInputsArchive.swift": "66e4e9e9c60b879faf8bb1e973979c23daf5217329723b6b860737ae56a683c2",
-    "Sources/DevVMProvisioningCore/GuestTransport.swift": "6a2ba6c43337567c83700f24688fb40d900ca8befcd48ca8d091124d929bc4e3",
+    "Sources/DevVMProvisioningCore/GuestTransport.swift": "aee041cdd8748708e3384fb69c0736ca58a4115be0fc09061ef823009ecfd28e",
     "Sources/DevVMProvisioningCore/JSONGrammar.swift": "6b3782b50a9014cf48e283b811e35b9aced5737dec81bea343f00cf88b406111",
     "Sources/DevVMProvisioningCore/LayoutExamples.swift": "4b58d15eb759273af5c84c08c57da4afeeaa75524e390b8c3b89065c30ec47a9",
     "Sources/DevVMProvisioningCore/LeanDeveloperPolicy.swift": "7e95594d6985d3fb18f18c276841a6a69d3561657abc2d568cd6dfde5270f878",

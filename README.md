@@ -335,8 +335,9 @@ Attempt completion is never a VM `.exited` boundary; consumers must retain VM
 clients/reservations under the manager's existing lifecycle rules.
 
 Commands carry adapter deadlines: identity checks 10 seconds; grant/cache probes
-and cleanup 30 seconds; interactive commands 120 seconds; setup operations 3,600
-seconds. Actual deadline enforcement/local-process exit belongs to a concrete
+and cleanup 30 seconds; setup operations, including the interactive grant and
+Docker owner-access prompts, 3,600 seconds so an unattended prompt does not time
+out after two minutes. Actual deadline enforcement/local-process exit belongs to a concrete
 transport. Fake timeout replies test state transitions; they do not prove hard
 wall-clock bounds, uncooperative-adapter termination or descendant cleanup.
 
