@@ -349,7 +349,7 @@ class ImageCompatibilityTests(unittest.TestCase):
         self.assertIn('Server = https://pkgs.omarchy.org/$channel/', script)
         self.assertIn('pacman -Swdd', script)
         self.assertIn("arm_mirror='https://arm-stable-mirror.omarchy.org/$arch/$repo'", script)
-        self.assertLess(script.index(">/etc/pacman.d/mirrorlist"), script.index("pacman -Syu"))
+        self.assertLess(script.index(">/etc/pacman.d/mirrorlist"), script.index("pacman -Syyu"))
         self.assertIn('--channel "$channel"', script)
         for removed in ("omarchy_commit", "recipes_commit", "makepkg --nodeps --force --noconfirm\n    local packages=(./*.pkg.tar.zst)\n    ((${#packages[@]} == 1))\n    install -m 0644 \"${packages[0]}\" /output/packages/\n  )\n}\n\nfor package in omarchy"):
             self.assertNotIn(removed, script)

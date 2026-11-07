@@ -36,7 +36,9 @@ mkdir -p /work/package-build /output/packages /work/omarchy-packages /work/omarc
 pacman-key --populate omarchy
 printf 'Server = %s\n' "${arm_mirror//\$arch/aarch64}" >/etc/pacman.d/mirrorlist
 sed -i "/^\[core\]/i [omarchy]\nServer = https://pkgs.omarchy.org/$channel/\$arch\n" /etc/pacman.conf
-pacman -Syu --needed --noconfirm imagemagick
+# Force a refresh: the image caches the live mirror's newer index, which an
+# ordinary -Sy keeps when the selected (stable) mirror's index is older.
+pacman -Syyu --needed --noconfirm imagemagick
 mkdir -p /output/repositories
 cp /var/lib/pacman/sync/*.db /output/repositories/
 

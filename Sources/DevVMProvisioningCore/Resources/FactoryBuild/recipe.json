@@ -25,7 +25,7 @@
     },
     "profile/build-container.sh": {
       "mode": 420,
-      "sha256": "7debe29d7939a807dfb2061f48a92198f3179d87da6c2704e903ed8833367ce0"
+      "sha256": "bc0de1649b2695fd6f060bd1aba57799f2266136f034384c12edd75856a01d10"
     },
     "profile/check-provisioning.py": {
       "mode": 420,
@@ -712,7 +712,7 @@
       "omarchy/image/OMARCHY-LICENSE": "717ba1949502290f8e47688ae2e323acd06c8ca47aec9f7596b15f678c1af4a2",
       "omarchy/image/UPSTREAM-LICENSE": "f8360abaaf0114fbb7403b682bc8d21304fcf8bacb0f351261cdf792d75ea481",
       "omarchy/image/base.packages": "3a4496b9adcfe7e77ce0afbb9d36e60a9bdab9ef01b0898686cdf41c5fc53125",
-      "omarchy/image/build-container.sh": "7debe29d7939a807dfb2061f48a92198f3179d87da6c2704e903ed8833367ce0",
+      "omarchy/image/build-container.sh": "bc0de1649b2695fd6f060bd1aba57799f2266136f034384c12edd75856a01d10",
       "omarchy/image/check-provisioning.py": "65061dca9ed1d8f4271fe2886ef0fdf04d236e295d188244a7b094dd44ea12de",
       "omarchy/image/check-user.sh": "52b2cdad6d2095806438c4b36f61040734d6cd6f7fbcb6b1bec37320d903d4d4",
       "omarchy/image/compatibility.py": "8bca0bbd6d2371f75eb63c4928ada294df3e2b37bfcba6e333083b576ad68a59",
@@ -887,5 +887,5 @@
     "size_gib": 20,
     "try_commit": "91e95a2b9d6a9399cb2fe51f8be3d3a45c085054"
   },
-  "templateSHA256": "37ebd31f212f92b7b0336cb11beb0069186565c107b4552826417625123d68f8"
+  "templateSHA256": "11172109dd8ecb5164f7f384cd2eb97ba0b7e5f8924789c424462adcbee489c1"
 }
