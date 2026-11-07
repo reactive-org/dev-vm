@@ -12,8 +12,17 @@ def source_paths():
     names = ["site.yml", "setup.yml", "group_vars/all.yml", "omarchy/features/catalogue.json"]
     names += [str(p.relative_to(ROOT)) for p in sorted((ROOT / "roles").rglob("*.yml"))]
     names += ["omarchy/guest/" + n for n in ["apply-lean-developer.py", "lean-developer.packages", "apply-features.py", "feature_contract.py", "apply-workstation.sh", "apply-theme.sh", "repair-try-omarchy-black-screen.sh", "apply-dotfiles.py", "provisioning-job.py"]]
-    names += ["omarchy/examples/layouts/" + n for n in ["catalogue.json", "four-terminals.lua", "terminal-browser.lua", "vscode-browser.lua", "claude-two-terminals-browser.lua"]]
+    names += ["omarchy/examples/layouts/" + n for n in ["catalogue.json"] + layout_files()]
     return names
+
+
+def layout_files():
+    """Every Lua file the maintained layout catalogue describes, in catalogue order."""
+    catalogue = json.loads((ROOT / "omarchy/examples/layouts/catalogue.json").read_text())
+    files = [example["file"] for example in catalogue["examples"]]
+    if any("/" in name or not name.endswith(".lua") for name in files) or len(set(files)) != len(files):
+        raise ValueError("Layout catalogue files must be unique Lua names in the layouts folder")
+    return files
 
 
 def sync():

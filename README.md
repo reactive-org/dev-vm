@@ -2638,3 +2638,14 @@ metadata and damaged archives. All 93 shared Swift tests pass locally using
 fake Docker and disposable process/filesystem fixtures; the hosted rerun remains
 pending until separately recorded. No shipped archive/recipe bytes or frozen
 private candidate pin is regenerated.
+
+### Multi-workspace layout examples in the shared catalogue — 7 November 2026
+
+The bundled layout catalogue now also describes `multi-workspace`,
+`claude-browser-code-terminals` and `small-screen`, copied unchanged from
+`omarchy/examples/layouts/` with their source hashes. Catalogue windows carry an
+optional `workspace` (absent means workspace 1); a layout's workspaces must be
+contiguous from 1, and an example may describe up to 16 windows on up to 10
+workspaces. The resource sync copies every Lua file the catalogue names. Wireframes
+remain illustrations of intended placement, not observed guest state; the Lua
+files and their live validation records are unchanged.
