@@ -4,7 +4,16 @@ umask 022
 
 mode=${1:?check or build}
 size_gib=${2:?virtual disk size}
+channel=${3:-edge}
 [[ $mode == check || $mode == build ]]
+# Omarchy comes from the selected channel's signed repository at build time.
+# The reviewed-entry check below fails closed on any release whose install
+# scripts or owner programs the manager has not reviewed.
+case $channel in
+  stable) runtime_package=omarchy settings_package=omarchy-settings ;;
+  edge) runtime_package=omarchy-dev settings_package=omarchy-settings-dev ;;
+  *) printf 'Unknown Omarchy channel: %s\n' "$channel" >&2; exit 1 ;;
+esac
 [[ $(uname -m) == aarch64 ]]
 [[ -d /input-profile && -d /workspace/guest && -d /downloads && -d /output ]]
 available=$(df --output=avail -B1 /work | tail -1 | tr -d ' ')
@@ -17,27 +26,28 @@ cp -a /input-profile /profile
 lock=/profile/inputs.lock.json
 field() { jq -er ".$1" "$lock"; }
 
-mkdir -p /work/sources /work/recipes /work/package-build /output/packages
-tar -xzf "/downloads/omarchy-$(field omarchy_commit).tar.gz" --strip-components=1 -C /work/sources
-tar -xzf "/downloads/omarchy-pkgs-$(field recipes_commit).tar.gz" --strip-components=1 -C /work/recipes
-python3 - <<'PY'
-import sys
-sys.path.insert(0, '/profile')
-from compatibility import normalize_source_permissions
-for root in ('/work/sources', '/work/recipes'):
-    normalize_source_permissions(root)
-PY
-python3 /profile/compatibility.py patch-source /work/sources /profile /profile/source-compatibility.json
-cp /profile/source-compatibility.json /output/source-compatibility.json
+mkdir -p /work/package-build /output/packages /work/omarchy-packages /work/omarchy-root
 
 pacman-key --populate omarchy
-sed -i '/^\[core\]/i [omarchy]\nServer = https://pkgs.omarchy.org/edge/$arch\n' /etc/pacman.conf
+sed -i "/^\[core\]/i [omarchy]\nServer = https://pkgs.omarchy.org/$channel/\$arch\n" /etc/pacman.conf
 pacman -Syu --needed --noconfirm imagemagick
 mkdir -p /output/repositories
 cp /var/lib/pacman/sync/*.db /output/repositories/
 
+# Download (and signature-check) exactly the channel's Omarchy pair, without
+# dependencies. These archives are what the image installs.
+pacman -Swdd --noconfirm --cachedir /work/omarchy-packages "$settings_package" "$runtime_package"
+for name in "$settings_package" "$runtime_package"; do
+  matches=(/work/omarchy-packages/"$name"-[0-9]*.pkg.tar.zst)
+  ((${#matches[@]} == 1)) || { printf 'Expected one %s package\n' "$name" >&2; exit 1; }
+  install -m 0644 "${matches[0]}" /output/packages/
+  bsdtar -xf "${matches[0]}" -C /work/omarchy-root
+done
+python3 /profile/compatibility.py patch-source /work/omarchy-root/usr/share/omarchy /profile /profile/source-compatibility.json
+cp /profile/source-compatibility.json /output/source-compatibility.json
+
 useradd --create-home builder
-chown -R builder:builder /work/sources /work/package-build
+chown -R builder:builder /work/package-build
 
 build_package() {
   local name=$1 recipe=$2
@@ -45,7 +55,7 @@ build_package() {
   chown -R builder:builder "/work/package-build/$name"
   (
     cd "/work/package-build/$name"
-    runuser -u builder -- env OMARCHY_SRC=/work/sources PKGEXT=.pkg.tar.zst \
+    runuser -u builder -- env PKGEXT=.pkg.tar.zst \
       makepkg --nodeps --force --noconfirm
     local packages=(./*.pkg.tar.zst)
     ((${#packages[@]} == 1))
@@ -53,14 +63,6 @@ build_package() {
   )
 }
 
-for package in omarchy-settings-dev omarchy-dev; do
-  recipe=/work/recipes/pkgbuilds/$package
-  grep -qx "pkgver=$(field omarchy_version)" "$recipe/PKGBUILD"
-  grep -qx "_commit=$(field omarchy_commit)" "$recipe/PKGBUILD"
-  grep -qx 'pkgrel=1' "$recipe/PKGBUILD"
-  sed -i 's/^pkgrel=1$/pkgrel=1.1/' "$recipe/PKGBUILD"
-  build_package "$package" "$recipe"
-done
 # Repacking changes the complete archive identity even when payloads are identical.
 # Verify the transformed source again inside the container, then install the exact
 # reviewed archive through the same resolver and pacstrap path as other packages.
@@ -79,7 +81,7 @@ PY
 install -m 0644 "/profile/$(field reviewed_integration.archive)" /output/packages/
 build_package dev-workstation-preferences /profile/preferences
 
-python3 /profile/check-provisioning.py /work/sources /output/provisioning-check.json
+python3 /profile/check-provisioning.py /work/omarchy-root/usr/share/omarchy /output/provisioning-check.json
 
 for package in /output/packages/*.pkg.tar.zst; do
   bsdtar -xOf "$package" .PKGINFO
@@ -135,5 +137,5 @@ integration=(/packages/try-omarchy-*.pkg.tar.zst)
 preferences=(/packages/dev-workstation-preferences-*.pkg.tar.zst)
 ((${#integration[@]} == 1 && ${#preferences[@]} == 1))
 bash /workspace/guest/factory/build-image.sh \
-  --output /output --work /factory-work --size-gib "$size_gib" \
+  --output /output --work /factory-work --size-gib "$size_gib" --channel "$channel" \
   --package "${integration[0]}" --package "${preferences[0]}"

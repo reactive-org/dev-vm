@@ -99,14 +99,43 @@ def optional_command(text, command, package):
     )
 
 
+UPDATE_REQUIRED = ("This Omarchy release changes setup programs that Omarchy VM Manager hasn't "
+                   "reviewed yet. Update Omarchy VM Manager, or try the other channel.")
+RUNTIME_PACKAGES = {"stable": ("omarchy", "omarchy-settings"), "edge": ("omarchy-dev", "omarchy-settings-dev")}
+
+
+def owner_program_path(root, installed):
+    """Map an installed owner-program path onto an Omarchy tree rooted at usr/share/omarchy."""
+    if installed.startswith("/usr/bin/"):
+        return Path(root) / "bin" / installed[len("/usr/bin/"):]
+    prefix = "/usr/share/omarchy/"
+    if not installed.startswith(prefix):
+        raise CompatibilityError(f"Unexpected owner program path: {installed}")
+    return Path(root) / installed[len(prefix):]
+
+
+def reviewed_entry(root, lock):
+    """Select the one reviewed Omarchy entry whose install scripts this tree carries.
+
+    Omarchy comes from the live channel repository, so an unreviewed release
+    fails closed here before anything is patched or installed.
+    """
+    root = Path(root)
+    matches = []
+    for entry in lock["reviewed_omarchy"]:
+        if all((root / relative).is_file() and digest(root / relative) == expected
+               for relative, expected in entry["scripts"].items()):
+            matches.append(entry)
+    if len(matches) != 1:
+        raise CompatibilityError(UPDATE_REQUIRED)
+    return matches[0]
+
+
 def patch_sources(root, lock):
     root = Path(root)
-    for relative, expected in lock["scripts"].items():
-        if digest(root / relative) != expected:
-            raise CompatibilityError(f"Unreviewed provisioning source: {relative}")
-
+    entry = reviewed_entry(root, lock)
     report = {}
-    for relative, expected in lock["scripts"].items():
+    for relative, expected in entry["scripts"].items():
         path = root / relative
         text = path.read_text()
         if relative == "install/config/enable-services.sh":
@@ -144,7 +173,20 @@ def patch_sources(root, lock):
         path.write_text(text)
         subprocess.run(["bash", "-n", str(path)], check=True)
         report[relative] = {"upstream_sha256": expected, "patched_sha256": digest(path)}
-    return report
+    for installed, expected in entry["owner_programs"].items():
+        path = owner_program_path(root, installed)
+        if not path.is_file() or digest(path) != expected:
+            raise CompatibilityError(UPDATE_REQUIRED)
+    return {"format": 2, "reviewed_omarchy": entry["id"],
+            "owner_setup_contract_sha256": entry["owner_setup_contract_sha256"], "files": report}
+
+
+def patch_installed(root, profile):
+    """Apply the reviewed transformations to Omarchy as installed in the image."""
+    lock = json.loads((Path(profile) / "inputs.lock.json").read_text())
+    expected = json.loads((Path(profile) / "source-compatibility.json").read_text())
+    if patch_sources(Path(root) / "usr/share/omarchy", lock) != expected:
+        raise CompatibilityError("Installed Omarchy differs from the checked channel package")
 
 
 SOFTWARE_PATTERNS = (
@@ -230,9 +272,12 @@ def audit_root(root, profile, report_path):
         check=True, capture_output=True, text=True,
     )
     installed = dict(line.split(maxsplit=1) for line in result.stdout.splitlines())
+    pairs = [pair for pair in RUNTIME_PACKAGES.values() if any(name in installed for name in pair)]
+    if len(pairs) != 1:
+        raise CompatibilityError("The factory must contain exactly one Omarchy channel package pair")
     check_package_set(
         installed, package_list(profile / "base.packages")
-        + ["omarchy-dev", "omarchy-settings-dev", "try-omarchy", "dev-workstation-preferences"],
+        + [*pairs[0], "try-omarchy", "dev-workstation-preferences"],
         package_list(profile / "excluded.packages"),
     )
     for name in ("etc", "usr/lib/environment.d", "usr/lib/systemd", "usr/lib/try-omarchy",
@@ -266,7 +311,7 @@ def audit_root(root, profile, report_path):
                 continue
         check_owner_program_permissions(root, relative)
     patched = json.loads((profile / "source-compatibility.json").read_text())
-    for relative, hashes in patched.items():
+    for relative, hashes in patched["files"].items():
         installed_path = "usr/" + relative if relative.startswith("bin/") else "usr/share/omarchy/" + relative
         if digest(root / installed_path) != hashes["patched_sha256"]:
             raise CompatibilityError(f"Installed compatibility patch differs: {relative}")
@@ -279,6 +324,8 @@ def audit_root(root, profile, report_path):
         "user_finalization": "passed-in-isolated-chroot",
         "manager_admission": "requires-custom-factory-support-and-matching-integration-package",
         "owner_programs": {"/" + name: digest(root / name) for name in scripts},
+        "reviewed_omarchy": patched["reviewed_omarchy"],
+        "omarchy_package": " ".join([pairs[0][0], installed[pairs[0][0]]]),
         "packages": installed,
     }
     Path(report_path).write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
@@ -314,6 +361,9 @@ def main():
     audit.add_argument("root", type=Path)
     audit.add_argument("profile", type=Path)
     audit.add_argument("report", type=Path)
+    installed = sub.add_parser("patch-installed")
+    installed.add_argument("root", type=Path)
+    installed.add_argument("profile", type=Path)
     seal = sub.add_parser("audit-seal")
     seal.add_argument("root", type=Path)
     seal.add_argument("report", type=Path)
@@ -323,6 +373,8 @@ def main():
             lock = json.loads((args.profile / "inputs.lock.json").read_text())
             result = patch_sources(args.root, lock)
             args.report.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+        elif args.command == "patch-installed":
+            patch_installed(args.root, args.profile)
         elif args.command == "audit-root":
             audit_root(args.root, args.profile, args.report)
         else:

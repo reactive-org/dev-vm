@@ -113,7 +113,7 @@ def publish_latest(destination):
         temporary.unlink(missing_ok=True)
 
 
-def input_identity(source_commit, size):
+def input_identity(source_commit, size, channel="edge"):
     hashes = {}
     paths = list(PROFILE.rglob("*")) + [Path(__file__)] + [
         ROOT / "omarchy/guest" / name for name in (
@@ -124,7 +124,7 @@ def input_identity(source_commit, size):
     for path in sorted(paths):
         if path.is_file() and "__pycache__" not in path.parts:
             hashes[path.relative_to(ROOT).as_posix()] = compat.digest(path)
-    value = {"format": 1, "try_commit": source_commit, "size_gib": size, "inputs": hashes}
+    value = {"format": 1, "try_commit": source_commit, "size_gib": size, "channel": channel, "inputs": hashes}
     required, excluded = package_profile()
     value["package_profile"] = {"name": "foundation", "required": required, "excluded": excluded}
     encoded = json.dumps(value, sort_keys=True).encode()
@@ -132,16 +132,31 @@ def input_identity(source_commit, size):
 
 
 def adapt_builder(text, lock):
+    # Stable carries the release pair, edge the development pair; both come from
+    # the channel's signed repository as the exact archives checked before build.
+    text = compat.replace_once(
+        text, '[[ $channel == edge ]] || fail "aarch64 Omarchy is published on the edge channel only"\n',
+        '[[ $channel == stable || $channel == edge ]] || fail "unknown Omarchy channel: $channel"\n',
+    )
+    text = compat.replace_once(
+        text, 'runtime_package=omarchy-dev\nsettings_package=omarchy-settings-dev\n',
+        'if [[ $channel == stable ]]; then\n'
+        '  runtime_package=omarchy\n  settings_package=omarchy-settings\n'
+        'else\n'
+        '  runtime_package=omarchy-dev\n  settings_package=omarchy-settings-dev\n'
+        'fi\n',
+    )
     text = compat.replace_once(
         text,
         'target_install base-devel git limine efibootmgr omarchy-keyring archlinuxarm-keyring "$settings_package"\n'
         'target_install lua51 luarocks\ntarget_install omarchy-nvim\n',
         'target_install git limine efibootmgr omarchy-keyring archlinuxarm-keyring\n'
-        'pacstrap -C "$builder_conf" -G -M -c -U "$target" /packages/omarchy-settings-dev-*.pkg.tar.zst\n',
+        'pacstrap -C "$builder_conf" -G -M -c -U "$target" /packages/"$settings_package"-[0-9]*.pkg.tar.zst\n',
     )
     text = compat.replace_once(
         text, 'target_install "$runtime_package"\n',
-        'pacstrap -C "$builder_conf" -G -M -c -U "$target" /packages/omarchy-dev-*.pkg.tar.zst\n',
+        'pacstrap -C "$builder_conf" -G -M -c -U "$target" /packages/"$runtime_package"-[0-9]*.pkg.tar.zst\n'
+        'python3 /profile/compatibility.py patch-installed "$target" /profile\n',
     )
     start = text.index('# The default set for the aarch64 platform,')
     end = text.index('if ((${#extra_packages[@]})); then', start)
@@ -244,10 +259,10 @@ def build(args):
     source, commit = source_selection(args, lock)
     validate_source(source, commit, lock)
     required, _ = package_profile()
-    identity, provenance = input_identity(commit, args.size_gib)
+    identity, provenance = input_identity(commit, args.size_gib, args.channel)
     provenance["integration_package"] = {**lock["reviewed_integration"], "reused_reviewed_archive": True}
     print(f"Omarchy desktop-foundation {'compatibility check' if args.check_only else 'image build'}", flush=True)
-    print(f"  Try source: {commit}\n  Omarchy: {lock['omarchy_version']}\n"
+    print(f"  Try source: {commit}\n  Omarchy: latest {args.channel} channel release (reviewed programs only)\n"
           f"  Platform: macOS Apple Silicon / aarch64 guest\n  Disk: {args.size_gib} GiB, UEFI/Limine, Btrfs\n"
           f"  Required packages: {len(required)} roots plus dependency closure\n"
           f"  Reuse reviewed integration: {lock['reviewed_integration']['sha256']}\n"
@@ -274,9 +289,6 @@ def build(args):
             check_latest_link()
         downloads = ARTIFACTS / "downloads"
         downloads.mkdir(exist_ok=True)
-        for repo, revision in (("omarchy", lock["omarchy_commit"]), ("omarchy-pkgs", lock["recipes_commit"])):
-            download(f"https://codeload.github.com/omacom/{repo}/tar.gz/{revision}",
-                     downloads / f"{repo}-{revision}.tar.gz", lock["archives"][repo])
         version = lock["node_file"].split("-linux-", 1)[0][5:]
         download(f"https://nodejs.org/dist/{version}/{lock['node_file']}",
                  downloads / lock["node_file"], lock["node_sha256"])
@@ -305,7 +317,7 @@ def build(args):
                         "--mount", f"type=bind,src={output},dst=/output",
                         "--mount", f"type=volume,src={volume},dst=/work",
                         "--entrypoint", "/bin/bash", image_id,
-                        "/input-profile/build-container.sh", "check" if args.check_only else "build", str(args.size_gib)]
+                        "/input-profile/build-container.sh", "check" if args.check_only else "build", str(args.size_gib), args.channel]
             run(command)
         finally:
             cidfile = stage / "container.id"
@@ -352,6 +364,8 @@ def build_parser():
     parser.add_argument("--try-source", type=Path, help="Override the bundled guest source with an existing reviewed Try checkout")
     parser.add_argument("--try-commit", help="Exact reviewed integration-source commit; defaults to the lock")
     parser.add_argument("--size-gib", type=int, default=20)
+    parser.add_argument("--channel", choices=("stable", "edge"), default="stable",
+                        help="Omarchy channel: stable (latest release) or edge (development builds)")
     parser.add_argument("--check-only", action="store_true", help="Build/check guest packages without loop devices or a factory disk")
     parser.add_argument("--plan", action="store_true", help="Check local inputs and print the proposal without Docker or downloads")
     return parser

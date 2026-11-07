@@ -51,13 +51,13 @@ def factory_fixture(root, *, prepared=False):
     resources.mkdir(parents=True)
     with tarfile.open(REPOSITORY / "omarchy/image/try-guest-source.tar.gz") as archive:
         contract_bytes = archive.extractfile(
-            "guest/package/try-omarchy/files/usr/share/try-omarchy/lean-owner-setup-contract.json").read()
+            "guest/package/try-omarchy/files/usr/share/try-omarchy/lean-owner-setup-contract-a948d8a.json").read()
     contract = json.loads(contract_bytes)
     policy = json.loads(CONTROLLER.GUEST_INTEGRATION_POLICY.read_text())
-    contract_path = resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract.json"
+    contract_path = resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract-a948d8a.json"
     contract_path.parent.mkdir(parents=True)
     contract_path.write_bytes(contract_bytes)
-    package = "Contents/Resources/guest-packages/try-omarchy-0.1.0-43-aarch64.pkg.tar.zst"
+    package = "Contents/Resources/guest-packages/try-omarchy-0.1.0-48-aarch64.pkg.tar.zst"
     runtime = {name: "d" * 64 for name in (package, "Contents/MacOS/omarchy-vm-helper",
                "Contents/Resources/runtime/bin/Try Omarchy", "Contents/Resources/firmware/edk2-aarch64-code.fd",
                "Contents/Resources/scripts/run-qemu-gpu.sh", "Contents/Resources/owner-setup-provenance.json")}
@@ -73,7 +73,7 @@ def factory_fixture(root, *, prepared=False):
         (source / "compatibility.json").write_text(json.dumps({
             "owner_programs": {key: value for key, value in contract["programs"].items()
                                if not key.endswith("/progress-icon.sh")},
-            "packages": {"try-omarchy": "0.1.0-43.1"}}))
+            "packages": {"try-omarchy": "0.1.0-48.1"}}))
         (source / "image-build.json").write_text(json.dumps({"try_commit": "e" * 40}))
         hashes = {path.relative_to(source).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
                   for path in source.rglob("*") if path.is_file() and path.name != "SHA256SUMS"}
@@ -169,12 +169,12 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                 elif problem == "runtime-path":
                     lock["files"]["Contents/../escape"] = "a" * 64
                 elif problem == "runtime-package":
-                    lock["files"]["Contents/Resources/guest-packages/try-omarchy-0.1.0-43-aarch64.pkg.tar.zst"] = "a" * 64
+                    lock["files"]["Contents/Resources/guest-packages/try-omarchy-0.1.0-48-aarch64.pkg.tar.zst"] = "a" * 64
                 elif problem == "contract-hash":
-                    path = resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract.json"
+                    path = resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract-a948d8a.json"
                     path.write_bytes(path.read_bytes() + b"\n")
                 elif problem == "missing-contract":
-                    (resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract.json").unlink()
+                    (resources / "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract-a948d8a.json").unlink()
                 else:
                     path = source / "compatibility.json"
                     evidence = json.loads(path.read_text())
@@ -585,7 +585,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                         self.assertEqual(factory.selector, hashlib.sha256((snapshot / "reviewed-factory.json").read_bytes()).hexdigest())
                         self.assertNotIn("SHA256SUMS", {path.name for path in snapshot.iterdir()})
                         descriptor = json.loads((snapshot / "reviewed-factory.json").read_text())
-                        self.assertEqual(descriptor["imageIntegrationVersion"], "0.1.0-43.1")
+                        self.assertEqual(descriptor["imageIntegrationVersion"], "0.1.0-48.1")
                         self.assertEqual(descriptor["imageIntegrationSourceCommit"], "e" * 40)
                         self.assertEqual(descriptor["format"], 2)
                         policy = json.loads(CONTROLLER.GUEST_INTEGRATION_POLICY.read_text())

@@ -60,9 +60,12 @@ def generate(check=False):
         else:
             payload = compress_template(stream.getvalue())
         _, provenance = oracle.input_identity(lock["managed_try_commit"], 20)
+        provenance.pop("channel")
         provenance["integration_package"] = {**lock["reviewed_integration"], "reused_reviewed_archive": True}
-        downloads = [{"name": f"{repo}-{commit}.tar.gz", "url": f"https://codeload.github.com/omacom/{repo}/tar.gz/{commit}", "sha256": lock["archives"][repo]} for repo, commit in (("omarchy", lock["omarchy_commit"]), ("omarchy-pkgs", lock["recipes_commit"]))]
+        # Omarchy itself comes from the selected channel's signed repository at
+        # build time; the only pinned download is the offline Node payload.
         version = lock["node_file"].split("-linux-", 1)[0][5:]
+        downloads = []
         downloads.append({"name": lock["node_file"], "url": f"https://nodejs.org/dist/{version}/{lock['node_file']}", "sha256": lock["node_sha256"]})
         manifest = {"format": 1, "templateSHA256": hashlib.sha256(payload).hexdigest(), "files": entries, "downloads": downloads, "provenance": provenance}
         data = (json.dumps(manifest, sort_keys=True, indent=2) + "\n").encode()

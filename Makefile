@@ -48,6 +48,7 @@ OMARCHY_VM_LEAN_DEVELOPER ?= no
 OMARCHY_IMAGE_TRY_SOURCE ?=
 OMARCHY_IMAGE_TRY_COMMIT ?=
 OMARCHY_IMAGE_SIZE_GIB ?= 20
+OMARCHY_IMAGE_CHANNEL ?= stable
 OMARCHY_IMAGE_PLAN ?= no
 OMARCHY_FEATURES ?=
 OMARCHY_PROFILES ?=
@@ -143,14 +144,14 @@ build-omarchy-image: ## Build a minimal ARM64 Omarchy factory without operating 
 	@python3 ./scripts/omarchy_image.py \
 		$(if $(OMARCHY_IMAGE_TRY_SOURCE),--try-source "$(OMARCHY_IMAGE_TRY_SOURCE)",) \
 		$(if $(OMARCHY_IMAGE_TRY_COMMIT),--try-commit "$(OMARCHY_IMAGE_TRY_COMMIT)",) \
-		--size-gib "$(OMARCHY_IMAGE_SIZE_GIB)" \
+		--size-gib "$(OMARCHY_IMAGE_SIZE_GIB)" --channel "$(OMARCHY_IMAGE_CHANNEL)" \
 		$(if $(filter yes true 1,$(OMARCHY_IMAGE_PLAN)),--plan,)
 
 check-omarchy-image: ## Build/check minimal provisioning packages without creating a disk
 	@python3 ./scripts/omarchy_image.py \
 		$(if $(OMARCHY_IMAGE_TRY_SOURCE),--try-source "$(OMARCHY_IMAGE_TRY_SOURCE)",) \
 		$(if $(OMARCHY_IMAGE_TRY_COMMIT),--try-commit "$(OMARCHY_IMAGE_TRY_COMMIT)",) \
-		--size-gib "$(OMARCHY_IMAGE_SIZE_GIB)" --check-only \
+		--size-gib "$(OMARCHY_IMAGE_SIZE_GIB)" --channel "$(OMARCHY_IMAGE_CHANNEL)" --check-only \
 		$(if $(filter yes true 1,$(OMARCHY_IMAGE_PLAN)),--plan,)
 
 omarchy-vm-list: ## List guests through Omarchy VM Manager
