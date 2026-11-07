@@ -1,6 +1,6 @@
 {
   "group_vars/all.yml": "b9e7ebfe844765f1e33910ce33d59fc77c67ae28bea621c2c7a7f30bb6bec03e",
-  "omarchy/examples/layouts/catalogue.json": "fc730daa8aabefdc438b54487e053e0251175a4ecb190aa98b2d16274a30c828",
+  "omarchy/examples/layouts/catalogue.json": "819f69d7162a6411acd0c34f239bc1071ef7098fb559fa7f201ea5da969b28e9",
   "omarchy/examples/layouts/claude-browser-code-terminals.lua": "f027c09bc8135880755a16dec77cd4112c284308a17e60a54aacb641a38d1690",
   "omarchy/examples/layouts/claude-two-terminals-browser.lua": "d8deb32ae7bc50424c1e7b52a0dc571e17fb3f49f5e153ec16304ece28cf398d",
   "omarchy/examples/layouts/four-terminals.lua": "6289607b1be0fd8bd49c45449df0b69ba62e2ed2e0336c20be23f3b083ef96ad",

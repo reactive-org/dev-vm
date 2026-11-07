@@ -2649,3 +2649,28 @@ contiguous from 1, and an example may describe up to 16 windows on up to 10
 workspaces. The resource sync copies every Lua file the catalogue names. Wireframes
 remain illustrations of intended placement, not observed guest state; the Lua
 files and their live validation records are unchanged.
+
+### Layout examples bring the apps they arrange — 7 November 2026
+
+Each bundled layout example lists its `needs`: an application plus the builtin
+feature and list items that install it (`browsers: [chromium]`,
+`editors: [vscode]`), or only the application when no setup feature installs it
+yet (Claude Desktop). Needs may only add list items, so a layout can never cause a
+single-setting conflict or change the workstation feature. `SetupPlanner`
+recognises a selected layout by the SHA-256 of its captured bytes, works out what
+the plan without the layout lacks, and resolves again with those additions applied
+after the owner's own options. Added items join each feature's effective list, so
+Developer's Neovim stays beside the layout's VS Code. Added features are ordinary
+selections with a `layout <id>` reason, so the lean trim keeps them. A feature the
+setup disables stays disabled and is reported instead.
+
+Plans with a recognised example carry a top-level `layout` object (`example`,
+`sha256`, `adds` with items and packages, `already_selected`, `not_installed`),
+covered by `plan_digest`. Nothing is written back into the owner's selection, so
+switching or clearing the layout removes its additions. Edited copies and other
+layout files add nothing. The Python oracle shares the list-merge rule; layout
+needs are planned by the Swift package only, and the bootstrap runbooks keep
+selecting apps with `OMARCHY_VM_PACKAGES`. A Python test keeps each example's
+needs equal to its runbook's packages. **TO PROVE:** installation and placement on
+a real guest through this path, and that the official factory treats the additions
+as already installed.

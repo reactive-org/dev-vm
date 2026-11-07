@@ -23,6 +23,17 @@ each filling the usable area. Two equal-width, full-height terminals share
 workspace 4.
 Install the desired applications before selecting a layout.
 
+A setup repository (and Omarchy VM Manager) that selects one of these examples
+unchanged gets its apps through the shared planner: `SetupPlanner` recognises the
+exact bundled bytes and adds the features the example needs, such as
+`browsers: [chromium]` or `editors: [vscode]`, to whatever the profiles already
+select. Lists add up, so a profile's Neovim stays beside VS Code. The plan's
+`layout` object lists what the layout `adds`, what was `already_selected`, and
+apps it does `not_installed` (Claude Desktop has no setup feature yet; a feature
+the setup disables stays disabled). Edited copies and other layout files add
+nothing. The bootstrap runbooks below still select apps with
+`OMARCHY_VM_PACKAGES`.
+
 Choose the official Try image or a BYO custom image path in the same
 bootstrap runbook: [four terminals](omarchy-layout-four-terminals.md),
 [terminal and browser](omarchy-layout-terminal-browser.md),
