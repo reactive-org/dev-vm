@@ -1,5 +1,7 @@
 import unittest
+import json
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -143,6 +145,42 @@ fi
 
 
 class OmarchyManagerGuestTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("jq"), "Idle preference fixture needs jq")
+    def test_guest_idle_restore_preserves_later_lean_and_notification_preferences(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            commands = home / "bin"
+            commands.mkdir()
+            for name, body in {
+                "uname": "printf 'aarch64\\n'",
+                "omarchy": "exit 0", "systemctl": "exit 0",
+            }.items():
+                path = commands / name
+                path.write_text("#!/bin/bash\n" + body + "\n")
+                path.chmod(0o755)
+            theme = home / ".local/state/omarchy/current/theme/foot.ini"
+            theme.parent.mkdir(parents=True)
+            theme.write_text("[colors-dark]\nforeground=ffffff\n")
+            config = home / ".config/omarchy/shell.json"
+            config.parent.mkdir(parents=True)
+            original = {"idle": {"screensaver": 42, "lock": 84},
+                        "bar": {"layout": {"centerEnd": [{"id": "omarchy.weather"}]}}}
+            config.write_text(json.dumps(original))
+            env = dict(os.environ, HOME=str(home), PATH=str(commands) + os.pathsep + os.environ["PATH"])
+            subprocess.run(["bash", str(APPLY), "--idle-mode", "host"], env=env, check=True, capture_output=True)
+            current = json.loads(config.read_text())
+            current["bar"]["layout"]["centerEnd"] = []
+            current["disabledPlugins"] = ["omarchy.reminders"]
+            current["plugins"] = [{"id": "omarchy.notifications", "custom": True}]
+            config.write_text(json.dumps(current))
+            # Avoid exercising Linux sed syntax with macOS sed in this fixture.
+            (home / ".config/foot/foot.ini").unlink()
+            subprocess.run(["bash", str(APPLY), "--idle-mode", "guest"], env=env, check=True, capture_output=True)
+            restored = json.loads(config.read_text())
+            self.assertEqual(restored["idle"], original["idle"])
+            for key in ("bar", "disabledPlugins", "plugins"):
+                self.assertEqual(restored[key], current[key])
+
     def test_preference_layer_does_not_take_over_omarchy_packages(self):
         script = APPLY.read_text(encoding="utf-8")
         for forbidden in ("pacman", "yay ", "paru ", "prlctl", "prlcp", "Parallels"):

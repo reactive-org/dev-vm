@@ -119,6 +119,7 @@ def input_identity(source_commit, size):
         ROOT / "omarchy/guest" / name for name in (
             "apply-workstation.sh", "apply-theme.sh", "repair-try-omarchy-black-screen.sh",
             "check-workstation.sh",
+            "apply-lean-developer.py",
         )
     ]
     for path in sorted(paths):
@@ -216,7 +217,7 @@ def stage_inputs(source, destination, lock, commit=None):
     files = profile / "preferences/files"
     library = files / "usr/lib/dev-workstation"
     library.mkdir(parents=True)
-    for name in ("apply-workstation.sh", "apply-theme.sh", "repair-try-omarchy-black-screen.sh", "check-workstation.sh"):
+    for name in ("apply-workstation.sh", "apply-theme.sh", "repair-try-omarchy-black-screen.sh", "check-workstation.sh", "apply-lean-developer.py"):
         shutil.copy2(ROOT / "omarchy/guest" / name, library / name)
     shutil.copy2(profile / "preferences/first-login.sh", library / "first-login.sh")
     unit = files / "usr/lib/systemd/user/dev-workstation-first-login.service"
@@ -252,6 +253,7 @@ def build(args):
           f"  Required packages: {len(required)} roots plus dependency closure\n"
           f"  Reuse reviewed integration: {lock['reviewed_integration']['sha256']}\n"
           "  Optional applications: none\n"
+          "  Lean shell: disable Weather, Elsewhen, Bluetooth, brightness and Reminders; retain notifications\n"
           f"  Output: {ARTIFACTS}\n  Operations: isolated guest containers; no VM operations", flush=True)
     if args.plan:
         return

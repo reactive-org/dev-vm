@@ -70,7 +70,7 @@ public enum SetupPlanner {
                 "system_update_required": .bool(true), "system_restart_required": .bool(true),
                 "guest_state": .string("not_observed"), "dotfile_conflicts": .string("not_checked"),
                 "removals": .array(removals.map(ManifestValue.string)),
-                "update_policy": .string("Apply updates Omarchy and all system packages through omarchy update -y before installing selected software; restart and check are reviewed afterward. Check mode never updates. " + (manifest.vm.leanDeveloper ? "Opt-in optional-app trim through Omarchy; candidates only, installed state and dependency safety checked in the guest; selected software and required components retained." : "Native Omarchy/mise ownership; no implicit removal.")),
+                "update_policy": .string("Apply updates Omarchy and all system packages through omarchy update -y before installing selected software; restart and check are reviewed afterward. Check mode never updates. " + (manifest.vm.leanDeveloper ? "Opt-in optional-app trim through Omarchy; candidates only, installed state and dependency safety checked in the guest; selected software and required components retained. Disable Weather, Elsewhen world clock, Bluetooth panel, display-brightness panel and Reminders through native shell preferences; preserve notifications and other plugins." : "Native Omarchy/mise ownership; no implicit removal.")),
                 "factory_admission": .string("manager_verification_required")])]
         document["plan_digest"] = .string(digest(try canonicalData(ManifestValue.object(document))))
         return SetupPlan(document: .object(document), snapshot: snapshot, manifestPath: path)

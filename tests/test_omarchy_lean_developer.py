@@ -1,5 +1,7 @@
 import importlib.util
 import io
+import json
+import shutil
 import subprocess
 import unittest
 from contextlib import redirect_stdout
@@ -44,8 +46,9 @@ class LeanDeveloperTests(unittest.TestCase):
             LEAN.shutil, "which", return_value="/usr/bin/native-command"
         ), mock.patch.object(LEAN, "candidates", return_value=candidates), mock.patch.object(
             LEAN, "run", side_effect=run
-        ), redirect_stdout(output):
+        ), mock.patch.object(LEAN, "apply_shell") as shell, redirect_stdout(output):
             LEAN.apply(keep)
+            shell.assert_called_once_with()
         return output.getvalue()
 
     def test_native_removal_is_previewed_and_reapplying_is_a_noop(self):
@@ -127,6 +130,79 @@ class LeanDeveloperTests(unittest.TestCase):
         self.assertFalse(set(selected) & LEAN.PROTECTED)
         for name in ("qemu-user-static", "qemu-user-static-binfmt", "mariadb-libs", "postgresql-libs", "1password", "claude-desktop"):
             self.assertNotIn(name, selected)
+
+    def test_shell_disables_only_requested_enabled_plugins_through_native_commands(self):
+        state = [{"id": name, "enabled": True} for name in LEAN.SHELL_PLUGINS]
+        state += [{"id": "omarchy.notifications", "enabled": True},
+                  {"id": "omarchy.clipboard", "enabled": True}]
+        calls = []
+
+        def native(argv):
+            calls.append(argv)
+            if argv == ["omarchy", "plugin", "list", "--json"]:
+                return subprocess.CompletedProcess(argv, 0, json.dumps(state), "")
+            self.assertEqual(argv[:3], ["omarchy", "plugin", "disable"])
+            next(item for item in state if item["id"] == argv[-1])["enabled"] = False
+            return subprocess.CompletedProcess(argv, 0, "", "")
+
+        with mock.patch.object(LEAN, "run", side_effect=native), redirect_stdout(io.StringIO()):
+            LEAN.apply_shell()
+            self.assertEqual([c[-1] for c in calls[1:]], list(LEAN.SHELL_PLUGINS))
+            calls.clear()
+            LEAN.apply_shell()
+        self.assertEqual(calls, [["omarchy", "plugin", "list", "--json"]])
+        self.assertTrue(next(item for item in state if item["id"] == "omarchy.notifications")["enabled"])
+
+    def test_shell_missing_plugins_are_reported_but_native_errors_are_not_ignored(self):
+        with mock.patch.object(LEAN, "run", return_value=subprocess.CompletedProcess([], 0, "[]", "")), redirect_stdout(io.StringIO()) as output:
+            LEAN.apply_shell()
+        self.assertIn("is not installed; skipped", output.getvalue())
+        for inventory in ('{}', '[{"id":"omarchy.weather","enabled":"yes"}]', 'invalid'):
+            with self.subTest(inventory=inventory), mock.patch.object(LEAN, "run", return_value=subprocess.CompletedProcess([], 0, inventory, "")):
+                with self.assertRaises((RuntimeError, ValueError)):
+                    LEAN.apply_shell()
+        with mock.patch.object(LEAN, "run", side_effect=[
+            subprocess.CompletedProcess([], 0, '[{"id":"omarchy.weather","enabled":true}]', ""),
+            subprocess.CalledProcessError(1, ["omarchy", "plugin", "disable"], stderr="IPC failed"),
+        ]), self.assertRaises(subprocess.CalledProcessError):
+            LEAN.apply_shell()
+
+    @unittest.skipUnless(shutil.which("jq"), "Omarchy config fixture needs jq")
+    def test_first_owner_seed_preserves_notifications_and_personal_settings_and_is_idempotent(self):
+        config = {
+            "version": 1, "idle": {"lock": 0, "screensaver": 0},
+            "bar": {"position": "bottom", "layout": {
+                "left": [{"id": "omarchy.menu"}],
+                "centerEnd": [{"id": "omarchy.weather", "unit": "metric"}, "omarchy.elsewhen"],
+                "right": [{"id": "omarchy.audio", "custom": True}, {"id": "omarchy.monitor"}],
+                "tray": ["omarchy.bluetooth", {"id": "personal.widget"}],
+            }},
+            "plugins": [{"id": "omarchy.reminders"}, {"id": "omarchy.notifications"}, {"id": "personal.service"}],
+            "disabledPlugins": ["personal.disabled"], "custom": {"preserve": True},
+        }
+        def seed(value):
+            return json.loads(subprocess.run(
+                ["jq", "--argjson", "disabled", json.dumps(LEAN.SHELL_PLUGINS), LEAN.SHELL_CONFIG_PROGRAM],
+                input=json.dumps(value), text=True, capture_output=True, check=True,
+            ).stdout)
+        result = seed(config)
+        self.assertEqual(result, seed(result))
+        self.assertEqual(result["plugins"], config["plugins"][1:])
+        self.assertEqual(result["disabledPlugins"], ["personal.disabled", "omarchy.reminders"])
+        self.assertEqual(result["bar"]["layout"]["centerEnd"], [])
+        self.assertEqual(result["bar"]["layout"]["right"], [config["bar"]["layout"]["right"][0]])
+        self.assertEqual(result["bar"]["layout"]["tray"], [{"id": "personal.widget"}])
+        for key in ("version", "idle", "custom"):
+            self.assertEqual(result[key], config[key])
+
+    def test_seed_uses_native_config_helper_without_graphical_ipc_or_package_removals(self):
+        with mock.patch.object(LEAN, "run", return_value=subprocess.CompletedProcess([], 0, "", "")) as native, redirect_stdout(io.StringIO()):
+            LEAN.apply_shell(seed=True)
+        command = native.call_args.args[0]
+        self.assertEqual(command[:2], ["bash", "-euc"])
+        self.assertIn("source omarchy-shell-config", command[2])
+        self.assertIn("commit", command[2])
+        self.assertEqual(json.loads(command[-1]), list(LEAN.SHELL_PLUGINS))
 
 
 if __name__ == "__main__":

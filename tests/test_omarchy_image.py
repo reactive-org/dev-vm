@@ -338,6 +338,9 @@ class ImageCompatibilityTests(unittest.TestCase):
         self.assertEqual(COMPAT.package_list(stage / "profile/excluded.packages"), excluded)
         self.assertEqual((stage / "profile/preferences/first-login.sh").read_bytes(),
                          (IMAGE.PROFILE / "preferences/first-login.sh").read_bytes())
+        helper = "apply-lean-developer.py"
+        self.assertEqual((stage / "profile/preferences/files/usr/lib/dev-workstation" / helper).read_bytes(),
+                         (ROOT / "omarchy/guest" / helper).read_bytes())
         self.assertFalse((stage / "profile/layout.lua").exists())
         self.assertEqual(original, {name: (IMAGE.PROFILE / name).read_bytes() for name in original})
 

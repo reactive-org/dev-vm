@@ -19,7 +19,10 @@ dynamic resolution, clipboard, networking and SSH.
 
 The repository selects the lean package list and adds workstation preferences,
 small package-managed provisioning guards for omitted optional apps, and
-hardware-rendering settings. The pinned Omarchy runtime and settings are rebuilt
+hardware-rendering settings. First-owner preferences also disable Weather,
+Elsewhen, Bluetooth, display brightness and Reminders while preserving
+notifications; see the [lean shell preferences](omarchy-lean-developer.md).
+The pinned Omarchy runtime and settings are rebuilt
 from upstream source to include those guards. The reviewed native integration
 archive is reused byte for byte; the details are recorded below.
 Omarchy continues to own the guest’s software and updates, and VM Manager

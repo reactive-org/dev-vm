@@ -39,6 +39,17 @@ private final class PlanningFixture {
     }
 }
 
+@Test func leanShellEffectsAreReviewedOnlyWhenSelected() throws {
+    let fixture = try PlanningFixture()
+    for enabled in [false, true] {
+        try fixture.manifest("vm: {lean_developer: \(enabled)}\n")
+        let plan = try fixture.plan()
+        let policy = try #require(plan.document.object?["requirements"]?.object?["update_policy"]?.string)
+        #expect(policy.contains("Weather, Elsewhen world clock, Bluetooth panel, display-brightness panel and Reminders") == enabled)
+        #expect(policy.contains("preserve notifications") == enabled)
+    }
+}
+
 @Test func immutableSnapshotsAndIdentity() throws {
     let fixture = try PlanningFixture()
     try fixture.file("assets/data", "before", mode: 0o600)

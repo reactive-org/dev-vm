@@ -893,6 +893,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
         profile_line = next(line for line in output.getvalue().splitlines() if "Lean developer:" in line)
         self.assertIn("libreoffice-fresh", profile_line)
         self.assertNotIn("obsidian", profile_line)
+        self.assertIn("Disable Weather, Elsewhen, Bluetooth, brightness and Reminders; retain notifications", output.getvalue())
 
     def test_lean_profile_payload_and_keep_selection_are_opt_in(self):
         for enabled in (False, True):

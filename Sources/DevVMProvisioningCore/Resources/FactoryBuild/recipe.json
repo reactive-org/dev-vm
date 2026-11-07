@@ -43,7 +43,7 @@
     },
     "profile/check-user.sh": {
       "mode": 420,
-      "sha256": "52b2cdad6d2095806438c4b36f61040734d6cd6f7fbcb6b1bec37320d903d4d4"
+      "sha256": "00179cc681dc881b4d992c34f072903da0a9aefa2d3dfeace8a682b92215efcb"
     },
     "profile/compatibility.py": {
       "mode": 420,
@@ -63,7 +63,11 @@
     },
     "profile/preferences/PKGBUILD": {
       "mode": 420,
-      "sha256": "ac3b33acbc318fbeb3c99d79a028bbcd82635e502c0d5d0a0a5b681fc3ee5598"
+      "sha256": "44c081695eaa8ddadaf4daa88c41dde08144067f5574df1b5453b6ea91570236"
+    },
+    "profile/preferences/files/usr/lib/dev-workstation/apply-lean-developer.py": {
+      "mode": 420,
+      "sha256": "77a0ed71aa2e70c6a6f9fb6e707b88eb6fb1c609b56f046bc74445df3bf925b9"
     },
     "profile/preferences/files/usr/lib/dev-workstation/apply-theme.sh": {
       "mode": 420,
@@ -71,7 +75,7 @@
     },
     "profile/preferences/files/usr/lib/dev-workstation/apply-workstation.sh": {
       "mode": 493,
-      "sha256": "6b5dafc9d6efaeaf6518cd130501d8a803f2293641e9205a31fa2ab8007bbc8d"
+      "sha256": "584453f11364d6e358dd579f4b68da84a6490f62f12adab02f6a978025322506"
     },
     "profile/preferences/files/usr/lib/dev-workstation/check-workstation.sh": {
       "mode": 493,
@@ -79,7 +83,7 @@
     },
     "profile/preferences/files/usr/lib/dev-workstation/first-login.sh": {
       "mode": 420,
-      "sha256": "3e8078e0378bd67c7ce8a91101013c264f063baccf9743d1e6d4fc421da930c6"
+      "sha256": "635ec764ba1ba83905ab2ecc71742e767f9c46d85333c4d8a3a992c860db4309"
     },
     "profile/preferences/files/usr/lib/dev-workstation/repair-try-omarchy-black-screen.sh": {
       "mode": 493,
@@ -95,7 +99,7 @@
     },
     "profile/preferences/first-login.sh": {
       "mode": 420,
-      "sha256": "3e8078e0378bd67c7ce8a91101013c264f063baccf9743d1e6d4fc421da930c6"
+      "sha256": "635ec764ba1ba83905ab2ecc71742e767f9c46d85333c4d8a3a992c860db4309"
     },
     "profile/preferences/preferences.install": {
       "mode": 420,
@@ -670,8 +674,9 @@
   "provenance": {
     "format": 1,
     "inputs": {
+      "omarchy/guest/apply-lean-developer.py": "77a0ed71aa2e70c6a6f9fb6e707b88eb6fb1c609b56f046bc74445df3bf925b9",
       "omarchy/guest/apply-theme.sh": "18208f1afaf16f77e28230e17925f910f8cd108c470cf84e22ea5c41d37f663e",
-      "omarchy/guest/apply-workstation.sh": "6b5dafc9d6efaeaf6518cd130501d8a803f2293641e9205a31fa2ab8007bbc8d",
+      "omarchy/guest/apply-workstation.sh": "584453f11364d6e358dd579f4b68da84a6490f62f12adab02f6a978025322506",
       "omarchy/guest/check-workstation.sh": "47e2d4971d946d1280b858de1b5e1a14acc79e7d93d0ef25d5c000c1fc92cd86",
       "omarchy/guest/repair-try-omarchy-black-screen.sh": "759048a84dd8051018eec70c5cdcbd502162576e308433b33ed34609932ae247",
       "omarchy/image/MANAGER-LICENSE": "c9566f863169065bac7fd0846e075d9dcf9fec705136451fc137799016598785",
@@ -680,18 +685,18 @@
       "omarchy/image/base.packages": "3a4496b9adcfe7e77ce0afbb9d36e60a9bdab9ef01b0898686cdf41c5fc53125",
       "omarchy/image/build-container.sh": "57da4c9078874aaa74f6f282928f34c82e5a6644eedef11cee1ac2bc3d7f3dcb",
       "omarchy/image/check-provisioning.py": "65061dca9ed1d8f4271fe2886ef0fdf04d236e295d188244a7b094dd44ea12de",
-      "omarchy/image/check-user.sh": "52b2cdad6d2095806438c4b36f61040734d6cd6f7fbcb6b1bec37320d903d4d4",
+      "omarchy/image/check-user.sh": "00179cc681dc881b4d992c34f072903da0a9aefa2d3dfeace8a682b92215efcb",
       "omarchy/image/compatibility.py": "c0b5a0dd04dc91a3c2e2998ed161d8c9fdab25fed9d1ec53e19f73924e088233",
       "omarchy/image/excluded.packages": "6744af32cfcb539d868d860627a59aaf48a95e63bb64c0f6bba648838fdec0db",
       "omarchy/image/guest-integration-compatibility.json": "e657f31e013e139c3f17387bbfad31a898f2d35015796ba79c373d16364dd64e",
       "omarchy/image/inputs.lock.json": "2a7815a0795e1f778178585b663360ca59e302d2b01a88c7c943e4c1a09100a8",
-      "omarchy/image/preferences/PKGBUILD": "ac3b33acbc318fbeb3c99d79a028bbcd82635e502c0d5d0a0a5b681fc3ee5598",
+      "omarchy/image/preferences/PKGBUILD": "44c081695eaa8ddadaf4daa88c41dde08144067f5574df1b5453b6ea91570236",
       "omarchy/image/preferences/first-login.service": "4194431bf4342f2add082875831877d8a6d25cfbddd73bc7238504a077f125df",
-      "omarchy/image/preferences/first-login.sh": "3e8078e0378bd67c7ce8a91101013c264f063baccf9743d1e6d4fc421da930c6",
+      "omarchy/image/preferences/first-login.sh": "635ec764ba1ba83905ab2ecc71742e767f9c46d85333c4d8a3a992c860db4309",
       "omarchy/image/preferences/preferences.install": "595ecfe1e7ffa005f4ce48772e167794647467034ad5649bb0e398927c99bcb9",
       "omarchy/image/reviewed-packages/try-omarchy-0.1.0-43.1-aarch64.pkg.tar.zst": "9fc986521b67cfa9e891fd826453553f1e2e4a319e6edb1302c760f1e22a2211",
       "omarchy/image/try-guest-source.tar.gz": "2a1970cf3768383f575b36f01dc385782f7433e21e46a5ac1b3cafbe99639940",
-      "scripts/omarchy_image.py": "408859f88ef520f8d7c041f3acd2ccc154d654698f8bc463550d30eca390902f"
+      "scripts/omarchy_image.py": "bb2c069b9368d6d34cdb3ab653efc836593772eecd6cc4210b01ae6dfcf7542b"
     },
     "integration_package": {
       "archive": "reviewed-packages/try-omarchy-0.1.0-43.1-aarch64.pkg.tar.zst",
@@ -853,5 +858,5 @@
     "size_gib": 20,
     "try_commit": "85f5e561e5a277ccec08d7725c8714cb090c9011"
   },
-  "templateSHA256": "f102dc7f9bcab6cc535fbd1a5c5b42fb3386b0df0fbfc852afae02ec4c4365b0"
+  "templateSHA256": "504e9b1f9a0efa2987e27ab55916b5e8bb14ea3131ae58f5236a35e604e1c634"
 }

@@ -5,6 +5,7 @@ set -euo pipefail
 state=${XDG_STATE_HOME:-$HOME/.local/state}/dev-workstation
 [[ ! -e $state/image-preferences-v1 ]] || exit 0
 bash /usr/lib/dev-workstation/apply-workstation.sh --foot-font-size 16 --idle-mode host
+python3 /usr/lib/dev-workstation/apply-lean-developer.py --seed-shell
 bash /usr/lib/dev-workstation/repair-try-omarchy-black-screen.sh
 editor_state=${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/defaults/editor
 if [[ ! -e $editor_state ]]; then
