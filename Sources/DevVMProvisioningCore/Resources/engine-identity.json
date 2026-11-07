@@ -21,7 +21,7 @@
     "Sources/DevVMProvisioningCore/FactoryHostProcess.swift": "6320cf530e73292fd44024534fa85e6765eafdbbf33e7cc1c6e9d0be70f366d1",
     "Sources/DevVMProvisioningCore/FactoryRecipePin.swift": "1532f6ce8da75cb3959a11708d685180db613ba77ccb85ad9b209a2181734bd5",
     "Sources/DevVMProvisioningCore/FeatureContract.swift": "037bb4b8c8e700f0b8c30c00ce8945a06af61fb5fc4fcd6bd860b681440372ad",
-    "Sources/DevVMProvisioningCore/FeaturePlanner.swift": "5e7fab041c36b3afc4380fb4aeb32629f0840d34e85dcd96b7dc3fca94388501",
+    "Sources/DevVMProvisioningCore/FeaturePlanner.swift": "3a991f0c7ed0c1bd16ba80c40aca88b8485bd18fc9263b2810421b58011bd05d",
     "Sources/DevVMProvisioningCore/FrozenInputsArchive.swift": "66e4e9e9c60b879faf8bb1e973979c23daf5217329723b6b860737ae56a683c2",
     "Sources/DevVMProvisioningCore/GuestTransport.swift": "aee041cdd8748708e3384fb69c0736ca58a4115be0fc09061ef823009ecfd28e",
     "Sources/DevVMProvisioningCore/JSONGrammar.swift": "6b3782b50a9014cf48e283b811e35b9aced5737dec81bea343f00cf88b406111",

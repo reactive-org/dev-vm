@@ -40,9 +40,21 @@ def overlay(base, override):
     return result
 
 
+def merged_list(left, right):
+    """Order-stable union: the left list's order first, then the right side's new items."""
+    result = copy.deepcopy(left)
+    for item in right:
+        if not any(type(item) is type(existing) and item == existing for existing in result):
+            result.append(copy.deepcopy(item))
+    return result
+
+
 def siblings(left, right):
+    """Combine independent choices: lists add up; any other disagreement is a conflict."""
     if left == right:
         return copy.deepcopy(left)
+    if isinstance(left, list) and isinstance(right, list):
+        return merged_list(left, right)
     if isinstance(left, dict) and isinstance(right, dict) and left and right:
         result = copy.deepcopy(left)
         for key, value in right.items():

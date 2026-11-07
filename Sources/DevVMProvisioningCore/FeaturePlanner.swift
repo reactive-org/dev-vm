@@ -54,12 +54,23 @@ indirect enum Choice: Equatable {
         for (k, v) in rightMap { left[k] = left[k].map { $0.overlay(v) } ?? v }
         return .map(left)
     }
+    /// Combines two independent choices (sibling profiles or parents). Lists add up in
+    /// order, left first, without duplicates; any other disagreement stays a conflict
+    /// until a child profile or the owner overlays an explicit value.
     func siblings(_ right: Choice) -> Choice {
         if self == right { return self }
+        if case .value(.array(let left)) = self, case .value(.array(let items)) = right { return .value(.array(mergedList(left, items))) }
         guard case .map(var left) = self, case .map(let rightMap) = right, !left.isEmpty, !rightMap.isEmpty else { return .conflict }
         for (k, v) in rightMap { left[k] = left[k].map { $0.siblings(v) } ?? v }
         return .map(left)
     }
+}
+
+/// Order-stable union: the left list's order first, then the right side's new items.
+func mergedList(_ left: [ManifestValue], _ right: [ManifestValue]) -> [ManifestValue] {
+    var result = left
+    for item in right where !result.contains(item) { result.append(item) }
+    return result
 }
 
 final class Resolver {
