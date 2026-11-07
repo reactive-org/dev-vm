@@ -340,12 +340,16 @@ class ImageCompatibilityTests(unittest.TestCase):
                       'python3 /profile/compatibility.py patch-installed "$target" /profile\n', result)
         self.assertLess(result.index("patch-installed"), result.index("omarchy-apply-system --defer-provisioning"))
         self.assertIn("image_name=omarchy-workstation-aarch64-$channel.img", result)
+        self.assertIn("arm_mirror='https://arm-stable-mirror.omarchy.org/$arch/$repo'", result)
+        self.assertIn("arm_mirror='https://arm-mirror.omarchy.org/$arch/$repo'", result)
 
     def test_container_script_takes_the_channel_and_no_pinned_omarchy_sources(self):
         script = (ROOT / "omarchy/image/build-container.sh").read_text()
         self.assertIn('channel=${3:-edge}', script)
         self.assertIn('Server = https://pkgs.omarchy.org/$channel/', script)
         self.assertIn('pacman -Swdd', script)
+        self.assertIn("arm_mirror='https://arm-stable-mirror.omarchy.org/$arch/$repo'", script)
+        self.assertLess(script.index(">/etc/pacman.d/mirrorlist"), script.index("pacman -Syu"))
         self.assertIn('--channel "$channel"', script)
         for removed in ("omarchy_commit", "recipes_commit", "makepkg --nodeps --force --noconfirm\n    local packages=(./*.pkg.tar.zst)\n    ((${#packages[@]} == 1))\n    install -m 0644 \"${packages[0]}\" /output/packages/\n  )\n}\n\nfor package in omarchy"):
             self.assertNotIn(removed, script)

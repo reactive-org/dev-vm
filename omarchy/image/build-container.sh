@@ -9,9 +9,14 @@ channel=${3:-edge}
 # Omarchy comes from the selected channel's signed repository at build time.
 # The reviewed-entry check below fails closed on any release whose install
 # scripts or owner programs the manager has not reviewed.
+# Each channel pairs its [omarchy] repository with the Arch Linux ARM mirror
+# Omarchy's own pacman-<channel>.conf uses: Stable's packages are built
+# against a frozen snapshot and do not resolve against the live mirror.
 case $channel in
-  stable) runtime_package=omarchy settings_package=omarchy-settings ;;
-  edge) runtime_package=omarchy-dev settings_package=omarchy-settings-dev ;;
+  stable) runtime_package=omarchy settings_package=omarchy-settings
+    arm_mirror='https://arm-stable-mirror.omarchy.org/$arch/$repo' ;;
+  edge) runtime_package=omarchy-dev settings_package=omarchy-settings-dev
+    arm_mirror='https://arm-mirror.omarchy.org/$arch/$repo' ;;
   *) printf 'Unknown Omarchy channel: %s\n' "$channel" >&2; exit 1 ;;
 esac
 [[ $(uname -m) == aarch64 ]]
@@ -29,6 +34,7 @@ field() { jq -er ".$1" "$lock"; }
 mkdir -p /work/package-build /output/packages /work/omarchy-packages /work/omarchy-root
 
 pacman-key --populate omarchy
+printf 'Server = %s\n' "${arm_mirror//\$arch/aarch64}" >/etc/pacman.d/mirrorlist
 sed -i "/^\[core\]/i [omarchy]\nServer = https://pkgs.omarchy.org/$channel/\$arch\n" /etc/pacman.conf
 pacman -Syu --needed --noconfirm imagemagick
 mkdir -p /output/repositories

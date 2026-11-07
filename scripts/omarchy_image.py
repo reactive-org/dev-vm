@@ -146,6 +146,16 @@ def adapt_builder(text, lock):
         '  runtime_package=omarchy-dev\n  settings_package=omarchy-settings-dev\n'
         'fi\n',
     )
+    # Stable's [omarchy] packages are built against Omarchy's frozen Arch Linux
+    # ARM snapshot, as in its own pacman-stable.conf; the live mirror is edge's.
+    text = compat.replace_once(
+        text, "arm_mirror='https://arm-mirror.omarchy.org/$arch/$repo'\n",
+        "if [[ $channel == stable ]]; then\n"
+        "  arm_mirror='https://arm-stable-mirror.omarchy.org/$arch/$repo'\n"
+        "else\n"
+        "  arm_mirror='https://arm-mirror.omarchy.org/$arch/$repo'\n"
+        "fi\n",
+    )
     text = compat.replace_once(
         text,
         'target_install base-devel git limine efibootmgr omarchy-keyring archlinuxarm-keyring "$settings_package"\n'
