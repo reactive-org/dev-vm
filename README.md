@@ -1417,8 +1417,8 @@ private manifest. The source folder stays unchanged. Profile edits require a new
 frozen review/acknowledgment, with proposal identifiers and raw data under Details.
 
 The shared resolver still owns combination/dependency/option conflict semantics.
-Sibling conflicts are refused, not resolved by card order; an explicit local option
-can resolve a conflict. Legacy preset CLI requests remain compatible; the native
+Sibling profiles' lists combine without duplicates; conflicting single settings are
+refused, not resolved by card order, and an explicit local option can resolve them. Legacy preset CLI requests remain compatible; the native
 source DTO adds strict optional bundled/profile fields on the existing protocol.
 Local custom catalogue profiles remain manifest-defined; native cards cover the
 four bundled profiles. No task/sudo/Docker or execution authority comes from cards.

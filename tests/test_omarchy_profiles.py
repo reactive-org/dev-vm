@@ -219,10 +219,14 @@ class ProfileTests(unittest.TestCase):
         self.assertTrue({"libyaml", "gmp"} <= set(configured["packages"]))
         self.assertEqual(launcher.plan_variables(configured)["omarchy_toolchain"], {"prerequisites": ["ruby"]})
 
-    def test_sibling_conflicts_require_override_and_disjoint_tools_merge(self):
+    def test_sibling_lists_combine_in_profile_order_and_disjoint_tools_merge(self):
+        for profiles, clients in ((["web", "python"], ["postgresql", "sqlite"]), (["python", "web"], ["sqlite", "postgresql"])):
+            plan = Resolver().resolve(profiles=profiles)
+            self.assertEqual(plan["options"]["databases"]["clients"], clients)
+            self.assertEqual(plan["options"]["languages"]["tools"], {"node": "lts", "pnpm": "", "python": "3", "uv": ""})
+        plan = Resolver().resolve(profiles=["python", "project-managed"])
+        self.assertEqual(plan["options"]["databases"]["clients"], ["sqlite", "postgresql"])
         for profiles in (["web", "python"], ["python", "web"]):
-            with self.assertRaisesRegex(ProfileError, "databases.clients"):
-                Resolver().resolve(profiles=profiles)
             plan = Resolver().resolve(profiles=profiles, setup_file=self.setup(
                 options={"databases": {"clients": ["sqlite"]}, "languages": {"tools": {"node": "24"}}}))
             self.assertEqual(plan["options"]["languages"]["tools"], {"node": "24", "pnpm": "", "python": "3", "uv": ""})

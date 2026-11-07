@@ -304,10 +304,14 @@ Composition follows these rules:
 
 - A profile inherits features and options from `extends`, then applies its own
   options. Multiple selected profiles combine their features.
-- Conflicting sibling/composed choices require an explicit child or personal
-  override. For example, `web,python` needs an explicit `databases.clients` choice;
-  profile order never silently chooses between their different client lists.
-- Tool maps merge by key across profile/override layers; lists replace. Empty
+- Sibling/composed lists combine: selected profiles and multiple parents add
+  their list items together, keeping the first profile's order and dropping
+  duplicates. For example, `web,python` installs PostgreSQL and SQLite clients.
+- Conflicting sibling/composed single settings, such as two different Docker
+  `access` values or two selectors for the same tool, require an explicit child
+  or personal override; profile order never silently chooses between them.
+- Tool maps merge by key across profile/override layers. A child profile's own
+  options and personal overrides replace lists rather than adding to them. Empty
   lists/maps explicitly clear that selection. `tools: {}` selects no runtimes;
   overriding only `node` preserves inherited `pnpm`. In an override, use
   `tools: {pnpm: null}` to stop managing just that inherited tool. Null is removed
