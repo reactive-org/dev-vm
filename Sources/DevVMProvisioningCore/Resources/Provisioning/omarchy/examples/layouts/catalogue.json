@@ -9,6 +9,7 @@
       "applications": [
         "Foot"
       ],
+      "needs": [],
       "windows": [
         {
           "label": "Terminal 1",
@@ -54,6 +55,17 @@
         "Foot",
         "Chromium"
       ],
+      "needs": [
+        {
+          "application": "Chromium",
+          "feature": "browsers",
+          "options": {
+            "browsers": [
+              "chromium"
+            ]
+          }
+        }
+      ],
       "windows": [
         {
           "label": "Terminal",
@@ -82,6 +94,26 @@
       "applications": [
         "VS Code",
         "Chromium"
+      ],
+      "needs": [
+        {
+          "application": "VS Code",
+          "feature": "editors",
+          "options": {
+            "editors": [
+              "vscode"
+            ]
+          }
+        },
+        {
+          "application": "Chromium",
+          "feature": "browsers",
+          "options": {
+            "browsers": [
+              "chromium"
+            ]
+          }
+        }
       ],
       "windows": [
         {
@@ -112,6 +144,20 @@
         "Claude Desktop",
         "Foot",
         "Chromium"
+      ],
+      "needs": [
+        {
+          "application": "Chromium",
+          "feature": "browsers",
+          "options": {
+            "browsers": [
+              "chromium"
+            ]
+          }
+        },
+        {
+          "application": "Claude Desktop"
+        }
       ],
       "windows": [
         {
@@ -160,6 +206,29 @@
         "Chromium",
         "Foot",
         "Claude Desktop"
+      ],
+      "needs": [
+        {
+          "application": "VS Code",
+          "feature": "editors",
+          "options": {
+            "editors": [
+              "vscode"
+            ]
+          }
+        },
+        {
+          "application": "Chromium",
+          "feature": "browsers",
+          "options": {
+            "browsers": [
+              "chromium"
+            ]
+          }
+        },
+        {
+          "application": "Claude Desktop"
+        }
       ],
       "windows": [
         {
@@ -257,6 +326,29 @@
         "VS Code",
         "Foot"
       ],
+      "needs": [
+        {
+          "application": "VS Code",
+          "feature": "editors",
+          "options": {
+            "editors": [
+              "vscode"
+            ]
+          }
+        },
+        {
+          "application": "Chromium",
+          "feature": "browsers",
+          "options": {
+            "browsers": [
+              "chromium"
+            ]
+          }
+        },
+        {
+          "application": "Claude Desktop"
+        }
+      ],
       "windows": [
         {
           "label": "Claude",
@@ -334,6 +426,29 @@
         "Chromium",
         "VS Code",
         "Foot"
+      ],
+      "needs": [
+        {
+          "application": "VS Code",
+          "feature": "editors",
+          "options": {
+            "editors": [
+              "vscode"
+            ]
+          }
+        },
+        {
+          "application": "Chromium",
+          "feature": "browsers",
+          "options": {
+            "browsers": [
+              "chromium"
+            ]
+          }
+        },
+        {
+          "application": "Claude Desktop"
+        }
       ],
       "windows": [
         {
