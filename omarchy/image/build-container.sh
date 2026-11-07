@@ -43,7 +43,7 @@ for name in "$settings_package" "$runtime_package"; do
   install -m 0644 "${matches[0]}" /output/packages/
   bsdtar -xf "${matches[0]}" -C /work/omarchy-root
 done
-python3 /profile/compatibility.py patch-source /work/omarchy-root/usr/share/omarchy /profile /profile/source-compatibility.json
+python3 /profile/compatibility.py patch-source --installed /work/omarchy-root /profile /profile/source-compatibility.json
 cp /profile/source-compatibility.json /output/source-compatibility.json
 
 useradd --create-home builder

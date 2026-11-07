@@ -104,17 +104,42 @@ UPDATE_REQUIRED = ("This Omarchy release changes setup programs that Omarchy VM 
 RUNTIME_PACKAGES = {"stable": ("omarchy", "omarchy-settings"), "edge": ("omarchy-dev", "omarchy-settings-dev")}
 
 
-def owner_program_path(root, installed):
-    """Map an installed owner-program path onto an Omarchy tree rooted at usr/share/omarchy."""
-    if installed.startswith("/usr/bin/"):
-        return Path(root) / "bin" / installed[len("/usr/bin/"):]
+def source_path(root, relative, installed):
+    """Locate an Omarchy file in a source tree or an installed root.
+
+    Installed packages keep bin/ programs in /usr/bin; usr/share/omarchy/bin
+    holds absolute symlinks to them, which must never be followed from a build
+    container (they would resolve against the container, not the image).
+    """
+    root = Path(root)
+    if not installed:
+        return root / relative
+    if relative.startswith("bin/"):
+        return root / "usr/bin" / relative[len("bin/"):]
+    return root / "usr/share/omarchy" / relative
+
+
+def regular_file(path, root):
+    """A regular file reached without following any link inside root."""
+    path, root = Path(path), Path(root)
+    inside = path.relative_to(root)
+    return path.is_file() and not path.is_symlink() and not any(
+        (root / parent).is_symlink() for parent in inside.parents if parent != Path("."))
+
+
+def owner_program_path(root, installed_path, installed=False):
+    """Map an installed owner-program path onto a source tree or an installed root."""
+    if installed:
+        return Path(root) / installed_path.lstrip("/")
+    if installed_path.startswith("/usr/bin/"):
+        return Path(root) / "bin" / installed_path[len("/usr/bin/"):]
     prefix = "/usr/share/omarchy/"
-    if not installed.startswith(prefix):
-        raise CompatibilityError(f"Unexpected owner program path: {installed}")
-    return Path(root) / installed[len(prefix):]
+    if not installed_path.startswith(prefix):
+        raise CompatibilityError(f"Unexpected owner program path: {installed_path}")
+    return Path(root) / installed_path[len(prefix):]
 
 
-def reviewed_entry(root, lock):
+def reviewed_entry(root, lock, installed=False):
     """Select the one reviewed Omarchy entry whose install scripts this tree carries.
 
     Omarchy comes from the live channel repository, so an unreviewed release
@@ -123,7 +148,8 @@ def reviewed_entry(root, lock):
     root = Path(root)
     matches = []
     for entry in lock["reviewed_omarchy"]:
-        if all((root / relative).is_file() and digest(root / relative) == expected
+        if all(regular_file(source_path(root, relative, installed), root)
+               and digest(source_path(root, relative, installed)) == expected
                for relative, expected in entry["scripts"].items()):
             matches.append(entry)
     if len(matches) != 1:
@@ -131,12 +157,13 @@ def reviewed_entry(root, lock):
     return matches[0]
 
 
-def patch_sources(root, lock):
+def patch_sources(root, lock, installed=False):
+    """Apply the reviewed guards to a source tree, or to an installed root."""
     root = Path(root)
-    entry = reviewed_entry(root, lock)
+    entry = reviewed_entry(root, lock, installed)
     report = {}
     for relative, expected in entry["scripts"].items():
-        path = root / relative
+        path = source_path(root, relative, installed)
         text = path.read_text()
         if relative == "install/config/enable-services.sh":
             for service, package in (
@@ -173,9 +200,9 @@ def patch_sources(root, lock):
         path.write_text(text)
         subprocess.run(["bash", "-n", str(path)], check=True)
         report[relative] = {"upstream_sha256": expected, "patched_sha256": digest(path)}
-    for installed, expected in entry["owner_programs"].items():
-        path = owner_program_path(root, installed)
-        if not path.is_file() or digest(path) != expected:
+    for program, expected in entry["owner_programs"].items():
+        path = owner_program_path(root, program, installed)
+        if not regular_file(path, root) or digest(path) != expected:
             raise CompatibilityError(UPDATE_REQUIRED)
     return {"format": 2, "reviewed_omarchy": entry["id"],
             "owner_setup_contract_sha256": entry["owner_setup_contract_sha256"], "files": report}
@@ -185,7 +212,7 @@ def patch_installed(root, profile):
     """Apply the reviewed transformations to Omarchy as installed in the image."""
     lock = json.loads((Path(profile) / "inputs.lock.json").read_text())
     expected = json.loads((Path(profile) / "source-compatibility.json").read_text())
-    if patch_sources(Path(root) / "usr/share/omarchy", lock) != expected:
+    if patch_sources(root, lock, installed=True) != expected:
         raise CompatibilityError("Installed Omarchy differs from the checked channel package")
 
 
@@ -357,6 +384,7 @@ def main():
     patch.add_argument("root", type=Path)
     patch.add_argument("profile", type=Path)
     patch.add_argument("report", type=Path)
+    patch.add_argument("--installed", action="store_true", help="ROOT is an installed or extracted package root")
     audit = sub.add_parser("audit-root")
     audit.add_argument("root", type=Path)
     audit.add_argument("profile", type=Path)
@@ -371,7 +399,7 @@ def main():
     try:
         if args.command == "patch-source":
             lock = json.loads((args.profile / "inputs.lock.json").read_text())
-            result = patch_sources(args.root, lock)
+            result = patch_sources(args.root, lock, installed=args.installed)
             args.report.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
         elif args.command == "patch-installed":
             patch_installed(args.root, args.profile)
