@@ -131,21 +131,21 @@ case "$idle_mode" in
     systemctl --user mask --now omarchy-sleep-lock.service >/dev/null 2>&1 || true
     ;;
   guest)
+    shell_source="$shell_config"
+    [[ -f "$shell_source" ]] || shell_source="$shell_default"
+    shell_tmp=$(mktemp "${shell_config}.XXXXXX")
     if [[ -f "$shell_backup" ]]; then
-      install -m 0600 "$shell_backup" "$shell_config"
+      # Restore only idle policy: other shell preferences may have changed
+      # since the host-idle backup, including an explicitly selected lean mode.
+      jq --slurpfile saved "$shell_backup" \
+        'if ($saved[0] | has("idle")) then .idle = $saved[0].idle else del(.idle) end' \
+        "$shell_source" > "$shell_tmp"
     else
-      shell_source="$shell_config"
-      [[ -f "$shell_source" ]] || shell_source="$shell_default"
-      [[ -f "$shell_source" ]] || {
-        printf 'Unable to find the Omarchy shell configuration.\n' >&2
-        exit 1
-      }
-      shell_tmp=$(mktemp "${shell_config}.XXXXXX")
       jq '.idle = {"screensaver": 150, "lock": 300}' \
         "$shell_source" > "$shell_tmp"
-      chmod 0600 "$shell_tmp"
-      mv "$shell_tmp" "$shell_config"
     fi
+    chmod 0600 "$shell_tmp"
+    mv "$shell_tmp" "$shell_config"
     systemctl --user unmask omarchy-sleep-lock.service >/dev/null 2>&1 || true
     systemctl --user enable --now omarchy-sleep-lock.service >/dev/null 2>&1 || true
     ;;

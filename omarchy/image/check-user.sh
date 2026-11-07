@@ -51,12 +51,24 @@ if not (root / '.local/state/dev-workstation/image-preferences-v1').is_file():
     raise SystemExit('First-owner preferences were not completed')
 if 'size=16' not in (root / '.config/foot/foot.ini').read_text():
     raise SystemExit('Foot preference was not applied')
-idle = json.loads((root / '.config/omarchy/shell.json').read_text())['idle']
+shell = json.loads((root / '.config/omarchy/shell.json').read_text())
+idle = shell['idle']
 if idle['screensaver'] != 0 or idle['lock'] != 0:
     raise SystemExit('Host-owned idle preferences were not applied')
+disabled_widgets = {'omarchy.weather', 'omarchy.elsewhen', 'omarchy.bluetooth', 'omarchy.monitor'}
+for entries in shell['bar']['layout'].values():
+    if isinstance(entries, list) and any(
+        (entry.get('id') if isinstance(entry, dict) else entry) in disabled_widgets for entry in entries
+    ):
+        raise SystemExit('Lean shell widget preferences were not applied')
+if 'omarchy.reminders' not in shell.get('disabledPlugins', []):
+    raise SystemExit('Lean Reminders preference was not applied')
+if 'omarchy.notifications' in shell.get('disabledPlugins', []):
+    raise SystemExit('Notifications must remain enabled')
 Path(sys.argv[2]).write_text(json.dumps({
     'format': 1, 'user_finalization': 'passed-in-isolated-chroot',
     'workstation_preferences': 'passed-in-isolated-chroot', 'foot_configuration': 'passed',
+    'lean_shell_preferences': 'passed-in-isolated-chroot',
     'aur_build_tools': 'passed-in-isolated-chroot',
     'base_development_tools': 'passed-compile-in-isolated-chroot',
     'owner_account_wizard': 'not-tested', 'hardware_rendering': 'not-tested',

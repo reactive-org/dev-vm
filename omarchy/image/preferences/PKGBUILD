@@ -1,10 +1,10 @@
 pkgname=dev-workstation-preferences
 pkgver=1
-pkgrel=2
+pkgrel=3
 pkgdesc='Minimal Omarchy workstation preferences and hardware-rendering policy'
 arch=('aarch64')
 license=('MIT')
-depends=('bash' 'foot' 'jq' 'nano' 'try-omarchy')
+depends=('bash' 'foot' 'jq' 'nano' 'python' 'try-omarchy')
 install=preferences.install
 options=('!strip' '!debug')
 

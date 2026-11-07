@@ -1009,6 +1009,7 @@ def print_proposal(
         lean_text = (
             "opt-in; remove when installed and safe: " + ", ".join(candidates)
             + "\n                   Retain required desktop/VM packages and selected guest software"
+            + "\n                   Disable Weather, Elsewhen, Bluetooth, brightness and Reminders; retain notifications"
         )
     print(
         "\nProposed Omarchy workstation setup\n"
@@ -1382,7 +1383,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--yes", action="store_true")
     parser.add_argument(
         "--lean-developer", action="store_true",
-        help="remove optional desktop apps and hardware tools; retain required VM integration",
+        help="trim optional apps, hardware tools and five shell extras; retain notifications and VM integration",
     )
     parser.add_argument(
         "--packages",
