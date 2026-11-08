@@ -427,7 +427,8 @@ Normal runs use Omarchy's native `permanent` sudo grant for the setup window and
 attempt revocation, cached-authorization clearing and verification on success,
 failure and interruption. The grant has no automatic expiry and survives reboot;
 if cleanup cannot run, use `omarchy sudo passwordless --disable && sudo -K` in
-the guest. Check mode enables no grant, installs no
+the guest. Manager-driven setup with `vm.sudo_grant: timed` uses renewed
+60-minute grants instead, which Omarchy also clears at boot. Check mode enables no grant, installs no
 packages, writes no preferences and starts no services; its temporary payload is
 removed even on failure. The launcher does not create, start, resize or reboot a
 VM. Docker retains the native firewall and service integration. Developer profiles

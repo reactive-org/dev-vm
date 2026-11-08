@@ -186,7 +186,7 @@ class Setup:
             yield frozen
 
     def validate_vm(self, value):
-        fields(value, {"name", "factory", "cpus", "memory_gib", "disk_gib", "packages", "lean_developer"}, label="VM configuration")
+        fields(value, {"name", "factory", "cpus", "memory_gib", "disk_gib", "packages", "lean_developer", "sudo_grant"}, label="VM configuration")
         result = {"name": "Dev Omarchy", "cpus": 8, "memory_gib": 20, "disk_gib": 64,
                   "packages": [], "lean_developer": False, **value}
         for key, low, high in (("cpus", 4, 128), ("memory_gib", 4, 1024), ("disk_gib", 64, 8192)):
@@ -197,6 +197,10 @@ class Setup:
             raise ValueError("Invalid VM name")
         if "lean_developer" in result and type(result["lean_developer"]) is not bool:
             raise ValueError("lean_developer must be boolean")
+        if result.get("sudo_grant", "permanent") == "timed":
+            raise ValueError("vm.sudo_grant: timed needs Omarchy VM Manager's setup; this controller uses the permanent grant")
+        if result.get("sudo_grant", "permanent") != "permanent":
+            raise ValueError("vm.sudo_grant must be permanent or timed")
         packages = items(result.get("packages", []), "VM packages")
         if any(not isinstance(package, str) or "," in package for package in packages):
             raise ValueError("VM packages must be individual package selectors")
