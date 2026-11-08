@@ -93,9 +93,15 @@ class RepositoryTests(SetupFixture):
                        {"vm": {"cpus": True}}, {"vm": {"memory_gib": 2}},
                        {"vm": {"disk_gib": 32}}, {"vm": {"ssh": {}}},
                        {"vm": {"packages": ["pkg:bad;command"]}}, {"vm": {"factory": "bad\npath"}},
-                       {"vars": []}, {"tasks": "tasks.yml"}):
+                       {"vars": []}, {"tasks": "tasks.yml"}, {"vm": {"sudo_grant": "forever"}},
+                       {"vm": {"sudo_grant": True}}):
             with self.subTest(values=values), self.assertRaises(ValueError):
                 self.manifest(**values)
+
+    def test_bootstrap_controller_keeps_the_permanent_grant(self):
+        self.manifest(vm={"sudo_grant": "permanent"})
+        with self.assertRaisesRegex(ValueError, "VM Manager"):
+            self.manifest(vm={"sudo_grant": "timed"})
 
     def test_custom_task_yaml_is_opaque_until_explicit_execution(self):
         self.file("tasks/main.yml", "- ansible.builtin.debug:\n    msg: '{{ workstation_home }}'\n")

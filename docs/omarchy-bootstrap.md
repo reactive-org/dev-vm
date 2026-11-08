@@ -196,7 +196,7 @@ The controller never captures the password or writes its own sudoers rules.
 confirmation and initial password prompt remain interactive. Guests must support
 Omarchy's native `permanent` mode; unsupported or declined authorization stops
 setup before the update or customization steps. Bootstrap does not fall back to
-an expiring grant.
+an expiring grant, and refuses a manifest with `vm.sudo_grant: timed`.
 
 Bootstrap adds no optional software by default. After the guest is ready, use
 `make apply-playbook` to select browsers, Docker, languages, coding agents and

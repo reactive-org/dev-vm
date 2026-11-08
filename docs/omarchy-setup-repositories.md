@@ -101,7 +101,10 @@ no downstream catalogue is needed for desktop keyring packages.
 VM defaults are 8 CPUs, 20 GiB RAM and a grow-only 64 GiB disk. `vm.name` defaults
 to `Dev Omarchy`. `vm.lean_developer` defaults to false and enables the existing
 opt-in removal profile during bootstrap when true; apply does not run that
-removal profile. `vm.packages` uses bootstrap selectors
+removal profile. `vm.sudo_grant` is `permanent` (the default) or `timed`. Timed asks
+Omarchy for `omarchy sudo passwordless 60` and renews it before each later step that
+needs root. Only Omarchy VM Manager's setup runs it; the `plan-`, `apply-` and
+`bootstrap-omarchy-setup` targets refuse `timed` and keep the permanent grant. `vm.packages` uses bootstrap selectors
 (`pkg:NAME`, `mise:NAME` or existing native auto-selection). Apps are ensured
 before features/layouts on both bootstrap and apply. Check mode reports these
 selectors but does not inspect/install them; use features/catalogues when package
