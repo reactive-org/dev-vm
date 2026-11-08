@@ -51,8 +51,9 @@ class ImageCompatibilityTests(unittest.TestCase):
         self.assertEqual(result["optional_firewall_rules"], "passed")
         self.assertEqual(result["optional_bluetooth_hardware"], "passed")
         self.assertEqual(result["owner_first_boot"], "requires-disposable-vm-validation")
-        for relative, hashes in report.items():
-            self.assertEqual(hashes["upstream_sha256"], LOCK["scripts"][relative])
+        self.assertEqual(report["reviewed_omarchy"], "lean-a948d8a")
+        for relative, hashes in report["files"].items():
+            self.assertEqual(hashes["upstream_sha256"], LOCK["reviewed_omarchy"][0]["scripts"][relative])
             self.assertNotEqual(hashes["patched_sha256"], hashes["upstream_sha256"])
 
     def test_changed_upstream_source_is_rejected_before_any_patch(self):
@@ -61,9 +62,70 @@ class ImageCompatibilityTests(unittest.TestCase):
         path = source / "install/user/mise.sh"
         path.write_text(path.read_text() + "\nchanged\n")
         before = (source / "install/config/enable-services.sh").read_bytes()
-        with self.assertRaisesRegex(COMPAT.CompatibilityError, "Unreviewed provisioning"):
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "hasn't reviewed yet"):
             COMPAT.patch_sources(source, LOCK)
         self.assertEqual((source / "install/config/enable-services.sh").read_bytes(), before)
+
+    def test_changed_owner_program_fails_closed_with_update_message(self):
+        for relative in ("bin/omarchy-provision-owner", "install/provisioning/setup-form.sh",
+                         "install/provisioning/progress-icon.sh"):
+            with self.subTest(relative=relative):
+                source = self.root / ("owner-" + relative.replace("/", "-"))
+                shutil.copytree(FIXTURES / "source", source)
+                path = source / relative
+                path.write_text(path.read_text() + "\n# a later Omarchy release\n")
+                with self.assertRaisesRegex(COMPAT.CompatibilityError, "Update Omarchy VM Manager"):
+                    COMPAT.patch_sources(source, LOCK)
+
+    def installed_root(self, name):
+        """The signed package's layout: bin programs in /usr/bin, absolute links beside them."""
+        root = self.root / name
+        share = root / "usr/share/omarchy"
+        for path in (FIXTURES / "source").rglob("*"):
+            if not path.is_file():
+                continue
+            relative = path.relative_to(FIXTURES / "source").as_posix()
+            if relative.startswith("bin/"):
+                target = root / "usr/bin" / path.name
+                (share / "bin").mkdir(parents=True, exist_ok=True)
+                (share / relative).symlink_to("/usr/bin/" + path.name)
+            else:
+                target = share / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, target)
+        return root
+
+    def test_installed_omarchy_is_patched_in_place_and_must_match_the_checked_package(self):
+        package = self.installed_root("package")
+        profile = self.root / "profile"
+        profile.mkdir()
+        (profile / "inputs.lock.json").write_text(json.dumps(LOCK))
+        report = COMPAT.patch_sources(package, LOCK, installed=True)
+        (profile / "source-compatibility.json").write_text(json.dumps(report))
+        target = self.installed_root("target")
+        COMPAT.patch_installed(target, profile)
+        for relative, hashes in report["files"].items():
+            installed = target / ("usr/bin/" + relative[4:] if relative.startswith("bin/") else "usr/share/omarchy/" + relative)
+            self.assertFalse(installed.is_symlink())
+            self.assertEqual(COMPAT.digest(installed), hashes["patched_sha256"])
+        # The absolute links still point at /usr/bin and were never followed.
+        self.assertEqual(os.readlink(target / "usr/share/omarchy/bin/omarchy-provision-user"), "/usr/bin/omarchy-provision-user")
+        other = self.installed_root("other")
+        stale = dict(report, reviewed_omarchy="another-entry")
+        (profile / "source-compatibility.json").write_text(json.dumps(stale))
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "differs from the checked channel package"):
+            COMPAT.patch_installed(other, profile)
+
+    def test_a_symlinked_install_script_is_never_patched(self):
+        root = self.installed_root("linked")
+        script = root / "usr/share/omarchy/install/user/mise.sh"
+        real = self.root / "elsewhere-mise.sh"
+        shutil.move(script, real)
+        script.symlink_to(real)
+        before = real.read_bytes()
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "hasn't reviewed yet"):
+            COMPAT.patch_sources(root, LOCK, installed=True)
+        self.assertEqual(real.read_bytes(), before)
 
     def test_archive_permissions_match_checkout_modes_without_changing_program_bytes(self):
         source = self.root / "source"
@@ -267,6 +329,32 @@ class ImageCompatibilityTests(unittest.TestCase):
         path = self.root / "builder.sh"
         path.write_text(result)
         subprocess.run(["bash", "-n", str(path)], check=True)
+
+    def test_builder_installs_the_checked_channel_pair_and_patches_it_in_place(self):
+        result = IMAGE.adapt_builder((FIXTURES / "build-image.sh").read_text(), LOCK)
+        self.assertNotIn("published on the edge channel only", result)
+        self.assertIn('[[ $channel == stable || $channel == edge ]]', result)
+        self.assertIn('runtime_package=omarchy\n  settings_package=omarchy-settings\n', result)
+        self.assertIn('runtime_package=omarchy-dev\n  settings_package=omarchy-settings-dev\n', result)
+        self.assertIn('/packages/"$runtime_package"-[0-9]*.pkg.tar.zst\n'
+                      'python3 /profile/compatibility.py patch-installed "$target" /profile\n', result)
+        self.assertLess(result.index("patch-installed"), result.index("omarchy-apply-system --defer-provisioning"))
+        self.assertIn("image_name=omarchy-workstation-aarch64-$channel.img", result)
+        self.assertIn("arm_mirror='https://arm-stable-mirror.omarchy.org/$arch/$repo'", result)
+        self.assertIn("arm_mirror='https://arm-mirror.omarchy.org/$arch/$repo'", result)
+
+    def test_container_script_takes_the_channel_and_no_pinned_omarchy_sources(self):
+        script = (ROOT / "omarchy/image/build-container.sh").read_text()
+        self.assertIn('channel=${3:-edge}', script)
+        self.assertIn('Server = https://pkgs.omarchy.org/$channel/', script)
+        self.assertIn('pacman -Swdd', script)
+        self.assertIn("arm_mirror='https://arm-stable-mirror.omarchy.org/$arch/$repo'", script)
+        self.assertLess(script.index(">/etc/pacman.d/mirrorlist"), script.index("pacman -Syyu"))
+        self.assertIn('--channel "$channel"', script)
+        for removed in ("omarchy_commit", "recipes_commit", "makepkg --nodeps --force --noconfirm\n    local packages=(./*.pkg.tar.zst)\n    ((${#packages[@]} == 1))\n    install -m 0644 \"${packages[0]}\" /output/packages/\n  )\n}\n\nfor package in omarchy"):
+            self.assertNotIn(removed, script)
+        for key in ("omarchy_commit", "recipes_commit", "omarchy_version", "archives", "scripts"):
+            self.assertNotIn(key, LOCK)
 
     def test_upstream_builder_anchor_drift_is_refused(self):
         upstream = (FIXTURES / "build-image.sh").read_text()

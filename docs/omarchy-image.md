@@ -8,7 +8,9 @@ The **Lean, mean coding image** starts with standard ARM64 Omarchy and uses
 Try Omarchy’s factory approach to prepare a bootable disk for QEMU on Apple
 Silicon. It uses Omarchy’s kernel, official package repositories and normal
 update commands, with a smaller app selection that keeps Git, Python and the
-standard build tools. ARM64 packages come from Omarchy’s `edge` channel.
+standard build tools. Omarchy itself comes from the channel you choose:
+**Stable** (`pkgs.omarchy.org/stable`, the latest tagged release, the default)
+or **Edge** (`pkgs.omarchy.org/edge`, development builds).
 
 Docker is the build environment: Try’s recipe uses Omarchy’s `pacstrap-docker`
 tooling and Arch Linux ARM mirror, then installs the system onto a disk with
@@ -19,9 +21,13 @@ dynamic resolution, clipboard, networking and SSH.
 
 The repository selects the lean package list and adds workstation preferences,
 small package-managed provisioning guards for omitted optional apps, and
-hardware-rendering settings. The pinned Omarchy runtime and settings are rebuilt
-from upstream source to include those guards. The reviewed native integration
-archive is reused byte for byte; the details are recorded below.
+hardware-rendering settings. Each build takes the channel's current signed
+Omarchy packages, so a new release such as 4.5.1 needs no new pin. Before
+anything is installed, the build checks that release's install scripts and
+owner programs against the reviewed set in `inputs.lock.json`; an unreviewed
+release stops with "This Omarchy release changes setup programs that Omarchy
+VM Manager hasn't reviewed yet". The reviewed native integration archive is
+reused byte for byte; the details are recorded below.
 Omarchy continues to own the guest’s software and updates, and VM Manager
 continues to own the VM and Mac integration. See the
 [acceptance checks](#acceptance-and-updates) and recorded VM validation below
@@ -56,7 +62,10 @@ Optional preview and package-only checks:
 ```bash
 make build-omarchy-image OMARCHY_IMAGE_PLAN=yes
 make check-omarchy-image
+make build-omarchy-image OMARCHY_IMAGE_CHANNEL=edge
 ```
+
+`OMARCHY_IMAGE_CHANNEL` is `stable` (default) or `edge`.
 
 The default source is the bundled guest-only archive
 `omarchy/image/try-guest-source.tar.gz`. Its SHA-256, guest tree identity and
@@ -71,7 +80,7 @@ The [0.11 validation record](omarchy-lean-011-validation.md) covers native impor
 and full default bootstrap in a disposable guest, including owner setup, pinned
 SSH and hardware VirGL after restart, with broader desktop limits recorded.
 
-Docker must already be installed and running with an ARM64 Linux engine. The first build downloads checksum-pinned guest source archives and an offline ARM64 Node payload, then creates a guest build container. Subsequent runs reuse verified source downloads, Docker's build cache and guest package archives under `.artifacts/omarchy-image/package-cache/`; pacman still verifies signatures. Each run uses a uniquely named, repository-labeled work volume, removed after its own container exits. No other Docker volume or container is removed. Builds in this repository are serialized.
+Docker must already be installed and running with an ARM64 Linux engine. The first build downloads a checksum-pinned offline ARM64 Node payload, then creates a guest build container that fetches the channel's signed Omarchy packages. Subsequent runs reuse verified source downloads, Docker's build cache and guest package archives under `.artifacts/omarchy-image/package-cache/`; pacman still verifies signatures. Each run uses a uniquely named, repository-labeled work volume, removed after its own container exits. No other Docker volume or container is removed. Builds in this repository are serialized.
 
 The new sparse raw disk and filesystem work live in the unique host artifact stage mounted at `/factory-work`; source/package scratch uses the isolated Docker volume. This avoids filling Docker Desktop's virtual disk during Btrfs balance. The host artifact volume must have the requested disk size plus 4 GiB free, and Docker needs at least 3 GiB for source/package scratch. The workflow never prunes unrelated Docker data or changes Docker Desktop's settings.
 
@@ -84,7 +93,7 @@ make build-omarchy-image \
   OMARCHY_IMAGE_SIZE_GIB=20
 ```
 
-An alternate integration checkout must be clean, descend from the pinned v1.3.0 commit and retain the exact reviewed factory builder. This supports the manager's separately reviewed integration sources without modifying that checkout. The chosen integration commit is recorded. The workflow changes only an isolated exported copy. It applies the reviewed integration release and hardware-policy transformation, removes the Ghostty/Kitty software-rendering launch paths and rejects remaining forced software settings. The complete transformed recipe, license and file modes must match the pinned recipe identity before the exact reviewed 43.1 archive is reused. VM Manager supplies package 43; its native installer preserves the newer 43.1 variant. A changed recipe requires package review and a manager compatibility-policy decision before it can be used.
+An alternate integration checkout must be clean, descend from the pinned v1.3.0 commit and retain the exact reviewed factory builder. This supports the manager's separately reviewed integration sources without modifying that checkout. The chosen integration commit is recorded. The workflow changes only an isolated exported copy. It applies the reviewed integration release and hardware-policy transformation, removes the Ghostty/Kitty software-rendering launch paths and rejects remaining forced software settings. The complete transformed recipe, license and file modes must match the pinned recipe identity before the exact reviewed 48.1 archive is reused. VM Manager supplies the same 48.1 native-rendering package to lean guests. A changed recipe requires package review and a manager compatibility-policy decision before it can be used.
 
 Git source exports and downloaded archives are normalized to checkout permissions before packaging: directories and executable files use 0755, other files use 0644, and symlink targets are left alone. Git archives can contain group-writable modes; recipes using `cp -a` would otherwise preserve them into the guest. The image audit rejects writable, foreign-owned or linked canonical owner programs, and writable/non-directory parents. Manager integration adapters and contract files receive the same checks when present. Program bytes and their reviewed hashes remain unchanged.
 
@@ -94,7 +103,7 @@ Git source exports and downloaded archives are normalized to checkout permission
 
 The disk preserves Try Omarchy's default 20 GiB sparse GPT layout, 2 GiB FAT32 ESP, ARM64 UEFI fallback, Limine/UKI, Btrfs subvolumes and read-only `@factory` snapshot. Image-target hardware/keyring initialization and owner creation remain deferred to first boot. The upstream builder removes machine identity, random seed, SSH host keys, pacman keyring and package cache before compression.
 
-The pinned Omarchy runtime and settings are rebuilt together from source as package release `1.1`. Six source-hash checked compatibility changes make optional printing, discovery, Docker, power-profile, Chromium, mise, Bluetooth and firewall setup conditional on the corresponding installed package. The deferred Bluetooth leaf returns successfully when BlueZ is absent and preserves native enable/start behaviour when installed. Missing mandatory desktop services still fail. No installed Omarchy-owned file is edited outside package installation. The upstream default package list is retained: an explicit full package reinstall can restore it.
+**DESIGN DECISION — 8 November 2026: live channel, reviewed set, fail closed.** The build downloads exactly the channel's Omarchy pair (`omarchy`/`omarchy-settings` on Stable, `omarchy-dev`/`omarchy-settings-dev` on Edge) with pacman's signature checks, without dependencies, and installs those archives. Its six patched install scripts and five owner programs must equal one `reviewed_omarchy` entry; otherwise the build fails before the image is created. The current entry, `lean-a948d8a`, covers Omarchy 4.5.0 (`a948d8a`) and edge from `9044b7e`, which carry identical programs. The six source-hash checked compatibility changes make optional printing, discovery, Docker, power-profile, Chromium, mise, Bluetooth and firewall setup conditional on the corresponding installed package. They are applied to the checked package contents and then, with the same result required, to the installed files before `omarchy-apply-system` runs. These six files therefore differ from the package's recorded checksums (`pacman -Qkk` reports them); an Omarchy update replaces them with the release's own versions. The deferred Bluetooth leaf returns successfully when BlueZ is absent and preserves native enable/start behaviour when installed. Missing mandatory desktop services still fail. The upstream default package list is retained: an explicit full package reinstall can restore it.
 
 `dev-workstation-preferences` applies Foot size 16, host-owned idle/locking and the existing GPU-preserving Hyprland repair once for a new graphical owner. Nano is retained as a recovery editor and selected through Omarchy's editor state only when that state is absent. It runs as that owner after Try Omarchy's session setup. A failed application does not write the completion marker. Theme and app layout remain explicit per-workstation choices. No hostname, credential, personal configuration, SSH identity or regular user is embedded.
 
@@ -122,7 +131,7 @@ Each successful build produces:
 
 | Artifact | Purpose |
 | --- | --- |
-| `omarchy-workstation-aarch64-edge.img.zst` | Compressed factory disk |
+| `omarchy-workstation-aarch64-<channel>.img.zst` | Compressed factory disk (`stable` or `edge`) |
 | `factory.json` | Existing format 1, `upstream-shell-factory`, `aarch64`, `uefi-limine`; compressed/raw disk digests and size |
 | `packages.txt` | Actual installed package versions |
 | `base.packages`, `excluded.packages` | Effective required roots and exclusions for this build |
@@ -172,7 +181,7 @@ bash -n omarchy/image/build-container.sh omarchy/image/preferences/first-login.s
   omarchy/image/check-user.sh
 ```
 
-The source fixtures in `tests/fixtures/omarchy-image/` come from the exact upstream revisions in `inputs.lock.json` (Try's builder, its pinned Hyprland integration policy and Omarchy's six provisioning files). Their MIT licenses are reproduced at `omarchy/image/UPSTREAM-LICENSE` and `omarchy/image/OMARCHY-LICENSE`.
+The source fixtures in `tests/fixtures/omarchy-image/` come from the exact upstream revisions in `inputs.lock.json` (Try's builder, its pinned Hyprland integration policy, and Omarchy 4.5.0's six provisioning files and five owner programs). Their MIT licenses are reproduced at `omarchy/image/UPSTREAM-LICENSE` and `omarchy/image/OMARCHY-LICENSE`.
 
 Build-only validation on 1 November 2026 on Apple Silicon: 134 repository tests, the documented shell/Python syntax checks, the package-only compatibility target and a complete host-backed factory build passed. The build contains 568 installed packages and compresses to approximately 1.61 GiB. System provisioning, strict user-finalization log checks, preference reapplication, Foot configuration, AUR tool availability, a non-root C compile/link/run check, exclusions and identity sealing passed. A PCI hardware probe reports the expected missing Docker-kernel module resources in the chroot; hardware validation remains a real-VM requirement. That build launched no VM and changed no VM Manager state.
 

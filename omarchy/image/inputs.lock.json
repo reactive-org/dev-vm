@@ -1,35 +1,46 @@
 {
-  "format": 1,
+  "format": 2,
   "try_commit": "13d63df8da2947f833c04025ff5ade187d39ba81",
-  "managed_try_commit": "85f5e561e5a277ccec08d7725c8714cb090c9011",
+  "managed_try_commit": "91e95a2b9d6a9399cb2fe51f8be3d3a45c085054",
+  "channels": [
+    "stable",
+    "edge"
+  ],
   "reviewed_integration": {
-    "archive": "reviewed-packages/try-omarchy-0.1.0-43.1-aarch64.pkg.tar.zst",
-    "sha256": "9fc986521b67cfa9e891fd826453553f1e2e4a319e6edb1302c760f1e22a2211",
-    "recipe_sha256": "92663bda1702433f374094cce7b3ac69deb404c19de61caefdd170769605f01c",
-    "origin_build": "af93b5f10d206637-7816326733d14d53",
-    "origin_source_commit": "80156396a5daa795487c0f4a8308eee53f6ea68b"
+    "archive": "reviewed-packages/try-omarchy-0.1.0-48.1-aarch64.pkg.tar.zst",
+    "sha256": "876e05d829c3dbbb57991140c61563caeca990035a2ad01b9afb3b26d06bb5d3",
+    "recipe_sha256": "0ad47e4ed75f10fcd28b8099d2f7f650fa4753818ce06113ba39c687ee9ef384",
+    "origin_build": "omarchy-vm-manager-native-rendering-48.1",
+    "origin_source_commit": "91e95a2b9d6a9399cb2fe51f8be3d3a45c085054"
   },
   "builder_sha256": "05fd1ff21852719a413f6141a3f0f80789e7ff9e25b1da9bd8d7979915e83d39",
-  "omarchy_commit": "e4fffc6e6b57cda15cdba400e021596d985f9dbf",
-  "recipes_commit": "8490ac0993dcd65c9949f8c531263f4e76445488",
-  "omarchy_version": "4.0.0.r7481.ge4fffc6",
-  "archives": {
-    "omarchy": "f7d6bb243b84d217913d0fa7fcbd9aaad573bef62920182887029fde6f29f610",
-    "omarchy-pkgs": "01ad28d4059c15fbcc72f1fc20247d5be55f769c52e63f454f17bc6c09d1cc0f"
-  },
-  "scripts": {
-    "install/hardware/bluetooth.sh": "9eaf62a12619b6561b10be2e6bf51c3ee820dd7543203fe333e3ed8c390a99a0",
-    "install/config/enable-services.sh": "346a98f550a2582faa668f8a699cfd027d1365a0672623a618ef26b196826f69",
-    "install/config/firewall.sh": "c15b76478355ae633b990520b7f8db829e2c3ab4a850922bb2c75072a99d4fcd",
-    "install/user/chromium.sh": "ed467ddb356aaeaa1750bfb00bc07fd9d2daccd0a19da91d4afdc29e8f878858",
-    "install/user/mise.sh": "168b897baf5dbce06c664c5dab57c2335d83b2030e5b81fb7feb71e539bf3e90",
-    "bin/omarchy-provision-user": "995e33939c0aca98d7c3576d23f10cc0e38e56cc18f2008fbc8feede8a8c278e"
-  },
+  "reviewed_omarchy": [
+    {
+      "id": "lean-a948d8a",
+      "description": "Omarchy 4.5.0 release (a948d8a) and edge from 9044b7e: identical owner programs and install scripts",
+      "owner_setup_contract_sha256": "fb73e12e5ea4ad8c5bd4fbeee7b5d1d9029708342b6fa2f3a55c7ca9f14104c5",
+      "scripts": {
+        "install/hardware/bluetooth.sh": "9eaf62a12619b6561b10be2e6bf51c3ee820dd7543203fe333e3ed8c390a99a0",
+        "install/config/enable-services.sh": "346a98f550a2582faa668f8a699cfd027d1365a0672623a618ef26b196826f69",
+        "install/config/firewall.sh": "c15b76478355ae633b990520b7f8db829e2c3ab4a850922bb2c75072a99d4fcd",
+        "install/user/chromium.sh": "ed467ddb356aaeaa1750bfb00bc07fd9d2daccd0a19da91d4afdc29e8f878858",
+        "install/user/mise.sh": "b21565cf3416441682594bffe8dc56125de65c1134d2d996f8ea6dd5244b0476",
+        "bin/omarchy-provision-user": "995e33939c0aca98d7c3576d23f10cc0e38e56cc18f2008fbc8feede8a8c278e"
+      },
+      "owner_programs": {
+        "/usr/bin/omarchy-provision-owner": "ef60324cd3b988dbb60cb9cee267699110a46983bed5825699544b3e24943cf6",
+        "/usr/share/omarchy/install/provisioning/setup-form.sh": "c52864ee7b983508a390480ac8380e0f0453a1e543877ccaddfead558ae63c1a",
+        "/usr/share/omarchy/install/provisioning/luks-rekey.sh": "29ce96e714ad76eda9c42f9d82b3f0e87e7a8f22e3edd17e6fa73074dc2e0189",
+        "/usr/share/omarchy/install/provisioning/progress-icon.sh": "549aff59707148e900e27488d592fd5b866aee78e04f98579e6970f13f0f4f09",
+        "/usr/bin/omarchy-provision-user": "69bacb9c2e9e52806793a59304291beb60ee27be194afb7a0fe02d50b8600b25"
+      }
+    }
+  ],
   "node_file": "node-v26.13.0-linux-arm64.tar.gz",
   "node_sha256": "439e9c438acdf6a6ffe47418da709153d66c4bed812e30a473faacb107dd2791",
   "guest_source": {
     "archive": "try-guest-source.tar.gz",
-    "sha256": "2a1970cf3768383f575b36f01dc385782f7433e21e46a5ac1b3cafbe99639940",
-    "guest_tree": "aa461dab54d5d6625537ef506259d4e5155c83ba"
+    "sha256": "45aa19dd23e5ac768672034d51e09a39dd66c9cb8f45105be7f8d216351c3766",
+    "guest_tree": "e2c8c228789566cca1a0ec8fa95e761e6a15effb"
   }
 }

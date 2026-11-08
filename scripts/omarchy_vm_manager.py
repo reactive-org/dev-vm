@@ -32,7 +32,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_CLI = None  # Resolve the installed CLI when a command runs, not at import time.
 MINIMUM_MANAGER_VERSION = (0, 6, 0)
 GUEST_INTEGRATION_POLICY = PROJECT_DIR / "omarchy/image/guest-integration-compatibility.json"
-LEAN_INTEGRATION_PACKAGE = "try-omarchy-0.1.0-43.1-aarch64.pkg.tar.zst"
+LEAN_INTEGRATION_PACKAGE = "try-omarchy-0.1.0-48.1-aarch64.pkg.tar.zst"
 GUEST_REPAIR = PROJECT_DIR / "omarchy" / "guest" / "repair-try-omarchy-black-screen.sh"
 GUEST_APPLY = PROJECT_DIR / "omarchy" / "guest" / "apply-workstation.sh"
 GUEST_CHECK = PROJECT_DIR / "omarchy" / "guest" / "check-workstation.sh"
@@ -460,7 +460,7 @@ def prepare_factory_descriptor(args, bundle: Path, files: dict) -> None:
     if any(type(lock.get(key)) is not int or lock[key] != 1 for key in capabilities):
         raise ValueError("The installed manager lacks the required factory and owner-contract capabilities")
     runtime = lock.get("files")
-    package = "Contents/Resources/guest-packages/try-omarchy-0.1.0-43-aarch64.pkg.tar.zst"
+    package = "Contents/Resources/guest-packages/try-omarchy-0.1.0-48-aarch64.pkg.tar.zst"
     required = {package, "Contents/MacOS/omarchy-vm-helper", "Contents/Resources/runtime/bin/Try Omarchy",
                 "Contents/Resources/firmware/edk2-aarch64-code.fd", "Contents/Resources/scripts/run-qemu-gpu.sh",
                 "Contents/Resources/owner-setup-provenance.json"}
@@ -471,7 +471,7 @@ def prepare_factory_descriptor(args, bundle: Path, files: dict) -> None:
                    for path, digest in runtime.items())):
         raise ValueError("The installed manager runtime inventory is incompatible with this lean image")
     contract_bytes = factory_metadata(resources / (
-        "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract.json"))
+        "OmarchyVMManager_OmarchyVMManagerCore.bundle/LeanOwnerSetupContract-a948d8a.json"))
     contract = json.loads(contract_bytes)
     if (hashlib.sha256(contract_bytes).hexdigest() != policy["ownerSetupContractSHA256"]
             or runtime[package] != policy["runtimePackageSHA256"]):
