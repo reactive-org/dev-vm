@@ -219,7 +219,8 @@ adding competing initialization; opt out or migrate those startup lines first.
 Choose `project-managed` when each project's `mise.toml` owns its runtime and
 external-tool versions. The independently tagged `toolchain` feature installs
 mise through Omarchy and checks the owner's native interactive Bash integration.
-It also verifies zsh activation when zsh is the login shell; `workstation` owns
+That check accepts mise's prompt hook either in `PROMPT_COMMAND` or chained by
+Omarchy's Starship prompt through `STARSHIP_PROMPT_COMMAND`. It also verifies zsh activation when zsh is the login shell; `workstation` owns
 the zsh startup additions. The toolchain feature never selects global runtimes,
 edits shell startup files, trusts project configuration, clones a repository,
 installs project dependencies or starts

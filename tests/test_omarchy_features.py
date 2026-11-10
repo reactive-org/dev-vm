@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -204,6 +205,27 @@ class FeatureTests(unittest.TestCase):
         guest.native = without_activation
         with self.assertRaisesRegex(FEATURE.FeatureError, "native Bash mise activation"):
             self.apply(guest, "toolchain", {"prerequisites": []})
+
+    def test_bash_mise_activation_probe_accepts_starship_chained_hook(self):
+        # Shapes observed in a real Omarchy 4.5 interactive Bash: TERM selects
+        # Starship, which chains mise's hook through STARSHIP_PROMPT_COMMAND.
+        mise = "MISE_SHELL=bash; mise() { :; }; _mise_hook_prompt_command() { :; }\n"
+        title = "printf '\\033]0;%s\\007' \"$PWD\""
+        cases = {
+            "PROMPT_COMMAND=_mise_hook_prompt_command": 0,
+            "PROMPT_COMMAND=(_mise_hook_prompt_command \"$TITLE\")": 0,
+            "PROMPT_COMMAND=_mise_hook": 0,
+            "PROMPT_COMMAND=(starship_precmd \"$TITLE\"); STARSHIP_PROMPT_COMMAND=_mise_hook_prompt_command": 0,
+            "PROMPT_COMMAND=starship_precmd": 1,
+            "PROMPT_COMMAND=(\"$TITLE\"); STARSHIP_PROMPT_COMMAND=_mise_hook_prompt_command": 1,
+            "unset -f mise; PROMPT_COMMAND=_mise_hook_prompt_command": 1,
+            "MISE_SHELL=zsh; PROMPT_COMMAND=_mise_hook_prompt_command": 1,
+        }
+        for prelude, expected in cases.items():
+            with self.subTest(prelude=prelude):
+                script = mise + "TITLE=" + shlex.quote(title) + "\n" + prelude + "\n" + FEATURE.BASH_MISE_ACTIVATION_PROBE
+                result = subprocess.run(["bash", "--noprofile", "--norc", "-c", script], env={"PATH": "/usr/bin:/bin"})
+                self.assertEqual(result.returncode, expected)
 
     def test_project_toolchain_rejects_arbitrary_prerequisite_names(self):
         for config in ({"prerequisites": ["ruby", "ruby"]}, {"prerequisites": ["node"]},
