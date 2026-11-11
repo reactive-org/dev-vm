@@ -43,8 +43,8 @@ jobs:
           set -euo pipefail
           out="$RUNNER_TEMP/review"
           python3 -I scripts/omarchy_release_watch.py --output "$out"
-          if [[ -d $out/omarchy ]]; then
-            printf 'drafts=%s\n' "$(tar -czf - -C "$out" omarchy | base64 -w0)" >>"$GITHUB_OUTPUT"
+          if [[ -d $out/omarchy-review-drafts ]]; then
+            printf 'drafts=%s\n' "$(tar -czf - -C "$out" omarchy-review-drafts | base64 -w0)" >>"$GITHUB_OUTPUT"
           fi
 
   propose:
@@ -70,17 +70,20 @@ jobs:
           printf '%s' "$DRAFTS" | base64 -d | tar -xzf - -C "$staging" --no-same-owner --no-same-permissions
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for draft in "$staging"/omarchy/image/review-drafts/*.json; do
+          for draft in "$staging"/omarchy-review-drafts/*.json; do
             name=$(basename "$draft" .json)
             [[ $name =~ ^(stable|edge)-[A-Za-z0-9._-]+$ ]] || { echo "Skipping unexpected draft $name"; continue; }
+            diff="$staging/omarchy-review-drafts/$name.diff"
+            # The drafts came from a job that ran Omarchy's scripts: accept only regular files.
+            if [[ -L $draft || ! -f $draft || -L $diff || ! -f $diff ]]; then echo "Skipping irregular draft $name"; continue; fi
             branch="omarchy-review/$name"
             if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
               echo "$branch already exists"; continue
             fi
             git switch --quiet --create "$branch" origin/main
-            mkdir -p omarchy/image/review-drafts
-            cp "$staging/omarchy/image/review-drafts/$name.json" "$staging/omarchy/image/review-drafts/$name.diff" omarchy/image/review-drafts/
-            git add "omarchy/image/review-drafts/$name.json" "omarchy/image/review-drafts/$name.diff"
+            mkdir -p omarchy-review-drafts
+            cp "$draft" "$diff" omarchy-review-drafts/
+            git add "omarchy-review-drafts/$name.json" "omarchy-review-drafts/$name.diff"
             outcome=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["outcome"])' "$draft")
             git commit --quiet -m "Draft Omarchy review for $name ($outcome)"
             git push --quiet origin "$branch"

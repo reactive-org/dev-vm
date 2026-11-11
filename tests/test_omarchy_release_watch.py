@@ -88,10 +88,10 @@ class ReleaseWatchTests(unittest.TestCase):
         changed = release({"install/provisioning/progress-icon.sh": lambda text: text + "\n# VT colour fix\n"})
         result = WATCH.watch("edge", LOCK, self.root / "out", fetcher=self.repository("edge", changed))
         self.assertEqual(result["outcome"], "manual")
-        draft = json.loads((self.root / "out/omarchy/image/review-drafts" / (result["draft"] + ".json")).read_text())
+        draft = json.loads((self.root / "out" / WATCH.DRAFTS / (result["draft"] + ".json")).read_text())
         self.assertEqual(draft["draft_entry"]["owner_setup_contract_sha256"], "TO REVIEW")
         self.assertEqual(set(draft["draft_entry"]["owner_programs"]), set(LOCK["reviewed_omarchy"][0]["owner_programs"]))
-        diff = (self.root / "out/omarchy/image/review-drafts" / (result["draft"] + ".diff")).read_text()
+        diff = (self.root / "out" / WATCH.DRAFTS / (result["draft"] + ".diff")).read_text()
         self.assertIn("+++ release/install/provisioning/progress-icon.sh", diff)
         self.assertIn("+# VT colour fix", diff)
         self.assertNotIn("enable-services.sh", diff)
@@ -102,7 +102,7 @@ class ReleaseWatchTests(unittest.TestCase):
         changed = release({"install/config/enable-services.sh": lambda text: text + "systemctl enable bolt.service\n"})
         result = WATCH.watch("stable", LOCK, self.root / "out", fetcher=self.repository("stable", changed))
         self.assertEqual(result["outcome"], "blocked")
-        draft = json.loads((self.root / "out/omarchy/image/review-drafts" / (result["draft"] + ".json")).read_text())
+        draft = json.loads((self.root / "out" / WATCH.DRAFTS / (result["draft"] + ".json")).read_text())
         self.assertIn("bolt.service", draft["detail"])
 
     def test_checksum_mismatch_or_linked_reviewed_file_is_refused(self):

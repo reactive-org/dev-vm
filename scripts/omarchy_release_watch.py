@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Compare each channel's current Omarchy release with the reviewed set.
 
-Read-only and advisory: it downloads the channel's Omarchy package pair,
-checks each archive against the repository database's SHA-256, applies the
-same guards and behaviour checks the factory builder uses, and writes a
-review draft when a release would build for manual owner setup only or
-would stop for review. It never edits inputs.lock.json, builds an image or
-starts a VM. The builder independently verifies package signatures.
+Advisory: it downloads the channel's Omarchy package pair, checks each
+archive against the repository database's SHA-256 (not its signature; the
+builder verifies signatures), applies the factory builder's guards and runs
+its behaviour checks, which source the release's guarded install scripts
+with only pacman, systemctl and ufw stubbed. Run it only somewhere disposable
+that holds no credentials, as the scheduled workflow does. It writes a
+review draft when a release would build for manual owner setup only or would
+stop for review. It never edits inputs.lock.json, builds an image or starts
+a VM.
 """
 
 import argparse
@@ -30,6 +33,7 @@ FIXTURE = ROOT / "tests/fixtures/omarchy-image/source"
 REPOSITORY = "https://pkgs.omarchy.org/{channel}/aarch64/"
 CHANNELS = {"stable": ("omarchy", "omarchy-settings"), "edge": ("omarchy-dev", "omarchy-settings-dev")}
 MAXIMUM_DOWNLOAD = 256 * 1024 * 1024
+DRAFTS = "omarchy-review-drafts"
 
 
 def load(name, path):
@@ -182,7 +186,8 @@ def watch(channel, lock, output, fetcher=fetch):
         },
     }
     name = f"{channel}-{safe(version)}"
-    drafts = Path(output) / "omarchy/image/review-drafts"
+    # Outside omarchy/image, which the factory recipe hashes and stages.
+    drafts = Path(output) / DRAFTS
     drafts.mkdir(parents=True, exist_ok=True)
     (drafts / f"{name}.json").write_text(json.dumps(draft, indent=2, sort_keys=True) + "\n")
     (drafts / f"{name}.diff").write_text(diff)
