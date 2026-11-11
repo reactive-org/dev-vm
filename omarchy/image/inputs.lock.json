@@ -17,16 +17,8 @@
   "reviewed_omarchy": [
     {
       "id": "lean-a948d8a",
-      "description": "Omarchy 4.5.0 release (a948d8a) and edge from 9044b7e: identical owner programs and install scripts",
+      "description": "Omarchy 4.5.0 release (a948d8a) and edge from 9044b7e: reviewed owner programs (install scripts are checked by behaviour)",
       "owner_setup_contract_sha256": "fb73e12e5ea4ad8c5bd4fbeee7b5d1d9029708342b6fa2f3a55c7ca9f14104c5",
-      "scripts": {
-        "install/hardware/bluetooth.sh": "9eaf62a12619b6561b10be2e6bf51c3ee820dd7543203fe333e3ed8c390a99a0",
-        "install/config/enable-services.sh": "346a98f550a2582faa668f8a699cfd027d1365a0672623a618ef26b196826f69",
-        "install/config/firewall.sh": "c15b76478355ae633b990520b7f8db829e2c3ab4a850922bb2c75072a99d4fcd",
-        "install/user/chromium.sh": "ed467ddb356aaeaa1750bfb00bc07fd9d2daccd0a19da91d4afdc29e8f878858",
-        "install/user/mise.sh": "b21565cf3416441682594bffe8dc56125de65c1134d2d996f8ea6dd5244b0476",
-        "bin/omarchy-provision-user": "995e33939c0aca98d7c3576d23f10cc0e38e56cc18f2008fbc8feede8a8c278e"
-      },
       "owner_programs": {
         "/usr/bin/omarchy-provision-owner": "ef60324cd3b988dbb60cb9cee267699110a46983bed5825699544b3e24943cf6",
         "/usr/share/omarchy/install/provisioning/setup-form.sh": "c52864ee7b983508a390480ac8380e0f0453a1e543877ccaddfead558ae63c1a",

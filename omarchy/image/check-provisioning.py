@@ -6,6 +6,26 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Must match compatibility.UPDATE_REQUIRED: the manager recognises this sentence.
+UPDATE_REQUIRED = ("This Omarchy release changes setup programs that Omarchy VM Manager hasn't "
+                   "reviewed yet. Update Omarchy VM Manager, or try the other channel.")
+# Install scripts are no longer byte-pinned. What they do on a lean image with
+# every optional package absent must stay within these reviewed sets, so a new
+# unit or firewall rule (perhaps for a package the lean profile omits) stops
+# for review instead of building.
+REVIEWED_SERVICE_COMMANDS = frozenset({
+    "enable linux-modules-cleanup.service", "enable systemd-resolved.service",
+    "enable NetworkManager.service", "mask NetworkManager-wait-online.service",
+    "enable sddm.service", "enable systemd-oomd.service",
+})
+REVIEWED_FIREWALL_COMMANDS = frozenset({"default deny incoming", "default allow outgoing"})
+FIREWALL_TAIL = "# Installs are followed by reboot"
+
+
+class ReviewRequired(RuntimeError):
+    def __init__(self, detail):
+        super().__init__(f"{UPDATE_REQUIRED} ({detail})")
+
 
 def check(root):
     root = Path(root)
@@ -19,6 +39,9 @@ source "$1"
     result = subprocess.run(["bash", "-c", harness, "bash", str(service_script)],
                             check=True, text=True, capture_output=True)
     commands = result.stdout.splitlines()
+    unreviewed = sorted(set(commands) - REVIEWED_SERVICE_COMMANDS)
+    if unreviewed:
+        raise ReviewRequired("New service commands: " + ", ".join(unreviewed))
     for service in ("cups.service", "docker.socket", "avahi-daemon.service", "power-profiles-daemon.service"):
         if f"enable {service}" in commands:
             raise RuntimeError(f"Absent optional service enabled: {service}")
@@ -51,7 +74,9 @@ source "$1"
     body = firewall.read_text()
     # Keep absolute /etc writes out of this source-level test. The real chroot
     # build runs the complete leaf and verifies system provisioning separately.
-    body = body[:body.index("# Installs are followed by reboot")]
+    if body.count(FIREWALL_TAIL) != 1:
+        raise ReviewRequired("Firewall setup layout changed")
+    body = body[:body.index(FIREWALL_TAIL)]
     result = subprocess.run(
         ["bash", "-c", 'set -euo pipefail\npacman() { return 1; }\n'
          'ufw() { printf "%s\\n" "$*"; }\n' + body],
@@ -59,6 +84,14 @@ source "$1"
     )
     if "53317" in result.stdout or "allow-docker-dns" in result.stdout:
         raise RuntimeError("Absent optional applications received firewall exceptions")
+    unreviewed = sorted(set(result.stdout.splitlines()) - REVIEWED_FIREWALL_COMMANDS)
+    if unreviewed:
+        raise ReviewRequired("New firewall rules: " + ", ".join(unreviewed))
+    tail = firewall.read_text().split(FIREWALL_TAIL, 1)[1]
+    tail_commands = sorted(line.strip() for line in tail.splitlines()
+                           if line.strip().startswith(("ufw ", "systemctl ")))
+    if tail_commands != ["systemctl enable ufw"]:
+        raise ReviewRequired("Firewall activation changed")
     return {"format": 1, "optional_service_guards": "passed",
             "optional_bluetooth_hardware": "passed",
             "absent_browser_and_mise": "passed", "optional_firewall_rules": "passed",
@@ -67,5 +100,8 @@ source "$1"
 
 
 if __name__ == "__main__":
-    result = check(sys.argv[1])
+    try:
+        result = check(sys.argv[1])
+    except (RuntimeError, ValueError, subprocess.CalledProcessError) as error:
+        sys.exit(f"Provisioning check failed: {error}")
     Path(sys.argv[2]).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")

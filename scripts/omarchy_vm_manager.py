@@ -481,6 +481,9 @@ def prepare_factory_descriptor(args, bundle: Path, files: dict) -> None:
     evidence = json.loads(factory_metadata(bundle / "compatibility.json"))
     build = json.loads(factory_metadata(bundle / "image-build.json"))
     commit = build.get("try_commit")
+    if evidence.get("owner_setup", "managed") != "managed":
+        raise ValueError("This image carries Omarchy owner programs that haven't been reviewed, so it supports "
+                         "manual owner setup only. Import it with Omarchy VM Manager's Import factory instead")
     if (evidence.get("owner_programs") != expected
             or evidence.get("packages", {}).get("try-omarchy") != policy["leanPackageVersion"]
             or not isinstance(commit, str) or not re.fullmatch(r"[0-9a-f]{40}", commit)

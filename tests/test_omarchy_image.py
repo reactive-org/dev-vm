@@ -29,6 +29,16 @@ IMAGE = load("omarchy_image", ROOT / "scripts/omarchy_image.py")
 COMPAT = IMAGE.compat
 CHECKS = load("provisioning_checks", ROOT / "omarchy/image/check-provisioning.py")
 LOCK = json.loads((ROOT / "omarchy/image/inputs.lock.json").read_text())
+# Omarchy 4.5.0's six guarded install scripts, as reviewed on 8 November 2026.
+# They are no longer a build gate; this only proves the fixture is that release.
+REVIEWED_4_5_SCRIPTS = {
+    "install/hardware/bluetooth.sh": "9eaf62a12619b6561b10be2e6bf51c3ee820dd7543203fe333e3ed8c390a99a0",
+    "install/config/enable-services.sh": "346a98f550a2582faa668f8a699cfd027d1365a0672623a618ef26b196826f69",
+    "install/config/firewall.sh": "c15b76478355ae633b990520b7f8db829e2c3ab4a850922bb2c75072a99d4fcd",
+    "install/user/chromium.sh": "ed467ddb356aaeaa1750bfb00bc07fd9d2daccd0a19da91d4afdc29e8f878858",
+    "install/user/mise.sh": "b21565cf3416441682594bffe8dc56125de65c1134d2d996f8ea6dd5244b0476",
+    "bin/omarchy-provision-user": "995e33939c0aca98d7c3576d23f10cc0e38e56cc18f2008fbc8feede8a8c278e",
+}
 
 
 class ImageCompatibilityTests(unittest.TestCase):
@@ -51,31 +61,97 @@ class ImageCompatibilityTests(unittest.TestCase):
         self.assertEqual(result["optional_firewall_rules"], "passed")
         self.assertEqual(result["optional_bluetooth_hardware"], "passed")
         self.assertEqual(result["owner_first_boot"], "requires-disposable-vm-validation")
+        self.assertEqual(report["format"], 3)
+        self.assertEqual(report["owner_setup"], "managed")
         self.assertEqual(report["reviewed_omarchy"], "lean-a948d8a")
+        self.assertEqual(report["owner_setup_contract_sha256"], LOCK["reviewed_omarchy"][0]["owner_setup_contract_sha256"])
+        self.assertEqual(report["owner_programs"], LOCK["reviewed_omarchy"][0]["owner_programs"])
+        self.assertEqual(set(report["files"]), set(REVIEWED_4_5_SCRIPTS))
         for relative, hashes in report["files"].items():
-            self.assertEqual(hashes["upstream_sha256"], LOCK["reviewed_omarchy"][0]["scripts"][relative])
+            self.assertEqual(hashes["upstream_sha256"], REVIEWED_4_5_SCRIPTS[relative])
             self.assertNotEqual(hashes["patched_sha256"], hashes["upstream_sha256"])
+            self.assertEqual(COMPAT.digest(source / relative), hashes["patched_sha256"])
 
-    def test_changed_upstream_source_is_rejected_before_any_patch(self):
+    def test_check_sentence_matches_the_builder_message(self):
+        self.assertEqual(CHECKS.UPDATE_REQUIRED, COMPAT.UPDATE_REQUIRED)
+
+    def test_harmless_install_script_change_builds_with_its_actual_digest(self):
         source = self.root / "source"
         shutil.copytree(FIXTURES / "source", source)
         path = source / "install/user/mise.sh"
-        path.write_text(path.read_text() + "\nchanged\n")
-        before = (source / "install/config/enable-services.sh").read_bytes()
-        with self.assertRaisesRegex(COMPAT.CompatibilityError, "hasn't reviewed yet"):
-            COMPAT.patch_sources(source, LOCK)
-        self.assertEqual((source / "install/config/enable-services.sh").read_bytes(), before)
+        path.write_text(path.read_text() + "\n# offline reshim, a later Omarchy release\n")
+        changed = COMPAT.digest(path)
+        report = COMPAT.patch_sources(source, LOCK)
+        self.assertEqual(report["owner_setup"], "managed")
+        self.assertEqual(report["files"]["install/user/mise.sh"]["upstream_sha256"], changed)
+        self.assertEqual(CHECKS.check(source)["absent_browser_and_mise"], "passed")
 
-    def test_changed_owner_program_fails_closed_with_update_message(self):
+    def test_missing_or_repeated_anchor_stops_before_any_script_is_written(self):
+        cases = {
+            "removed": ("install/config/enable-services.sh", "systemctl enable docker.socket\n", ""),
+            "repeated": ("install/config/firewall.sh", "ufw allow 53317/udp\n", "ufw allow 53317/udp\nufw allow 53317/udp\n"),
+            "unparsable": ("install/user/chromium.sh", "", "if then\n"),
+        }
+        for name, (relative, old, new) in cases.items():
+            with self.subTest(name=name):
+                source = self.root / ("anchor-" + name)
+                shutil.copytree(FIXTURES / "source", source)
+                path = source / relative
+                text = path.read_text()
+                path.write_text(text.replace(old, new, 1) if old else text + new)
+                before = {item: item.read_bytes() for item in source.rglob("*") if item.is_file()}
+                with self.assertRaisesRegex(COMPAT.CompatibilityError, "hasn't reviewed yet"):
+                    COMPAT.patch_sources(source, LOCK)
+                self.assertEqual({item: item.read_bytes() for item in source.rglob("*") if item.is_file()}, before)
+
+    def test_new_service_or_firewall_behaviour_stops_for_review(self):
+        cases = {
+            "service": ("install/config/enable-services.sh", "systemctl enable sddm.service\n",
+                        "systemctl enable sddm.service\nsystemctl enable bolt.service\n", "bolt.service"),
+            "firewall": ("install/config/firewall.sh", "ufw default allow outgoing\n",
+                         "ufw default allow outgoing\nufw allow 22/tcp\n", "22/tcp"),
+            "activation": ("install/config/firewall.sh", "systemctl enable ufw\n",
+                           "systemctl enable ufw\nsystemctl enable ufw-docker\n", "activation"),
+        }
+        for name, (relative, old, new, detail) in cases.items():
+            with self.subTest(name=name):
+                source = self.root / ("behaviour-" + name)
+                shutil.copytree(FIXTURES / "source", source)
+                path = source / relative
+                path.write_text(path.read_text().replace(old, new, 1))
+                COMPAT.patch_sources(source, LOCK)
+                with self.assertRaisesRegex(CHECKS.ReviewRequired, "hasn't reviewed yet.*" + detail):
+                    CHECKS.check(source)
+
+    def test_unreviewed_owner_program_builds_for_manual_owner_setup_only(self):
         for relative in ("bin/omarchy-provision-owner", "install/provisioning/setup-form.sh",
-                         "install/provisioning/progress-icon.sh"):
+                         "install/provisioning/luks-rekey.sh", "install/provisioning/progress-icon.sh",
+                         "bin/omarchy-provision-user"):
             with self.subTest(relative=relative):
                 source = self.root / ("owner-" + relative.replace("/", "-"))
                 shutil.copytree(FIXTURES / "source", source)
                 path = source / relative
                 path.write_text(path.read_text() + "\n# a later Omarchy release\n")
-                with self.assertRaisesRegex(COMPAT.CompatibilityError, "Update Omarchy VM Manager"):
-                    COMPAT.patch_sources(source, LOCK)
+                report = COMPAT.patch_sources(source, LOCK)
+                self.assertEqual(report["owner_setup"], "manual")
+                self.assertIsNone(report["reviewed_omarchy"])
+                self.assertIsNone(report["owner_setup_contract_sha256"])
+                self.assertNotEqual(report["owner_programs"], LOCK["reviewed_omarchy"][0]["owner_programs"])
+
+    def test_missing_owner_program_stops_the_build(self):
+        source = self.root / "source"
+        shutil.copytree(FIXTURES / "source", source)
+        (source / "install/provisioning/luks-rekey.sh").unlink()
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "hasn't reviewed yet"):
+            COMPAT.patch_sources(source, LOCK)
+
+    def test_overlapping_reviewed_entries_are_refused(self):
+        source = self.root / "source"
+        shutil.copytree(FIXTURES / "source", source)
+        lock = json.loads(json.dumps(LOCK))
+        lock["reviewed_omarchy"].append(dict(lock["reviewed_omarchy"][0], id="duplicate"))
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "overlap"):
+            COMPAT.patch_sources(source, lock)
 
     def installed_root(self, name):
         """The signed package's layout: bin programs in /usr/bin, absolute links beside them."""
@@ -115,6 +191,25 @@ class ImageCompatibilityTests(unittest.TestCase):
         (profile / "source-compatibility.json").write_text(json.dumps(stale))
         with self.assertRaisesRegex(COMPAT.CompatibilityError, "differs from the checked channel package"):
             COMPAT.patch_installed(other, profile)
+
+    def test_installed_manual_release_must_match_its_checked_manual_report(self):
+        package = self.installed_root("package")
+        program = package / "usr/share/omarchy/install/provisioning/progress-icon.sh"
+        program.write_text(program.read_text() + "\n# VT colour fix\n")
+        profile = self.root / "profile"
+        profile.mkdir()
+        (profile / "inputs.lock.json").write_text(json.dumps(LOCK))
+        report = COMPAT.patch_sources(package, LOCK, installed=True)
+        self.assertEqual(report["owner_setup"], "manual")
+        (profile / "source-compatibility.json").write_text(json.dumps(report))
+        target = self.installed_root("target")
+        changed = target / "usr/share/omarchy/install/provisioning/progress-icon.sh"
+        changed.write_text(program.read_text())
+        COMPAT.patch_installed(target, profile)
+        # The reviewed release cannot stand in for the checked manual one.
+        reviewed = self.installed_root("reviewed")
+        with self.assertRaisesRegex(COMPAT.CompatibilityError, "differs from the checked channel package"):
+            COMPAT.patch_installed(reviewed, profile)
 
     def test_a_symlinked_install_script_is_never_patched(self):
         root = self.installed_root("linked")
