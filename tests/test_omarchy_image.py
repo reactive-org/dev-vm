@@ -241,6 +241,41 @@ class ImageCompatibilityTests(unittest.TestCase):
         with self.assertRaisesRegex(COMPAT.CompatibilityError, "differs from the checked channel package"):
             COMPAT.patch_installed(reviewed, profile)
 
+    def test_audit_records_the_owner_setup_verdict_in_factory_evidence(self):
+        for changed in (False, True):
+            with self.subTest(manual=changed):
+                package = self.installed_root(f"package-{changed}")
+                if changed:
+                    icon = package / "usr/share/omarchy/install/provisioning/progress-icon.sh"
+                    icon.write_text(icon.read_text() + "\n# VT colour fix\n")
+                profile = self.root / f"profile-{changed}"
+                profile.mkdir()
+                for name in ("base.packages", "excluded.packages"):
+                    shutil.copy2(ROOT / "omarchy/image" / name, profile / name)
+                (profile / "inputs.lock.json").write_text(json.dumps(LOCK))
+                report = COMPAT.patch_sources(package, LOCK, installed=True)
+                (profile / "source-compatibility.json").write_text(json.dumps(report))
+                target = package  # patched in place, as the image is
+                for name in ("boot/EFI/BOOT/BOOTAA64.EFI", "boot/limine.conf", "var/lib/omarchy/provisioning/pending",
+                             "var/lib/omarchy/image/deferred-steps", "var/lib/omarchy/image/pacman-keyring"):
+                    (target / name).parent.mkdir(parents=True, exist_ok=True)
+                    (target / name).write_text("")
+                (target / "etc").mkdir(exist_ok=True)
+                (target / "etc/passwd").write_text("root:x:0:0::/root:/bin/bash\n")
+                packages = COMPAT.package_list(profile / "base.packages") + ["omarchy", "omarchy-settings", "try-omarchy", "dev-workstation-preferences"]
+                pacman = SimpleNamespace(stdout="".join(f"{name} 1-1\n" for name in packages))
+                output = self.root / f"compatibility-{changed}.json"
+                with mock.patch.object(COMPAT.subprocess, "run", return_value=pacman), \
+                        mock.patch.object(COMPAT, "check_owner_program_permissions"):
+                    COMPAT.audit_root(target, profile, output)
+                evidence = json.loads(output.read_text())
+                self.assertEqual(evidence["owner_setup"], "manual" if changed else "managed")
+                self.assertEqual(evidence["reviewed_omarchy"], None if changed else "lean-a948d8a")
+                # The four recorded programs omit progress-icon.sh, so only the
+                # builder's verdict tells a progress-icon change apart.
+                self.assertEqual(evidence["owner_programs"], {name: digest for name, digest in
+                                 LOCK["reviewed_omarchy"][0]["owner_programs"].items() if not name.endswith("progress-icon.sh")})
+
     def test_a_symlinked_install_script_is_never_patched(self):
         root = self.installed_root("linked")
         script = root / "usr/share/omarchy/install/user/mise.sh"
