@@ -138,6 +138,36 @@ class ImageCompatibilityTests(unittest.TestCase):
                 self.assertIsNone(report["owner_setup_contract_sha256"])
                 self.assertNotEqual(report["owner_programs"], LOCK["reviewed_omarchy"][0]["owner_programs"])
 
+    def test_another_default_browser_is_guarded_by_its_desktop_file_and_builds_for_manual_setup(self):
+        source = self.root / "source"
+        shutil.copytree(FIXTURES / "source", source)
+        path = source / "bin/omarchy-provision-user"
+        path.write_text(path.read_text().replace("default-web-browser chromium.desktop", "default-web-browser google-chrome.desktop"))
+        report = COMPAT.patch_sources(source, LOCK)
+        self.assertEqual(report["owner_setup"], "manual")
+        text = path.read_text()
+        self.assertIn("if [[ -f /usr/share/applications/google-chrome.desktop ]]; then\n"
+                      "  env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser google-chrome.desktop\nfi\n", text)
+        self.assertNotIn("pacman -Qq chromium", text)
+
+    def test_reviewed_browser_guard_keeps_the_reviewed_owner_program_digest(self):
+        source, report = self.patched_source()
+        self.assertEqual(report["owner_programs"]["/usr/bin/omarchy-provision-user"],
+                         LOCK["reviewed_omarchy"][0]["owner_programs"]["/usr/bin/omarchy-provision-user"])
+        self.assertIn("if pacman -Qq chromium >/dev/null 2>&1; then", (source / "bin/omarchy-provision-user").read_text())
+
+    def test_ambiguous_or_missing_default_browser_stops_for_review(self):
+        for name, change in {"two": lambda t: t.replace("default-web-browser chromium.desktop",
+                                                         "default-web-browser a.desktop\nenv -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser b.desktop"),
+                             "none": lambda t: t.replace("env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser chromium.desktop\n", "")}.items():
+            with self.subTest(name=name):
+                source = self.root / ("browser-" + name)
+                shutil.copytree(FIXTURES / "source", source)
+                path = source / "bin/omarchy-provision-user"
+                path.write_text(change(path.read_text()))
+                with self.assertRaisesRegex(COMPAT.CompatibilityError, "hasn't reviewed yet"):
+                    COMPAT.patch_sources(source, LOCK)
+
     def test_missing_owner_program_stops_the_build(self):
         source = self.root / "source"
         shutil.copytree(FIXTURES / "source", source)

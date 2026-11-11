@@ -179,6 +179,28 @@ def owner_setup_entry(programs, lock):
     return matches[0] if matches else None
 
 
+DEFAULT_BROWSER = "env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser "
+REVIEWED_BROWSER = DEFAULT_BROWSER + "chromium.desktop"
+
+
+def guard_default_browser(text):
+    """Set the default browser only when the lean image carries it.
+
+    The reviewed Chromium line keeps its exact package guard, so reviewed
+    owner-program digests are unchanged. A release naming another browser
+    (Edge moved to google-chrome.desktop) gets the same guard keyed on that
+    browser's desktop file; there must still be exactly one such line.
+    """
+    if text.count(REVIEWED_BROWSER + "\n") == 1:
+        return optional_command(text, REVIEWED_BROWSER, "chromium")
+    names = re.findall("^" + re.escape(DEFAULT_BROWSER) + r"([A-Za-z0-9][A-Za-z0-9._-]*)\.desktop$", text, re.MULTILINE)
+    if len(names) != 1:
+        raise CompatibilityError(f"{UPDATE_REQUIRED} (Changed setup step: default browser)")
+    line = DEFAULT_BROWSER + names[0] + ".desktop"
+    return replace_once(text, line + "\n",
+                        f"if [[ -f /usr/share/applications/{names[0]}.desktop ]]; then\n  {line}\nfi\n")
+
+
 def transform(relative, text):
     """Apply the reviewed lean-profile guards; every anchor must occur exactly once."""
     if relative == "install/config/enable-services.sh":
@@ -201,11 +223,7 @@ def transform(relative, text):
         package = "chromium" if "chromium" in relative else "mise-bin"
         text = f'pacman -Qq {package} >/dev/null 2>&1 || return 0\n' + text
     elif relative == "bin/omarchy-provision-user":
-        text = optional_command(
-            text,
-            "env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser chromium.desktop",
-            "chromium",
-        )
+        text = guard_default_browser(text)
         text = replace_once(
             text, "xdg-mime default HEY.desktop x-scheme-handler/mailto\n",
             'if [[ -f /usr/share/applications/HEY.desktop ]]; then\n'
