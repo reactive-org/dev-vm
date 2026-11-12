@@ -1,0 +1,96 @@
+name: Omarchy release watch
+
+# Compares each channel's current Omarchy release with the reviewed set and
+# opens a draft review PR when a release would build for manual owner setup
+# only or would stop for review. It never edits inputs.lock.json or merges.
+on:
+  schedule:
+    - cron: "17 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: omarchy-release-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check channel releases
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # This job runs Omarchy's guarded install scripts with stubbed commands,
+    # exactly as the builder does, so it holds no write token.
+    permissions:
+      contents: read
+    outputs:
+      drafts: ${{ steps.watch.outputs.drafts }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - name: Compare releases with the reviewed set
+        id: watch
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/review"
+          python3 -I scripts/omarchy_release_watch.py --output "$out"
+          if [[ -d $out/omarchy-review-drafts ]]; then
+            printf 'drafts=%s\n' "$(tar -czf - -C "$out" omarchy-review-drafts | base64 -w0)" >>"$GITHUB_OUTPUT"
+          fi
+
+  propose:
+    name: Open draft review PRs
+    needs: check
+    if: needs.check.outputs.drafts != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Open one draft PR per new release
+        env:
+          DRAFTS: ${{ needs.check.outputs.drafts }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          staging="$RUNNER_TEMP/drafts"
+          mkdir -p "$staging"
+          printf '%s' "$DRAFTS" | base64 -d | tar -xzf - -C "$staging" --no-same-owner --no-same-permissions
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for draft in "$staging"/omarchy-review-drafts/*.json; do
+            name=$(basename "$draft" .json)
+            [[ $name =~ ^(stable|edge)-[A-Za-z0-9._-]+$ ]] || { echo "Skipping unexpected draft $name"; continue; }
+            diff="$staging/omarchy-review-drafts/$name.diff"
+            # The drafts came from a job that ran Omarchy's scripts: accept only regular files.
+            if [[ -L $draft || ! -f $draft || -L $diff || ! -f $diff ]]; then echo "Skipping irregular draft $name"; continue; fi
+            branch="omarchy-review/$name"
+            if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+              echo "$branch already exists"; continue
+            fi
+            git switch --quiet --create "$branch" origin/main
+            mkdir -p omarchy-review-drafts
+            cp "$draft" "$diff" omarchy-review-drafts/
+            git add "omarchy-review-drafts/$name.json" "omarchy-review-drafts/$name.diff"
+            outcome=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["outcome"])' "$draft")
+            git commit --quiet -m "Draft Omarchy review for $name ($outcome)"
+            git push --quiet origin "$branch"
+            body=$(printf '%s\n\n%s\n\n%s\n' \
+              "Automated draft: the current $name Omarchy release would build with outcome **$outcome** (manual = unreviewed owner programs, manual owner setup only; blocked = a guarded setup step changed)." \
+              "Review the attached diff against the reviewed 4.5.0 sources. Accepting it needs a reviewed owner contract, guest package and kit before an entry is added to inputs.lock.json; this PR never edits it." \
+              "Do not merge this draft as is.")
+            gh pr create --draft --base main --head "$branch" --title "Review Omarchy $name ($outcome)" --body "$body"
+            git switch --quiet --detach origin/main
+          done
