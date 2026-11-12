@@ -148,7 +148,7 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                 CONTROLLER.installed_app(args)
 
     def test_installed_app_metadata_rejects_incompatible_images_before_import(self):
-        for problem in ("source", "programs", "package", "capability", "compatibility-capability",
+        for problem in ("source", "programs", "manual", "package", "capability", "compatibility-capability",
                         "runtime-path", "runtime-package", "contract-hash", "missing-contract"):
             with self.subTest(problem=problem), tempfile.TemporaryDirectory() as temporary:
                 source, app = factory_fixture(Path(temporary))
@@ -180,6 +180,8 @@ class OmarchyManagerControllerTests(unittest.TestCase):
                     evidence = json.loads(path.read_text())
                     if problem == "programs":
                         evidence["owner_programs"] = {}
+                    elif problem == "manual":
+                        evidence["owner_setup"] = "manual"
                     else:
                         evidence["packages"]["try-omarchy"] = "0.1.0-36.1"
                     path.write_text(json.dumps(evidence))

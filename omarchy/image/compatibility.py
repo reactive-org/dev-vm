@@ -88,7 +88,7 @@ def package_list(path):
 
 def replace_once(text, old, new):
     if text.count(old) != 1:
-        raise CompatibilityError(f"Upstream contract changed: {old[:100]!r}")
+        raise CompatibilityError(f"{UPDATE_REQUIRED} (Changed setup step: {old[:100]!r})")
     return text.replace(old, new, 1)
 
 
@@ -101,6 +101,18 @@ def optional_command(text, command, package):
 
 UPDATE_REQUIRED = ("This Omarchy release changes setup programs that Omarchy VM Manager hasn't "
                    "reviewed yet. Update Omarchy VM Manager, or try the other channel.")
+INSTALL_SCRIPTS = (
+    "install/hardware/bluetooth.sh", "install/config/enable-services.sh",
+    "install/config/firewall.sh", "install/user/chromium.sh", "install/user/mise.sh",
+    "bin/omarchy-provision-user",
+)
+OWNER_PROGRAMS = (
+    "/usr/bin/omarchy-provision-owner",
+    "/usr/share/omarchy/install/provisioning/setup-form.sh",
+    "/usr/share/omarchy/install/provisioning/luks-rekey.sh",
+    "/usr/share/omarchy/install/provisioning/progress-icon.sh",
+    "/usr/bin/omarchy-provision-user",
+)
 RUNTIME_PACKAGES = {"stable": ("omarchy", "omarchy-settings"), "edge": ("omarchy-dev", "omarchy-settings-dev")}
 
 
@@ -139,73 +151,121 @@ def owner_program_path(root, installed_path, installed=False):
     return Path(root) / installed_path[len(prefix):]
 
 
-def reviewed_entry(root, lock, installed=False):
-    """Select the one reviewed Omarchy entry whose install scripts this tree carries.
-
-    Omarchy comes from the live channel repository, so an unreviewed release
-    fails closed here before anything is patched or installed.
-    """
+def owner_program_digests(root, installed=False, overrides=None):
+    """Digest each reviewed owner program, using patched text where one is pending."""
     root = Path(root)
-    matches = []
-    for entry in lock["reviewed_omarchy"]:
-        if all(regular_file(source_path(root, relative, installed), root)
-               and digest(source_path(root, relative, installed)) == expected
-               for relative, expected in entry["scripts"].items()):
-            matches.append(entry)
-    if len(matches) != 1:
-        raise CompatibilityError(UPDATE_REQUIRED)
-    return matches[0]
+    result = {}
+    for program in OWNER_PROGRAMS:
+        path = owner_program_path(root, program, installed)
+        if not regular_file(path, root):
+            raise CompatibilityError(UPDATE_REQUIRED)
+        if overrides and path in overrides:
+            result[program] = hashlib.sha256(overrides[path].encode()).hexdigest()
+        else:
+            result[program] = digest(path)
+    return result
+
+
+def owner_setup_entry(programs, lock):
+    """The one reviewed entry carrying exactly these owner programs, or None.
+
+    No match is not a build failure: the factory is then marked for manual
+    owner setup and carries no contract, so managed setup never runs these
+    unreviewed programs as root.
+    """
+    matches = [entry for entry in lock["reviewed_omarchy"] if entry["owner_programs"] == programs]
+    if len(matches) > 1:
+        raise CompatibilityError("Reviewed Omarchy entries overlap")
+    return matches[0] if matches else None
+
+
+DEFAULT_BROWSER = "env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser "
+REVIEWED_BROWSER = DEFAULT_BROWSER + "chromium.desktop"
+
+
+def guard_default_browser(text):
+    """Set the default browser only when the lean image carries it.
+
+    The reviewed Chromium line keeps its exact package guard, so reviewed
+    owner-program digests are unchanged. A release naming another browser
+    (Edge moved to google-chrome.desktop) gets the same guard keyed on that
+    browser's desktop file; there must still be exactly one such line.
+    """
+    if text.count(REVIEWED_BROWSER + "\n") == 1:
+        return optional_command(text, REVIEWED_BROWSER, "chromium")
+    names = re.findall("^" + re.escape(DEFAULT_BROWSER) + r"([A-Za-z0-9][A-Za-z0-9._-]*)\.desktop$", text, re.MULTILINE)
+    if len(names) != 1:
+        raise CompatibilityError(f"{UPDATE_REQUIRED} (Changed setup step: default browser)")
+    line = DEFAULT_BROWSER + names[0] + ".desktop"
+    return replace_once(text, line + "\n",
+                        f"if [[ -f /usr/share/applications/{names[0]}.desktop ]]; then\n  {line}\nfi\n")
+
+
+def transform(relative, text):
+    """Apply the reviewed lean-profile guards; every anchor must occur exactly once."""
+    if relative == "install/config/enable-services.sh":
+        for service, package in (
+            ("cups.service", "cups"), ("avahi-daemon.service", "avahi"),
+            ("docker.socket", "docker"),
+            ("power-profiles-daemon.service", "omarchy-power-profiles-daemon"),
+        ):
+            text = optional_command(text, f"systemctl enable {service}", package)
+    elif relative == "install/config/firewall.sh":
+        for command in ("ufw allow 53317/udp", "ufw allow 53317/tcp"):
+            text = optional_command(text, command, "localsend")
+        for line in text.splitlines():
+            if line.startswith("ufw allow in proto udp ") and "allow-docker-dns" in line:
+                text = optional_command(text, line, "docker")
+        text = optional_command(text, "install_ufw_docker_rules", "ufw-docker")
+    elif relative == "install/hardware/bluetooth.sh":
+        text = 'pacman -Qq bluez >/dev/null 2>&1 || return 0\n' + text
+    elif relative in ("install/user/chromium.sh", "install/user/mise.sh"):
+        package = "chromium" if "chromium" in relative else "mise-bin"
+        text = f'pacman -Qq {package} >/dev/null 2>&1 || return 0\n' + text
+    elif relative == "bin/omarchy-provision-user":
+        text = guard_default_browser(text)
+        text = replace_once(
+            text, "xdg-mime default HEY.desktop x-scheme-handler/mailto\n",
+            'if [[ -f /usr/share/applications/HEY.desktop ]]; then\n'
+            '  xdg-mime default HEY.desktop x-scheme-handler/mailto\nfi\n',
+        )
+    else:
+        raise CompatibilityError(f"No reviewed transformation for {relative}")
+    if subprocess.run(["bash", "-n"], input=text, text=True, capture_output=True).returncode:
+        raise CompatibilityError(f"{UPDATE_REQUIRED} (Guarded script no longer parses: {relative})")
+    return text
 
 
 def patch_sources(root, lock, installed=False):
-    """Apply the reviewed guards to a source tree, or to an installed root."""
+    """Apply the reviewed guards to a source tree, or to an installed root.
+
+    Install scripts are checked by behaviour, not bytes: each anchored guard
+    must apply exactly once and the result must parse (check-provisioning.py
+    then runs the guarded leaves). Owner programs stay whole-file pinned; a
+    release whose programs match no reviewed entry builds for manual owner
+    setup only. Nothing is written unless every step succeeds.
+    """
     root = Path(root)
-    entry = reviewed_entry(root, lock, installed)
-    report = {}
-    for relative, expected in entry["scripts"].items():
+    pending, report = {}, {}
+    for relative in INSTALL_SCRIPTS:
         path = source_path(root, relative, installed)
-        text = path.read_text()
-        if relative == "install/config/enable-services.sh":
-            for service, package in (
-                ("cups.service", "cups"), ("avahi-daemon.service", "avahi"),
-                ("docker.socket", "docker"),
-                ("power-profiles-daemon.service", "omarchy-power-profiles-daemon"),
-            ):
-                text = optional_command(text, f"systemctl enable {service}", package)
-        elif relative == "install/config/firewall.sh":
-            for command in ("ufw allow 53317/udp", "ufw allow 53317/tcp"):
-                text = optional_command(text, command, "localsend")
-            for line in text.splitlines():
-                if line.startswith("ufw allow in proto udp ") and "allow-docker-dns" in line:
-                    text = optional_command(text, line, "docker")
-            text = optional_command(text, "install_ufw_docker_rules", "ufw-docker")
-        elif relative == "install/hardware/bluetooth.sh":
-            text = 'pacman -Qq bluez >/dev/null 2>&1 || return 0\n' + text
-        elif relative in ("install/user/chromium.sh", "install/user/mise.sh"):
-            package = "chromium" if "chromium" in relative else "mise-bin"
-            text = f'pacman -Qq {package} >/dev/null 2>&1 || return 0\n' + text
-        elif relative == "bin/omarchy-provision-user":
-            text = optional_command(
-                text,
-                "env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser chromium.desktop",
-                "chromium",
-            )
-            text = replace_once(
-                text, "xdg-mime default HEY.desktop x-scheme-handler/mailto\n",
-                'if [[ -f /usr/share/applications/HEY.desktop ]]; then\n'
-                '  xdg-mime default HEY.desktop x-scheme-handler/mailto\nfi\n',
-            )
-        else:
-            raise CompatibilityError(f"No reviewed transformation for {relative}")
-        path.write_text(text)
-        subprocess.run(["bash", "-n", str(path)], check=True)
-        report[relative] = {"upstream_sha256": expected, "patched_sha256": digest(path)}
-    for program, expected in entry["owner_programs"].items():
-        path = owner_program_path(root, program, installed)
-        if not regular_file(path, root) or digest(path) != expected:
+        if not regular_file(path, root):
             raise CompatibilityError(UPDATE_REQUIRED)
-    return {"format": 2, "reviewed_omarchy": entry["id"],
-            "owner_setup_contract_sha256": entry["owner_setup_contract_sha256"], "files": report}
+        upstream = digest(path)
+        text = transform(relative, path.read_text())
+        pending[path] = text
+        report[relative] = {"upstream_sha256": upstream,
+                            "patched_sha256": hashlib.sha256(text.encode()).hexdigest()}
+    programs = owner_program_digests(root, installed, pending)
+    entry = owner_setup_entry(programs, lock)
+    for path, text in pending.items():
+        path.write_text(text)
+        if digest(path) != hashlib.sha256(text.encode()).hexdigest():
+            raise CompatibilityError("A guarded script changed while it was written")
+    return {"format": 3, "owner_setup": "managed" if entry else "manual",
+            "reviewed_omarchy": entry["id"] if entry else None,
+            "owner_setup_contract_sha256": entry["owner_setup_contract_sha256"] if entry else None,
+            "owner_programs": programs, "files": report}
 
 
 def patch_installed(root, profile):
@@ -352,6 +412,7 @@ def audit_root(root, profile, report_path):
         "manager_admission": "requires-custom-factory-support-and-matching-integration-package",
         "owner_programs": {"/" + name: digest(root / name) for name in scripts},
         "reviewed_omarchy": patched["reviewed_omarchy"],
+        "owner_setup": patched["owner_setup"],
         "omarchy_package": " ".join([pairs[0][0], installed[pairs[0][0]]]),
         "packages": installed,
     }

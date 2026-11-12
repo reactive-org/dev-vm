@@ -23,11 +23,14 @@ The repository selects the lean package list and adds workstation preferences,
 small package-managed provisioning guards for omitted optional apps, and
 hardware-rendering settings. Each build takes the channel's current signed
 Omarchy packages, so a new release such as 4.5.1 needs no new pin. Before
-anything is installed, the build checks that release's install scripts and
-owner programs against the reviewed set in `inputs.lock.json`; an unreviewed
-release stops with "This Omarchy release changes setup programs that Omarchy
-VM Manager hasn't reviewed yet". The reviewed native integration archive is
-reused byte for byte; the details are recorded below.
+anything is installed, the build checks what that release's guarded install
+scripts do, and compares its owner programs with the reviewed set in
+`inputs.lock.json`. A release with unreviewed owner programs still builds, but
+for manual owner setup only. A release whose install scripts can no longer be
+guarded, or that enables new services or firewall rules, stops with "This
+Omarchy release changes setup programs that Omarchy VM Manager hasn't reviewed
+yet". The reviewed native integration archive is reused byte for byte; the
+details are recorded below.
 Omarchy continues to own the guest’s software and updates, and VM Manager
 continues to own the VM and Mac integration. See the
 [acceptance checks](#acceptance-and-updates) and recorded VM validation below
@@ -105,6 +108,10 @@ The disk preserves Try Omarchy's default 20 GiB sparse GPT layout, 2 GiB FAT32 E
 
 **DESIGN DECISION — 8 November 2026: live channel, reviewed set, fail closed.** The build downloads exactly the channel's Omarchy pair (`omarchy`/`omarchy-settings` on Stable, `omarchy-dev`/`omarchy-settings-dev` on Edge) with pacman's signature checks, without dependencies, and installs those archives. Its six patched install scripts and five owner programs must equal one `reviewed_omarchy` entry; otherwise the build fails before the image is created. The current entry, `lean-a948d8a`, covers Omarchy 4.5.0 (`a948d8a`) and edge from `9044b7e`, which carry identical programs. The six source-hash checked compatibility changes make optional printing, discovery, Docker, power-profile, Chromium, mise, Bluetooth and firewall setup conditional on the corresponding installed package. They are applied to the checked package contents and then, with the same result required, to the installed files before `omarchy-apply-system` runs. These six files therefore differ from the package's recorded checksums (`pacman -Qkk` reports them); an Omarchy update replaces them with the release's own versions. The deferred Bluetooth leaf returns successfully when BlueZ is absent and preserves native enable/start behaviour when installed. Missing mandatory desktop services still fail. The upstream default package list is retained: an explicit full package reinstall can restore it.
 
+**DESIGN DECISION — 12 November 2026: behaviour for install scripts, manual setup for unreviewed owner programs.** This supersedes the 8 November whole-file requirement for the six install scripts and the build failure for unreviewed owner programs. The install scripts come from the signature-checked channel package, and `omarchy-apply-system` already runs Omarchy's other, unpinned install scripts as root in the image, so their digests were a compatibility check, not a trust boundary. Each guard must now apply exactly once and the result must parse (`bash -n`). `check-provisioning.py` then runs the guarded leaves with stubbed `pacman`, `systemctl` and `ufw`. With every optional package absent, the service and firewall commands must stay within the reviewed sets, and UFW activation must be unchanged. Anything new stops with the update message. The report records each script's actual upstream digest. The default-browser line keeps its reviewed Chromium package guard; a release naming another browser (Edge moved to `google-chrome.desktop` on 12 November 2026) gets the same guard keyed on that browser's desktop file, and more or fewer than one such line stops for review.
+
+The five owner programs stay whole-file pinned, with `omarchy-provision-user` pinned after its guard. When they equal one `reviewed_omarchy` entry, `source-compatibility.json` (format 3) and `compatibility.json` record `"owner_setup": "managed"` with that entry and its owner-setup contract. When they match no entry, the build succeeds with `"owner_setup": "manual"` and no entry or contract. Omarchy VM Manager imports such a factory for manual owner setup only: Omarchy's own first-run form creates the account, and managed (seeded) setup never runs those programs. The guest adapter's own whole-file contract check is unchanged. The legacy `omarchy-vm-manager` import controller refuses manual evidence. Missing or linked owner programs or install scripts still stop the build.
+
 `dev-workstation-preferences` applies Foot size 16, host-owned idle/locking and the existing GPU-preserving Hyprland repair once for a new graphical owner. Nano is retained as a recovery editor and selected through Omarchy's editor state only when that state is absent. It runs as that owner after Try Omarchy's session setup. A failed application does not write the completion marker. Theme and app layout remain explicit per-workstation choices. No hostname, credential, personal configuration, SSH identity or regular user is embedded.
 
 The foundation includes the native desktop's Herdr/Udiskie autostart commands,
@@ -136,8 +143,8 @@ Each successful build produces:
 | `packages.txt` | Actual installed package versions |
 | `base.packages`, `excluded.packages` | Effective required roots and exclusions for this build |
 | `packages/*.pkg.tar.zst` | Built Omarchy runtime/settings and preferences; exact reviewed integration archive reused in the image |
-| `compatibility.json` | Installed owner script hashes, package closure and explicit validation status |
-| `source-compatibility.json` | Original/patched provisioning script hashes |
+| `compatibility.json` | Installed owner script hashes, managed or manual owner setup, package closure and explicit validation status |
+| `source-compatibility.json` | Original/patched provisioning script hashes, owner-program hashes and managed or manual owner setup |
 | `provisioning-check.json` | Controlled optional-source behavior checks |
 | `user-provisioning-check.json` | Actual per-user finalization, preferences and Foot checks in an isolated snapshot |
 | `user-provisioning.log` | Synthetic account's isolated chroot test log |
