@@ -77,16 +77,20 @@ jobs:
             # The drafts came from a job that ran Omarchy's scripts: accept only regular files.
             if [[ -L $draft || ! -f $draft || -L $diff || ! -f $diff ]]; then echo "Skipping irregular draft $name"; continue; fi
             branch="omarchy-review/$name"
-            if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
-              echo "$branch already exists"; continue
+            # Skip only once a review PR exists (open, closed or merged). A branch
+            # left by a run that failed before opening its PR is rewritten and retried.
+            prs=$(gh pr list --head "$branch" --state all --json number --jq length)
+            if [[ $prs != 0 ]]; then
+              echo "$branch already has a review PR"; continue
             fi
-            git switch --quiet --create "$branch" origin/main
+            git switch --quiet --force-create "$branch" origin/main
             mkdir -p omarchy-review-drafts
             cp "$draft" "$diff" omarchy-review-drafts/
             git add "omarchy-review-drafts/$name.json" "omarchy-review-drafts/$name.diff"
             outcome=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["outcome"])' "$draft")
             git commit --quiet -m "Draft Omarchy review for $name ($outcome)"
-            git push --quiet origin "$branch"
+            # Without a PR the branch holds only an earlier run's draft commit.
+            git push --quiet --force origin "$branch"
             body=$(printf '%s\n\n%s\n\n%s\n' \
               "Automated draft: the current $name Omarchy release would build with outcome **$outcome** (manual = unreviewed owner programs, manual owner setup only; blocked = a guarded setup step changed)." \
               "Review the attached diff against the reviewed 4.5.0 sources. Accepting it needs a reviewed owner contract, guest package and kit before an entry is added to inputs.lock.json; this PR never edits it." \
