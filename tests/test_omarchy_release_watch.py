@@ -90,6 +90,7 @@ class ReleaseWatchTests(unittest.TestCase):
         self.assertEqual(result["outcome"], "manual")
         draft = json.loads((self.root / "out" / WATCH.DRAFTS / (result["draft"] + ".json")).read_text())
         self.assertEqual(draft["draft_entry"]["owner_setup_contract_sha256"], "TO REVIEW")
+        self.assertEqual(draft["detail"], "Unreviewed owner programs: /usr/share/omarchy/install/provisioning/progress-icon.sh")
         self.assertEqual(set(draft["draft_entry"]["owner_programs"]), set(LOCK["reviewed_omarchy"][0]["owner_programs"]))
         diff = (self.root / "out" / WATCH.DRAFTS / (result["draft"] + ".diff")).read_text()
         self.assertIn("+++ release/install/provisioning/progress-icon.sh", diff)
@@ -97,6 +98,12 @@ class ReleaseWatchTests(unittest.TestCase):
         self.assertNotIn("enable-services.sh", diff)
         # The lock is never edited.
         self.assertEqual(json.loads((ROOT / "omarchy/image/inputs.lock.json").read_text()), LOCK)
+
+    def test_unreviewed_programs_compares_each_program_with_every_reviewed_entry(self):
+        lock = {"reviewed_omarchy": [{"owner_programs": {"/a": "1", "/b": "1"}}, {"owner_programs": {"/a": "2", "/b": "2"}}]}
+        self.assertEqual(WATCH.unreviewed_programs({"owner_programs": {"/a": "1", "/b": "3"}}, lock), ["/b"])
+        # A mix of reviewed versions names no program; the builder still says manual.
+        self.assertEqual(WATCH.unreviewed_programs({"owner_programs": {"/a": "1", "/b": "2"}}, lock), [])
 
     def test_new_service_drafts_a_blocked_review(self):
         changed = release({"install/config/enable-services.sh": lambda text: text + "systemctl enable bolt.service\n"})

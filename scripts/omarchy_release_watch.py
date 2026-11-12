@@ -133,8 +133,21 @@ def classify(root, lock):
     except (COMPAT.CompatibilityError, CHECKS.ReviewRequired, RuntimeError,
             ValueError, subprocess.CalledProcessError) as error:
         return {"outcome": "blocked", "detail": str(error), "report": report}
-    return {"outcome": "reviewed" if report["owner_setup"] == "managed" else "manual",
-            "detail": report["reviewed_omarchy"], "report": report}
+    if report["owner_setup"] == "managed":
+        return {"outcome": "reviewed", "detail": report["reviewed_omarchy"], "report": report}
+    programs = unreviewed_programs(report, lock)
+    detail = ("Unreviewed owner programs: " + ", ".join(programs) if programs
+              else "Owner programs mix reviewed versions that no single reviewed entry matches")
+    return {"outcome": "manual", "detail": detail, "report": report}
+
+
+def unreviewed_programs(report, lock):
+    """Owner programs whose digest matches no reviewed entry."""
+    reviewed = {}
+    for entry in lock["reviewed_omarchy"]:
+        for path, digest in entry["owner_programs"].items():
+            reviewed.setdefault(path, set()).add(digest)
+    return sorted(path for path, digest in report["owner_programs"].items() if digest not in reviewed.get(path, set()))
 
 
 def fetch(url):
