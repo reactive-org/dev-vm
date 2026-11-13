@@ -1,0 +1,34 @@
+--- reviewed/bin/omarchy-provision-user
++++ release/bin/omarchy-provision-user
+@@ -103,6 +103,10 @@
+   fi
+ done
+ 
++# Personal agent rules live in ~/.agents/AGENTS.md beside the skills, linked
++# into each harness that reads its own global instructions file.
++"$OMARCHY_PATH/bin/omarchy-agent-instructions" >/dev/null || true
++
+ mkdir -p ~/Downloads ~/Pictures ~/Videos ~/.config/gtk-3.0
+ xdg-user-dirs-update --set TEMPLATES "$HOME"
+ xdg-user-dirs-update --set PUBLICSHARE "$HOME"
+@@ -125,7 +129,7 @@
+ source "$OMARCHY_INSTALL/user/all.sh"
+ 
+ omarchy-refresh-applications
+-env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser chromium.desktop
++env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser google-chrome.desktop
+ xdg-mime default HEY.desktop x-scheme-handler/mailto
+ 
+ if (( first_install )); then
+--- reviewed/install/user/chromium.sh
++++ release/install/user/chromium.sh
+@@ -1,6 +1,6 @@
+-# Chromium ships in the base packages, so it never goes through
++# Chrome ships in the base packages, so it never goes through
+ # omarchy-install-browser, and fresh installs mark every migration as already
+-# applied. Without this, the bundled extensions load but have no native
+-# messaging host to talk to.
++# applied. /etc/skel gives it its flags, but the native messaging hosts the
++# bundled extensions talk to have to be registered here.
+ omarchy-install-chromium-copy-url
+ omarchy-install-chromium-ytdlp
