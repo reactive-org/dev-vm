@@ -87,14 +87,26 @@ jobs:
             mkdir -p omarchy-review-drafts
             cp "$draft" "$diff" omarchy-review-drafts/
             git add "omarchy-review-drafts/$name.json" "omarchy-review-drafts/$name.diff"
-            outcome=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["outcome"])' "$draft")
+            outcome=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["outcome"])' "$draft")
+            [[ $outcome =~ ^(manual|blocked)$ ]] || { echo "Skipping draft $name with outcome $outcome"; continue; }
+            detail=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["detail"])' "$draft")
             git commit --quiet -m "Draft Omarchy review for $name ($outcome)"
             # Without a PR the branch holds only an earlier run's draft commit.
             git push --quiet --force origin "$branch"
-            body=$(printf '%s\n\n%s\n\n%s\n' \
+            body=$(printf '%s\n\n~~~text\n%s\n~~~\n\n%s\n\n%s\n' \
               "Automated draft: the current $name Omarchy release would build with outcome **$outcome** (manual = unreviewed owner programs, manual owner setup only; blocked = a guarded setup step changed)." \
+              "$detail" \
               "Review the attached diff against the reviewed 4.5.0 sources. Accepting it needs a reviewed owner contract, guest package and kit before an entry is added to inputs.lock.json; this PR never edits it." \
               "Do not merge this draft as is.")
-            gh pr create --draft --base main --head "$branch" --title "Review Omarchy $name ($outcome)" --body "$body"
+            url=$(gh pr create --draft --base main --head "$branch" --title "Review Omarchy $name ($outcome)" --body "$body")
+            echo "$url"
+            # The newest release supersedes this channel's earlier open drafts
+            # opened by this workflow. Their branches are kept.
+            channel=${name%%-*}
+            older=$(gh pr list --state open --author "app/github-actions" --limit 100 --json number,headRefName \
+              --jq ".[] | select((.headRefName | startswith(\"omarchy-review/$channel-\")) and .headRefName != \"$branch\") | .number")
+            for number in $older; do
+              gh pr close "$number" --comment "Superseded by $url, the newer $channel release."
+            done
             git switch --quiet --detach origin/main
           done
