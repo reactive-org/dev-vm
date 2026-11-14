@@ -1,0 +1,38 @@
+{
+  "channel": "edge",
+  "detail": "Unreviewed owner programs: /usr/bin/omarchy-provision-owner, /usr/bin/omarchy-provision-user, /usr/share/omarchy/install/provisioning/setup-form.sh",
+  "draft_entry": {
+    "description": "Omarchy 4.0.0.r7846.g6baca27-1 (edge): DRAFT, not reviewed",
+    "id": "lean-4.0.0.r7846.g6baca27-1",
+    "owner_programs": {
+      "/usr/bin/omarchy-provision-owner": "12bd0a8ad5abfc9e3fdaf1bf549a3f99cb4c429015bd9e96b9003c359cc8a4f7",
+      "/usr/bin/omarchy-provision-user": "a51b4701bb8cf2f8943706bee104cdc8621e1e4c05e19d7e65cb9c64c27fa1b2",
+      "/usr/share/omarchy/install/provisioning/luks-rekey.sh": "29ce96e714ad76eda9c42f9d82b3f0e87e7a8f22e3edd17e6fa73074dc2e0189",
+      "/usr/share/omarchy/install/provisioning/progress-icon.sh": "549aff59707148e900e27488d592fd5b866aee78e04f98579e6970f13f0f4f09",
+      "/usr/share/omarchy/install/provisioning/setup-form.sh": "0b0ee9d1fed9141847b9a8aa4c0d4782491ebf01bfd506fcc3990ca428699593"
+    },
+    "owner_setup_contract_sha256": "TO REVIEW"
+  },
+  "format": 1,
+  "install_scripts": {
+    "bin/omarchy-provision-user": "333c5b913f2cd87abee826185420b7e96749f0e693b93e7c1db99fc09f3fada8",
+    "install/config/enable-services.sh": "346a98f550a2582faa668f8a699cfd027d1365a0672623a618ef26b196826f69",
+    "install/config/firewall.sh": "c15b76478355ae633b990520b7f8db829e2c3ab4a850922bb2c75072a99d4fcd",
+    "install/hardware/bluetooth.sh": "9eaf62a12619b6561b10be2e6bf51c3ee820dd7543203fe333e3ed8c390a99a0",
+    "install/user/chromium.sh": "15f660339097857dcb4ef2dad53563c49700d34691397e64f2a0c74e4ae5e5f7",
+    "install/user/mise.sh": "b21565cf3416441682594bffe8dc56125de65c1134d2d996f8ea6dd5244b0476"
+  },
+  "outcome": "manual",
+  "packages": {
+    "omarchy-dev": {
+      "filename": "omarchy-dev-4.0.0.r7846.g6baca27-1-aarch64.pkg.tar.zst",
+      "sha256": "28b1fc80998eba24bf5b4f740987d6afaaa867ccb3f49892b8424618a7091f32",
+      "version": "4.0.0.r7846.g6baca27-1"
+    },
+    "omarchy-settings-dev": {
+      "filename": "omarchy-settings-dev-4.0.0.r7846.g6baca27-1-aarch64.pkg.tar.zst",
+      "sha256": "533bb4cc0b9daef4e6fe296c6f48597dcd07bf107d7c729942bb449f5f816de6",
+      "version": "4.0.0.r7846.g6baca27-1"
+    }
+  }
+}
