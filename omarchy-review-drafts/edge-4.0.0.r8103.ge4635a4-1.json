@@ -1,0 +1,38 @@
+{
+  "channel": "edge",
+  "detail": "Unreviewed owner programs: /usr/bin/omarchy-provision-owner, /usr/bin/omarchy-provision-user, /usr/share/omarchy/install/provisioning/setup-form.sh",
+  "draft_entry": {
+    "description": "Omarchy 4.0.0.r8103.ge4635a4-1 (edge): DRAFT, not reviewed",
+    "id": "lean-4.0.0.r8103.ge4635a4-1",
+    "owner_programs": {
+      "/usr/bin/omarchy-provision-owner": "56273c82052d640c88a1ec527d8864dab9c55b3009236e8c3ce32862cebd0fc4",
+      "/usr/bin/omarchy-provision-user": "ebcc194a03e9027dd98108bb856187015ff694e9ab205f5fba34f847b29c3d1c",
+      "/usr/share/omarchy/install/provisioning/luks-rekey.sh": "29ce96e714ad76eda9c42f9d82b3f0e87e7a8f22e3edd17e6fa73074dc2e0189",
+      "/usr/share/omarchy/install/provisioning/progress-icon.sh": "549aff59707148e900e27488d592fd5b866aee78e04f98579e6970f13f0f4f09",
+      "/usr/share/omarchy/install/provisioning/setup-form.sh": "0b0ee9d1fed9141847b9a8aa4c0d4782491ebf01bfd506fcc3990ca428699593"
+    },
+    "owner_setup_contract_sha256": "TO REVIEW"
+  },
+  "format": 1,
+  "install_scripts": {
+    "bin/omarchy-provision-user": "616a29c55bfa2e01b198ae27fbc6a7a7fa5558b977b343ec22965374d5e295ec",
+    "install/config/enable-services.sh": "346a98f550a2582faa668f8a699cfd027d1365a0672623a618ef26b196826f69",
+    "install/config/firewall.sh": "c15b76478355ae633b990520b7f8db829e2c3ab4a850922bb2c75072a99d4fcd",
+    "install/hardware/bluetooth.sh": "9eaf62a12619b6561b10be2e6bf51c3ee820dd7543203fe333e3ed8c390a99a0",
+    "install/user/chromium.sh": "15f660339097857dcb4ef2dad53563c49700d34691397e64f2a0c74e4ae5e5f7",
+    "install/user/mise.sh": "b21565cf3416441682594bffe8dc56125de65c1134d2d996f8ea6dd5244b0476"
+  },
+  "outcome": "manual",
+  "packages": {
+    "omarchy-dev": {
+      "filename": "omarchy-dev-4.0.0.r8103.ge4635a4-1-aarch64.pkg.tar.zst",
+      "sha256": "3b2429a87a60a047137955185cc19f310c7f652f334903232722b86aa01711be",
+      "version": "4.0.0.r8103.ge4635a4-1"
+    },
+    "omarchy-settings-dev": {
+      "filename": "omarchy-settings-dev-4.0.0.r8103.ge4635a4-1-aarch64.pkg.tar.zst",
+      "sha256": "b568d14c9f21f8a9908f1f75ff8609fc5edfdccf37be7815ba7f15d2070796d4",
+      "version": "4.0.0.r8103.ge4635a4-1"
+    }
+  }
+}
