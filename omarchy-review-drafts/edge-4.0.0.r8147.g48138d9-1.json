@@ -1,0 +1,25 @@
+{
+  "channel": "edge",
+  "detail": "This Omarchy release changes setup programs that Omarchy VM Manager hasn't reviewed yet. Update Omarchy VM Manager, or try the other channel. (Changed setup step: 'xdg-mime default HEY.desktop x-scheme-handler/mailto\\n')",
+  "draft_entry": {
+    "description": "Omarchy 4.0.0.r8147.g48138d9-1 (edge): DRAFT, not reviewed",
+    "id": "lean-4.0.0.r8147.g48138d9-1",
+    "owner_programs": null,
+    "owner_setup_contract_sha256": "TO REVIEW"
+  },
+  "format": 1,
+  "install_scripts": {},
+  "outcome": "blocked",
+  "packages": {
+    "omarchy-dev": {
+      "filename": "omarchy-dev-4.0.0.r8147.g48138d9-1-aarch64.pkg.tar.zst",
+      "sha256": "f24a8044670f4cd6c751a92bd81eec03f835921075a55b99b035dad0ec570571",
+      "version": "4.0.0.r8147.g48138d9-1"
+    },
+    "omarchy-settings-dev": {
+      "filename": "omarchy-settings-dev-4.0.0.r8147.g48138d9-1-aarch64.pkg.tar.zst",
+      "sha256": "8d2d70e9aba3b3ea1b479480b3a5377633538e4c42241c8f53261cefce31ff99",
+      "version": "4.0.0.r8147.g48138d9-1"
+    }
+  }
+}
