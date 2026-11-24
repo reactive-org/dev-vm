@@ -1,0 +1,25 @@
+{
+  "channel": "edge",
+  "detail": "This Omarchy release changes setup programs that Omarchy VM Manager hasn't reviewed yet. Update Omarchy VM Manager, or try the other channel. (Changed setup step: 'systemctl enable cups.service\\n')",
+  "draft_entry": {
+    "description": "Omarchy 4.0.0.r8269.g94a8c3c-1 (edge): DRAFT, not reviewed",
+    "id": "lean-4.0.0.r8269.g94a8c3c-1",
+    "owner_programs": null,
+    "owner_setup_contract_sha256": "TO REVIEW"
+  },
+  "format": 1,
+  "install_scripts": {},
+  "outcome": "blocked",
+  "packages": {
+    "omarchy-dev": {
+      "filename": "omarchy-dev-4.0.0.r8269.g94a8c3c-1-aarch64.pkg.tar.zst",
+      "sha256": "65642f1240d3e702e9411ddacbed6b60e31658c062a87ace834d7c5738bf53a4",
+      "version": "4.0.0.r8269.g94a8c3c-1"
+    },
+    "omarchy-settings-dev": {
+      "filename": "omarchy-settings-dev-4.0.0.r8269.g94a8c3c-1-aarch64.pkg.tar.zst",
+      "sha256": "2fafe60d24ad4796a7b9d33c8e6389d91de5cba903e43c1af2b0a63f64b3ffff",
+      "version": "4.0.0.r8269.g94a8c3c-1"
+    }
+  }
+}
