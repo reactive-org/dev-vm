@@ -1,0 +1,1596 @@
+--- reviewed/bin/omarchy-provision-owner
++++ release/bin/omarchy-provision-owner
+@@ -6,9 +6,11 @@
+ 
+ # Runs on tty1 via omarchy-provision-owner.service when /var/lib/omarchy/provisioning/pending
+ # exists — the state a deferred-provisioning ISO install or omarchy-system-factory-reset leaves
+-# behind. Asks for the user (the configurator's Step 2), creates it with the
+-# groups system setup recorded, finalizes it offline, re-keys LUKS from the
+-# throwaway install passphrase to the user's password, and hands off to SDDM.
++# behind. Asks what the installer asks, in its order and on its screens (the
++# language, the keyboard, then the account), then for the OEM's agreement where
++# the install laid one down (install/provisioning/oem.sh), creates the user
++# with the groups system setup recorded, finalizes it offline, re-keys LUKS from
++# the throwaway install passphrase to the user's password, and hands off to SDDM.
+ # A platform whose boot package owns its boot chain prepares it, drops the
+ # install key's unlock from it and records the kept key slot through
+ # omarchy-lifecycle-dispatch.
+@@ -16,7 +18,9 @@
+ set -euo pipefail
+ 
+ PROVISIONING_DIR=/var/lib/omarchy/provisioning
+-OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
++# Exported, as a systemd service has none to inherit and the install scripts
++# it runs need it.
++export OMARCHY_PATH="${OMARCHY_PATH:-/usr/share/omarchy}"
+ LOG_FILE=/var/log/omarchy-provision-owner.log
+ 
+ if (( EUID != 0 )); then
+@@ -44,55 +48,83 @@
+ # can never offer different layouts or accept different usernames.
+ source "$OMARCHY_PATH/install/provisioning/setup-form.sh"
+ 
++# The installer's console font, from the same file the ISO vendors.
++source "$OMARCHY_PATH/install/provisioning/console-font.sh"
++
++# Setup is drawn in kmscon, as the installer is. kmscon takes its keyboard
++# layout and font once, at its start: when the keyboard step changes either,
++# the attempt saves its answers to KMSCON_RESUME and exits KMSCON_RELAUNCH, and
++# main starts kmscon again to carry on from the account step.
++source "$OMARCHY_PATH/install/provisioning/kmscon.sh"
++KMSCON_STATE=/run/omarchy-provision-owner
++KMSCON_RESUME=$KMSCON_STATE/resume
++KMSCON_RELAUNCH=75
++# kmscon's fonts draw what the console's cannot.
++[[ ${OMARCHY_KMSCON:-} != 1 ]] || OMARCHY_FORM_CONSOLE_LANGUAGES+=" ja ko zh-CN zh-TW"
++
++# What the OEM that prepared this machine left for its owner, if one did.
++source "$OMARCHY_PATH/install/provisioning/oem.sh"
++omarchy_oem_load
++
+ # Unlike a fresh install target, this machine already has accounts; a pinned
+ # resume (below) bypasses the prompt entirely.
+ omarchy_username_taken() { getent passwd "$1" >/dev/null; }
+ 
++# Every screen is laid out in a column the width of the Omarchy logo, which
++# heads the steps of the form.
+ LOGO_PATH="$OMARCHY_PATH/logo.txt"
+ LOGO_WIDTH=$(awk '{ if (length > max) max = length } END { print max+0 }' "$LOGO_PATH" 2>/dev/null || echo 0)
+ LOGO_HEIGHT=$(wc -l <"$LOGO_PATH" 2>/dev/null || echo 0)
+ (( LOGO_WIDTH > 0 )) || LOGO_WIDTH=81
+ (( LOGO_HEIGHT > 0 )) || LOGO_HEIGHT=1
+-
+-export GUM_CONFIRM_PROMPT_FOREGROUND="6"
+-export GUM_CONFIRM_SELECTED_FOREGROUND="0"
+-export GUM_CONFIRM_SELECTED_BACKGROUND="2"
+-export GUM_CONFIRM_UNSELECTED_FOREGROUND="7"
+-export GUM_CONFIRM_UNSELECTED_BACKGROUND="0"
+-
+-# Match the first-boot console font to the ISO installer's apparent text size.
+-# The installer renders on GRUB's low-resolution console (gfxpayload=keep, on
+-# the ~768-row EFI GOP mode) where the default 8x16 font fills the screen. The
+-# installed system reaches native KMS resolution, where 8x16 is tiny — so
+-# first-boot provisioning looked far smaller than the installer it continues.
+-#
+-# Pick the kbd console font whose row count lands closest to that installer feel
+-# (~48 rows), but never one wide enough to wrap the 81-column logo. On a console
+-# that is already installer-sized (low resolution) this lands on the default
+-# font, i.e. a no-op. All three fonts ship with kbd, so there's no dependency.
+-scale_console_font() {
+-  [[ $(tty 2>/dev/null) == /dev/tty* ]] || return 0
+-
+-  # Pick the console font empirically: apply each candidate, read the columns
+-  # fbcon actually hands back, and keep the one whose row count lands nearest a
+-  # ~48-row target while still leaving room for the 81-column logo. Measuring
+-  # the real result beats computing from /sys/class/graphics/fb0/virtual_size,
+-  # which under virgl can report a size the text console never actually reaches —
+-  # that mismatch is what wrapped the logo into the top-left corner.
+-  local target_rows=48
+-  local fonts=("default8x16" "sun12x22" "latarcyrheb-sun32")
+-  local best="" best_diff=999999 name rows cols diff
+-  for name in "${fonts[@]}"; do
+-    setfont "$name" 2>/dev/null || continue
+-    read -r rows cols < <(stty size </dev/tty 2>/dev/null || printf '0 0\n')
+-    [[ $rows =~ ^[0-9]+$ && $cols =~ ^[0-9]+$ ]] || continue
+-    (( cols > LOGO_WIDTH )) || continue      # must clear the 81-col logo
+-    diff=$(( rows > target_rows ? rows - target_rows : target_rows - rows ))
+-    (( diff < best_diff )) && { best_diff=$diff; best="$name"; }
+-  done
+-  # Fall back to the narrowest font if nothing cleared the logo width, so the
+-  # form stays usable even on an unexpectedly tiny console.
+-  setfont "${best:-default8x16}" 2>/dev/null || true
++LOGO_COLOR=2
++
++# The screens setup opens and ends on, the greeter and the agreement, carry
++# the brand: an OEM's logo where it left one, in its colour where it named one
++# (the palette's bright red, which setup draws nothing else in), else Omarchy's.
++brand_logo() {
++  BRAND_LOGO_PATH=$1
++  BRAND_LOGO_WIDTH=$(awk '{ if (length > max) max = length } END { print max+0 }' "$1" 2>/dev/null || echo 0)
++  BRAND_LOGO_HEIGHT=$(wc -l <"$1" 2>/dev/null || echo 0)
++  (( BRAND_LOGO_HEIGHT > 0 )) || BRAND_LOGO_HEIGHT=1
++}
++brand_logo "${OMARCHY_OEM_LOGO:-$LOGO_PATH}"
++BRAND_LOGO_COLOR=2
++BRAND_SHIMMER=(2 10 6 10)
++if [[ -n $OMARCHY_OEM_COLOR ]]; then
++  BRAND_LOGO_COLOR=9
++  BRAND_SHIMMER=(9 9 15 9)
++fi
++
++# The language setup is in: what an attempt picked, for the retry that follows a
++# failed one, and the preset the installed system reads its language from.
++LANGUAGE_FILE=/run/omarchy-provision-owner.language
++LANGUAGE_MARKER=/etc/omarchy/language
++
++# The installer's font at the installer's size (console-font.sh), so first boot
++# reads as the screen the install left. A system without Terminus keeps the
++# font the kernel booted in, which is that size too but draws English only.
++fit_console_font() {
++  local tty
++  tty=$(tty 2>/dev/null) || tty=""
++  [[ $tty == /dev/tty[0-9]* ]] || return 0
++  omarchy_console_font "$tty" || OMARCHY_FORM_CONSOLE_LANGUAGES=en
++}
++
++# An OEM's logo may be drawn in braille dots, which the console font has none
++# of: for as long as a branded screen is up the font draws the ones this logo
++# uses, in place of characters that neither the logo nor that screen's text
++# does. fit_console_font puts the form's font back. A console that cannot be
++# given them shows Omarchy's logo instead.
++brand_console_font() {
++  local tty
++  # U+2800 to U+28FF, by their bytes: a range of the characters needs a locale that collates them.
++  [[ $BRAND_LOGO_PATH != "$LOGO_PATH" ]] && LC_ALL=C grep -q $'\xe2[\xa0-\xa3]' "$BRAND_LOGO_PATH" || return 0
++  tty=$(tty 2>/dev/null) || tty=""
++  [[ $tty == /dev/tty[0-9]* ]] || return 0
++
++  omarchy_console_font "$tty" "$BRAND_LOGO_PATH" "${OMARCHY_OEM_DIR:-/etc/omarchy/oem}/oem.json" ${OMARCHY_OEM_EULA:+"$OMARCHY_OEM_EULA"} \
++    "$OMARCHY_PATH/default/i18n/en/cli.json" "$OMARCHY_PATH/default/i18n/${OMARCHY_FORM_LANGUAGE:-en}/cli.json" || brand_logo "$LOGO_PATH"
+ }
+ 
+ # Same Tokyo Night VT palette the ISO configurator sets, so the first-boot
+@@ -105,8 +137,19 @@
+   echo -en "\e]P9f7768e"; echo -en "\e]PA9ece6a"; echo -en "\e]PBe0af68"
+   echo -en "\e]PC7aa2f7"; echo -en "\e]PDbb9af7"; echo -en "\e]PE7dcfff"
+   echo -en "\e]PFc0caf5"
++  [[ -z $OMARCHY_OEM_COLOR ]] || echo -en "\e]P9${OMARCHY_OEM_COLOR#\#}"
+   echo -en "\033[0m"
+   clear
++}
++
++# Setup opens in the language an earlier attempt picked, else the one the
++# install media preset, else English.
++initial_language() {
++  local code=""
++  [[ -r $LANGUAGE_FILE ]] && { read -r code <"$LANGUAGE_FILE" || true; }
++  [[ -n $code || ! -r $LANGUAGE_MARKER ]] || read -r code <"$LANGUAGE_MARKER" || true
++  jq -e --arg code "$code" 'has($code)' "$OMARCHY_PATH/default/i18n/locales.json" >/dev/null 2>&1 || code=en
++  omarchy_form_use_language "$code"
+ }
+ 
+ measure_terminal() {
+@@ -129,7 +172,8 @@
+ clear_logo() {
+   measure_terminal
+   printf "\033[H\033[2J"
+-  gum style --foreground 2 --padding "1 0 0 $PADDING_LEFT" "$(<"$LOGO_PATH")"
++  # An OEM's logo is art, which may open with dashes.
++  gum style --foreground "$LOGO_COLOR" --padding "1 0 0 $PADDING_LEFT" -- "$(<"$LOGO_PATH")"
+ }
+ 
+ step() {
+@@ -170,31 +214,37 @@
+ HIDE_CURSOR="${CSI}?25l"
+ SHOW_CURSOR="${CSI}?25h"
+ CLEAR="${CSI}2J${CSI}H"
+-GREEN="${CSI}32m"
++BRAND_LOGO_SGR="${CSI}$((BRAND_LOGO_COLOR < 8 ? 30 + BRAND_LOGO_COLOR : 82 + BRAND_LOGO_COLOR))m"
+ 
+ STATE_FILE=/run/omarchy-provision-owner.state
+ FINALIZE_WARNING_FLAG=/run/omarchy-provision-owner.finalize-warning
+ 
+-tips=(
+-  "Super + Space opens the Omarchy menu for apps, settings, and more"
+-  "Super + K shows all the key bindings"
+-  "Super is the Windows or command key on your keyboard"
+-  "Sign PDFs and fill them in with Signed"
+-  "Share files with phones and laptops using LocalSend"
+-  "Turn any website into an app with Install > Web App in the menu"
+-  "Super + Return opens a terminal, Super + Shift + Return the browser"
+-  "Edit images with Pinta, trim videos with Omacut, docs with LibreOffice"
+-  "Super + Ctrl + Print grabs text off the screen with OCR"
+-  "Print takes a screenshot, Alt + Print records the screen"
+-  "Set a reminder with Super + Ctrl + R"
+-  "Switch themes from Appearance > Theme in the Omarchy menu"
+-  "Double-click the menu bar to make it transparent"
+-  "Run a full Windows VM via Install > Windows in the menu"
+-  "Super + Ctrl + V opens the clipboard manager"
+-  "Super + 1 through 0 switches workspaces, add Shift to bring the window"
+-  "Super + Print picks a color from anywhere on screen"
+-  "Keep the system fresh with Update in the Omarchy menu"
+-)
++# Read once the language is known; each key is spelled out so the catalog
++# check can see it is used.
++load_tips() {
++  tips=(
++    "$(omarchy_form_text ownerSetup.tip.menu)"
++    "$(omarchy_form_text ownerSetup.tip.keybindings)"
++    "$(omarchy_form_text ownerSetup.tip.superKey)"
++    "$(omarchy_form_text ownerSetup.tip.signPdfs)"
++    "$(omarchy_form_text ownerSetup.tip.localSend)"
++    "$(omarchy_form_text ownerSetup.tip.webApps)"
++    "$(omarchy_form_text ownerSetup.tip.terminal)"
++    "$(omarchy_form_text ownerSetup.tip.media)"
++    "$(omarchy_form_text ownerSetup.tip.ocr)"
++    "$(omarchy_form_text ownerSetup.tip.screenshots)"
++    "$(omarchy_form_text ownerSetup.tip.reminders)"
++    "$(omarchy_form_text ownerSetup.tip.themes)"
++    "$(omarchy_form_text ownerSetup.tip.transparentBar)"
++    "$(omarchy_form_text ownerSetup.tip.windows)"
++    "$(omarchy_form_text ownerSetup.tip.clipboard)"
++    "$(omarchy_form_text ownerSetup.tip.workspaces)"
++    "$(omarchy_form_text ownerSetup.tip.colorPicker)"
++    "$(omarchy_form_text ownerSetup.tip.update)"
++  )
++  SETUP_TIP_LINE=$(omarchy_form_text ownerSetup.tipLine)
++  SETUP_STATUS=$(omarchy_form_text ownerSetup.progress)
++}
+ 
+ term_cols() {
+   local cols
+@@ -260,7 +310,7 @@
+ # One tip per 8 seconds, elapsed-time driven like the install dashboard. It
+ # sets SETUP_TIP rather than printing it, so a frame forks no subshell for it.
+ current_tip() {
+-  SETUP_TIP="Tip: ${tips[(NOW - SETUP_T0) / 8 % ${#tips[@]}]}"
++  SETUP_TIP=${SETUP_TIP_LINE//%1/${tips[(NOW - SETUP_T0) / 8 % ${#tips[@]}]}}
+ }
+ 
+ SETUP_POS=10
+@@ -354,12 +404,12 @@
+   pm=$SETUP_POS
+   (( pm > 999 )) && pm=999
+   current_tip
+-  progress_icon_frame "$pm" "Setting up your machine" "$SETUP_TIP"
++  progress_icon_frame "$pm" "$SETUP_STATUS" "$SETUP_TIP"
+ }
+ 
+ render_setup_finish() {
+   current_tip
+-  progress_icon_finish "Setting up your machine" "$SETUP_TIP"
++  progress_icon_finish "$SETUP_STATUS" "$SETUP_TIP"
+ }
+ 
+ # The first thing a new owner sees, shown once before the keyboard step:
+@@ -383,15 +433,15 @@
+     rows=$(stty size 2>/dev/null </dev/tty | awk '{print $1}')
+     [[ $rows =~ ^[0-9]+$ ]] || rows=${LINES:-24}
+ 
+-    tagline="Beautiful, Fun & Agentic Linux by DHH"
++    tagline=${OMARCHY_OEM_TAGLINE:-"Beautiful, Fun & Agentic Linux by DHH"}
+     hint="Press Return to Start Setup"
+ 
+     printf '%s%s' "$HIDE_CURSOR" "$CLEAR"
+ 
+-    # Console still too narrow for the 81-column logo (a transient small mode):
+-    # skip the logo and animation rather than wrap them into mush — just center
+-    # the words. The redraw loop repaints the full splash once the VT widens.
+-    if (( cols <= LOGO_WIDTH )); then
++    # Console still too narrow for the logo (a transient small mode): skip the
++    # logo and animation rather than wrap them into mush — just center the
++    # words. The redraw loop repaints the full splash once the VT widens.
++    if (( cols <= BRAND_LOGO_WIDTH )); then
+       local mid=$(( rows / 2 ))
+       tpad=$(( (cols - ${#tagline}) / 2 )); (( tpad < 0 )) && tpad=0
+       hpad=$(( (cols - ${#hint}) / 2 )); (( hpad < 0 )) && hpad=0
+@@ -401,20 +451,20 @@
+     fi
+ 
+     # logo + blank + tagline + blank + hint
+-    content_h=$(( LOGO_HEIGHT + 4 ))
++    content_h=$(( BRAND_LOGO_HEIGHT + 4 ))
+     top=$(( (rows - content_h) / 2 )); (( top < 0 )) && top=0
+     logo_row=$(( top + 1 ))
+-    tagline_row=$(( top + LOGO_HEIGHT + 2 ))
+-    hint_row=$(( top + LOGO_HEIGHT + 4 ))
++    tagline_row=$(( top + BRAND_LOGO_HEIGHT + 2 ))
++    hint_row=$(( top + BRAND_LOGO_HEIGHT + 4 ))
+ 
+     # Draw each logo row at an explicit column so nothing can wrap it even if a
+     # measurement is off by one; left_padding centers it for the current width.
+-    pad="$(left_padding "$LOGO_WIDTH")"
++    pad="$(left_padding "$BRAND_LOGO_WIDTH")"
+     i=0
+     while IFS= read -r line; do
+-      printf '%s%d;1H%s%b%s%b' "$CSI" "$((logo_row + i))" "$pad" "$GREEN" "$line" "$RESET"
++      printf '%s%d;1H%s%b%s%b' "$CSI" "$((logo_row + i))" "$pad" "$BRAND_LOGO_SGR" "$line" "$RESET"
+       i=$((i + 1))
+-    done <"$LOGO_PATH"
++    done <"$BRAND_LOGO_PATH"
+ 
+     tpad=$(( (cols - ${#tagline}) / 2 )); (( tpad < 0 )) && tpad=0
+     printf '%s%d;%dH%s' "$CSI" "$tagline_row" "$((tpad + 1))" "$tagline"
+@@ -439,22 +489,37 @@
+     # above. --canvas-width is cols-2, not cols-1: ttfx centres its text two
+     # columns right of plain centering, so cols-1 lands the animated logo a
+     # column off the static one and it jumps when the effect starts.
+-    printf '%s%d;1H\0337' "$CSI" "$((logo_row + LOGO_HEIGHT))"
++    #
++    # kmscon draws 256-colour codes as xterm's own colours, not the palette's,
++    # and draws 24-bit ones as given: there the stops are the palette's colours.
++    local stops=("${BRAND_SHIMMER[@]}" "$BRAND_LOGO_COLOR") indexed=(--xterm-colors) i
++    if [[ ${OMARCHY_KMSCON:-} == 1 ]]; then
++      indexed=()
++      for i in "${!stops[@]}"; do
++        case ${stops[i]} in
++          6) stops[i]=7dcfff ;;
++          9) stops[i]=${OMARCHY_OEM_COLOR#\#} ;;
++          15) stops[i]=c0caf5 ;;
++          *) stops[i]=9ece6a ;;
++        esac
++      done
++    fi
++    printf '%s%d;1H\0337' "$CSI" "$((logo_row + BRAND_LOGO_HEIGHT))"
+     # Run ttfx directly (not inside a `while` subshell) so $anim is ttfx's own
+     # PID: killing a wrapping subshell would orphan ttfx, which then keeps
+     # painting the logo over the keyboard step. --cycles is high enough that it
+     # never ends on its own before Return.
+-    ttfx -i "$LOGO_PATH" \
++    ttfx -i "$BRAND_LOGO_PATH" \
+       --canvas-width "$((cols > 2 ? cols - 2 : cols))" \
+       --anchor-text c \
+       --frame-rate 60 \
+       --reuse-canvas \
+-      --xterm-colors \
++      "${indexed[@]}" \
+       colorshift \
+-      --gradient-stops 2 10 6 10 \
++      --gradient-stops "${stops[@]:0:${#BRAND_SHIMMER[@]}}" \
+       --gradient-frames 3 \
+       --cycles 1000 \
+-      --final-gradient-stops 2 \
++      --final-gradient-stops "${stops[-1]}" \
+       </dev/null >/dev/tty 2>/dev/null &
+     anim=$!
+   }
+@@ -471,7 +536,8 @@
+ 
+   # Let the console settle before the first paint, then size the font to it.
+   wait_console_stable 100 15 || true
+-  scale_console_font
++  fit_console_font
++  brand_console_font
+   wait_console_stable 30 5 || true
+ 
+   trap 'resized=1' WINCH
+@@ -491,8 +557,12 @@
+     if (( resized )) || [[ -n $cur_sig && $cur_sig != "$drawn_sig" ]]; then
+       _greeter_kill_anim
+       stty sane </dev/tty 2>/dev/null || true
++      # Cleared before the font changes under it: what is on screen is drawn
++      # from whichever font is set, and the brand's dots are in only one.
++      printf '%s' "$CLEAR"
+       wait_console_stable 50 5 || true
+-      scale_console_font
++      fit_console_font
++      brand_console_font
+       wait_console_stable 30 5 || true
+       _greeter_draw
+       drawn_sig=$(console_signature 2>/dev/null || true)
+@@ -508,6 +578,28 @@
+   # leftover animation frame.
+   stty sane </dev/tty 2>/dev/null || true
+   printf '%s%s%s' "$RESET" "$CLEAR" "$SHOW_CURSOR"
++  # The form's font again, for whatever comes next, a failure to start included.
++  fit_console_font
++}
++
++# The first screen, as in the installer: every Omarchy language, and the rest of
++# setup in the one picked where the console can draw it. Esc has nothing to go
++# back to, so it asks again. Ctrl+C is the way out of a screen the owner cannot
++# get past: see confirm_reboot.
++language_form() {
++  local status
++
++  while true; do
++    clear_logo
++    echo
++    say "$(omarchy_form_text setupForm.machineIntro)"
++    echo
++    omarchy_prompt_language && status=0 || status=$?
++    ((status == 0)) && break
++    ((status == OMARCHY_FORM_SIGNAL)) && confirm_reboot && exec systemctl reboot
++  done
++
++  printf '%s\n' "$language" >"$LANGUAGE_FILE"
+ }
+ 
+ # The keyboard step the ISO configurator runs — deferred to first boot for OEM
+@@ -522,63 +614,118 @@
+   local status failures=0
+ 
+   while true; do
+-    step "Let's setup your keyboard..."
++    # Every step sits under the one heading, so the screen does not shift
++    # from one to the next.
++    step "$(omarchy_form_text setupForm.machineIntro)"
++    if ! omarchy_form_language_drawn "$language"; then
++      # English on purpose: the console cannot draw this language to say it in.
++      say --foreground 8 "Setup stays in English. Omarchy will be in $(omarchy_form_language_label "$language") once set up."
++      echo
++    fi
++
+     omarchy_prompt_keyboard && status=0 || status=$?
+     if ((status == 0)); then
+       apply_keyboard "$keyboard" && break
+       if ((++failures >= 3)); then
+         log_step "no keyboard layout could be set after $failures attempts"
+-        notice "Setup could not set a keyboard layout on this machine." 4
++        notice "$(omarchy_form_text ownerSetup.keyboardFailed)" 4
+         return 1
+       fi
+-      notice "Could not set the ${keyboard_label:-$keyboard} keyboard layout. Choose it again." 4
++      notice "$(omarchy_form_text ownerSetup.keyboardRetry "${keyboard_label:-$keyboard}")" 4
+       continue
+     fi
+ 
+-    # Esc means "back", and nothing precedes the first screen, so re-ask.
+-    ((status == OMARCHY_FORM_BACK)) && continue
+-
+-    # Ctrl+C is the way out of a screen the owner cannot get past. Rebooting is
+-    # safe but not an escape from setup: this service runs again at next boot,
+-    # and encrypted machines still auto-unlock from the staged keyfile until the
+-    # re-key below. Confirm it so a stray Ctrl+C doesn't bounce the machine.
++    # Esc means "back", to the language picker.
++    if ((status == OMARCHY_FORM_BACK)); then
++      language_form
++      continue
++    fi
++
++    # Rebooting is safe but not an escape from setup: this service runs again
++    # at next boot, and encrypted machines still auto-unlock from the staged
++    # keyfile until the re-key below. Confirm it so a stray Ctrl+C doesn't
++    # bounce the machine.
+     confirm_reboot && exec systemctl reboot
+   done
+ 
+   omarchy_persist_input_selection
++
++  # The password ahead is typed under the layout just picked, and the language
++  # reads in its own Han forms: both need kmscon started again.
++  if [[ ${OMARCHY_KMSCON:-} == 1 ]] &&
++    [[ $(omarchy_keymap_xkb "$keyboard") != "$OMARCHY_KMSCON_XKB" || $(omarchy_kmscon_face "$language") != "$OMARCHY_KMSCON_FACE" ]]; then
++    (
++      umask 077
++      declare -p language keyboard keyboard_label keyboard_input_method keyboard_xkb_layout 2>/dev/null >"$KMSCON_RESUME"
++    )
++    exit $KMSCON_RELAUNCH
++  fi
+ }
+ 
+ confirm_reboot() {
+   clear_logo
+   echo
+-  say "Setup starts again after the reboot."
++  say "$(omarchy_form_text ownerSetup.rebootNote)"
+   echo
+-  gum confirm --affirmative "Yes, reboot" --negative "No, keep setting up" "Reboot this machine?"
+-}
+-
+-# XKB settings for the form's keymaps that kbd-model-map lacks, as its rows for
+-# the nearest keymap give them, so the desktop types what the console does:
+-# kbd's cz is QWERTY and bg-cp1251 phonetic. Non-Latin layouts keep a US layout
+-# to switch to, so the shared password stays typeable.
+-keyboard_xkb_settings() {
+-  local layout variant="" options=terminate:ctrl_alt_bksp
+-  local switch=terminate:ctrl_alt_bksp,grp:shifts_toggle,grp_led:scroll
+-
+-  case $1 in
+-    colemak) layout=us variant=colemak ;;
+-    bg-cp1251) layout=bg,us variant=phonetic, options=$switch ;;
+-    cz) layout=cz,us variant=qwerty, options=$switch ;;
+-    de_CH-latin1) layout=ch ;;
+-    kyrgyz) layout=kg,us options=$switch ;;
+-    no-latin1) layout=no ;;
+-    pl) layout=pl ;;
+-    ua) layout=ua,us options=$switch ;;
+-    *) return 1 ;;
+-  esac
+-
+-  printf 'XKBLAYOUT=%s\nXKBMODEL=pc105\n' "$layout"
+-  [[ -z $variant ]] || printf 'XKBVARIANT=%s\n' "$variant"
+-  printf 'XKBOPTIONS=%s\n' "$options"
++  gum confirm --affirmative "$(omarchy_form_text ownerSetup.rebootYes)" --negative "$(omarchy_form_text ownerSetup.rebootNo)" \
++    "$(omarchy_form_text ownerSetup.rebootPrompt)"
++}
++
++# Declining the agreement offers to shut down, and going back to it is the
++# answer in focus.
++confirm_shutdown() {
++  clear_logo
++  echo
++  say --width "$((PADDING_LEFT + LOGO_WIDTH))" "$(omarchy_form_text ownerSetup.eulaDeclined)"
++  echo
++  gum confirm --default=false --affirmative "$(omarchy_form_text ownerSetup.eulaShutDownYes)" \
++    --negative "$(omarchy_form_text ownerSetup.eulaShutDownNo)" "$(omarchy_form_text ownerSetup.eulaShutDownPrompt)"
++}
++
++# The OEM's agreement, where it left one: setup's last question, asked before
++# anything is created, so a machine whose owner declines is still as it left
++# the factory.
++EULA_ACCEPTED_AT=""
++
++eula_form() {
++  local status
++  [[ -n $OMARCHY_OEM_EULA ]] || return 0
++
++  # Setup ends as it opened, under the brand.
++  printf '\033[H\033[2J'
++  brand_console_font
++  local LOGO_PATH=$BRAND_LOGO_PATH LOGO_HEIGHT=$BRAND_LOGO_HEIGHT LOGO_COLOR=$BRAND_LOGO_COLOR
++
++  # The agreement reads its own keys, so there Ctrl+C is a signal, and one
++  # that lands while the screen after it is drawn must not end setup.
++  trap : INT
++  while true; do
++    omarchy_oem_eula && status=0 || status=$?
++    if ((status == 0)); then
++      EULA_ACCEPTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
++      break
++    elif ((status == OMARCHY_FORM_BACK)); then
++      break
++    elif ((status == OMARCHY_FORM_SIGNAL)); then
++      confirm_reboot && exec systemctl reboot
++    else
++      confirm_shutdown && exec systemctl poweroff
++    fi
++  done
++  trap - INT
++  printf '\033[H\033[2J'
++  fit_console_font
++  return "$status"
++}
++
++# Whose agreement was accepted, by whom and when, for the OEM and the owner to
++# refer to. The hash is of the text as the ISO laid it down.
++record_eula() {
++  [[ -n $EULA_ACCEPTED_AT ]] || return 0
++  mkdir -p /var/lib/omarchy/oem
++  jq -n --arg oem "$OMARCHY_OEM_NAME" --arg user "$username" --arg at "$EULA_ACCEPTED_AT" \
++    --arg sha256 "$(sha256sum <"$OMARCHY_OEM_EULA" | cut -d' ' -f1)" \
++    '{oem: $oem, sha256: $sha256, accepted_by: $user, accepted_at: $at}' >/var/lib/omarchy/oem/eula-accepted.json
+ }
+ 
+ # Load the layout on the live VT and persist it for the installed system, or
+@@ -613,7 +760,7 @@
+   # systemd-firstboot writes an XKB layout only for keymaps in kbd-model-map,
+   # and several the form offers are not, so Hyprland would come up in US.
+   if ! grep -q '^XKBLAYOUT=.' /etc/vconsole.conf 2>/dev/null; then
+-    keyboard_xkb_settings "$keymap" >>/etc/vconsole.conf 2>>"$LOG_FILE" ||
++    omarchy_keymap_xkb_settings "$keymap" >>/etc/vconsole.conf 2>>"$LOG_FILE" ||
+       log_step "no XKB layout known for keymap $keymap"
+   fi
+ 
+@@ -626,44 +773,31 @@
+   fi
+ }
+ 
+-# The same username/password form as the ISO configurator's Step 2.
++# The account step, in the installer's order. The deferred install seeded
++# neutral placeholders for the hostname and timezone (omarchy/UTC); the owner
++# overwrites them here.
+ user_form() {
+-  step "Let's setup your user account..."
++  step "$(omarchy_form_text setupForm.machineIntro)"
++
++  omarchy_prompt_timezone || return $?
+ 
+   # A prior attempt that already created the account pins the username, so a
+   # retry cannot strand that account by choosing a different name.
+   if [[ -f $PROVISIONING_DIR/setup-user ]]; then
+     username=$(<"$PROVISIONING_DIR/setup-user")
+-    say "Continuing setup for user: $username"
++    say "$(omarchy_form_text ownerSetup.continuing "$username")"
+     echo
+   else
+     omarchy_prompt_username || return $?
+   fi
+ 
+   omarchy_prompt_password || return $?
+-
+-  # Hostname and timezone are deferred to first boot with the rest of the user
+-  # step: the deferred install seeds neutral placeholders (omarchy/UTC) and the
+-  # owner overwrites them here.
+-  omarchy_prompt_hostname || return $?
+-
+-  step "Let's set your timezone..."
+-  omarchy_prompt_timezone || return $?
++  omarchy_generate_hostname
+ }
+ 
+ confirm_form() {
+-  clear_logo
+-  echo
+-  echo -e "Field,Value
+-Keyboard,${keyboard_label:-English (US)}
+-Username,$username
+-Password,$(printf "%${#password}s" | tr ' ' '*')
+-Hostname,${hostname:-omarchy}
+-Timezone,${timezone:-UTC}" |
+-    gum table -s "," -p | sed "s/^/${PADDING_LEFT_SPACES}/"
+-
+-  echo
+-  gum confirm --negative "No, change it" "Does this look right?"
++  step "$(omarchy_form_text setupForm.machineIntro)"
++  omarchy_form_review "$PADDING_LEFT_SPACES"
+ }
+ 
+ # Groups recorded by omarchy-apply-system's scripts at install time
+@@ -805,6 +939,26 @@
+   ln -sf "../$unit" "/etc/systemd/system/graphical.target.wants/$unit"
+ }
+ 
++# The owner's language becomes the machine's preset, the way install media
++# names one, once its locale exists; finalize_user then makes it the owner's
++# desktop language. English is the absence of a preset. An earlier attempt may
++# have seeded another language for the account, which nobody has logged in to
++# choose, so that goes first.
++configure_language() {
++  local home
++  home=$(getent passwd "$username" | cut -d: -f6)
++  [[ -z $home ]] || rm -f "$home/.config/omarchy/language" "$home/.config/uwsm/env.d/50-omarchy-language"
++  rm -f "$LANGUAGE_MARKER"
++  [[ ${language:-en} != "en" ]] || return 0
++
++  if "$OMARCHY_PATH/bin/omarchy-locale-generate" "$language" 2>&1; then
++    mkdir -p "${LANGUAGE_MARKER%/*}"
++    printf '%s\n' "$language" >"$LANGUAGE_MARKER"
++  else
++    log_step "could not generate the locale for $language; the desktop stays in English"
++  fi
++}
++
+ # Apply the owner's hostname, deferred to first boot with the rest of the user
+ # step, overwriting the placeholder the deferred install seeded.
+ configure_hostname() {
+@@ -827,11 +981,12 @@
+   configure_region
+ }
+ 
+-# A deferred install from one market's media took that market's region before
+-# anyone chose a timezone, and left it as REGION in the form defaults. Settle it
+-# against the owner's choice: a timezone a region profile lists picks that
+-# region, Hong Kong, Macau and Taiwan are always World, and any other timezone
+-# keeps the media's region.
++# A deferred install took its media's region before anyone chose a timezone,
++# and left it as REGION in the form defaults: a market's code, or global from
++# the global ISO. Settle it against the owner's choice: a timezone a region
++# profile lists picks that region (global lists Hong Kong, Macau and Taiwan),
++# and any other timezone keeps the media's region. Media that left no REGION
++# keep whatever region the install wrote.
+ configure_region() {
+   local defaults=${OMARCHY_FORM_DEFAULTS:-/etc/omarchy/form-defaults} marker=${OMARCHY_REGION_FILE:-/etc/omarchy/region}
+   local pacman_conf=${OMARCHY_PACMAN_CONF:-/etc/pacman.conf} key value fallback="" region current=global profile channel
+@@ -839,16 +994,11 @@
+   while IFS='=' read -r key value; do
+     [[ $key == "REGION" ]] && fallback=$value
+   done <"$defaults"
+-  [[ $fallback =~ ^[a-z]{2}$ ]] || return 0
+-  case "$timezone" in
+-    Asia/Hong_Kong | Hongkong | Asia/Macau | Asia/Macao | Asia/Taipei | ROC) region=global ;;
+-    *)
+-      region=$fallback
+-      for profile in "$OMARCHY_PATH"/default/regions/*/; do
+-        [[ -r $profile/timezones ]] && grep -qxF -- "$timezone" "$profile/timezones" && region=$(basename "$profile")
+-      done
+-      ;;
+-  esac
++  [[ $fallback == "global" || $fallback =~ ^[a-z]{2}$ ]] || return 0
++  region=$fallback
++  for profile in "$OMARCHY_PATH"/default/regions/*/; do
++    [[ -r $profile/timezones ]] && grep -qxF -- "$timezone" "$profile/timezones" && region=$(basename "$profile")
++  done
+   [[ -r $marker ]] && read -r current <"$marker"
+   [[ $region == "$current" ]] && return 0
+   if [[ $region == "global" ]]; then
+@@ -856,6 +1006,8 @@
+   else
+     printf '%s\n' "$region" >"$marker"
+   fi
++  # The region's Node and npm mirrors, as an install would have set them.
++  PATH="$OMARCHY_PATH/bin:$PATH" bash "$OMARCHY_PATH/install/config/region.sh" 2>&1 || true
+   # Re-render pacman for the region with the channel this machine installed.
+   channel=$(sed -n 's|^Server = https://pkgs\.omarchy\.[a-z]*/\([a-z]*\)/.*|\1|p' "$pacman_conf" | head -1)
+   if [[ -n $channel && -x $OMARCHY_PATH/bin/omarchy-apply-pacman ]]; then
+@@ -897,6 +1049,7 @@
+ PROVISIONING_UNLOCK_FILES=(
+   /etc/omarchy/provisioning.key
+   /etc/limine-entry-tool.d/99-omarchy-provisioning-unlock.conf
++  /etc/cmdline.d/99-omarchy-provisioning-unlock.conf
+   /etc/mkinitcpio.conf.d/99-omarchy-provisioning-key.conf
+ )
+ 
+@@ -908,12 +1061,25 @@
+   return 1
+ }
+ 
++boot_backend() {
++  "$OMARCHY_PATH/bin/omarchy-boot-backend"
++}
++
++# Rebuilds the boot images, on whichever loader this machine boots.
++rebuild_boot_images() {
++  if [[ $(boot_backend) == systemd-boot ]]; then
++    "$OMARCHY_PATH/bin/omarchy-boot-rebuild" >>"$LOG_FILE" 2>&1
++  else
++    reset_limine_config
++    limine-update >>"$LOG_FILE" 2>&1
++  fi
++}
++
+ # Rebuild the UKI without the embedded keyfile. A failed rebuild restores the
+ # auto-unlock, so the retry still boots unattended.
+ limine_auto_unlock_drop() {
+   rm -f "${PROVISIONING_UNLOCK_FILES[@]}"
+-  reset_limine_config
+-  if limine-update >>"$LOG_FILE" 2>&1; then
++  if rebuild_boot_images; then
+     return 0
+   fi
+ 
+@@ -921,15 +1087,20 @@
+   # boot files already ask for the owner's password. The rebuild is still
+   # retried for the boot entries.
+   if [[ -f $PROVISIONING_DIR/luks-key ]]; then
+-    log_step "limine-update failed during re-key; restoring auto-unlock for retry"
++    log_step "the boot image rebuild failed during re-key; restoring auto-unlock for retry"
+     install -Dm600 "$PROVISIONING_DIR/luks-key" /etc/omarchy/provisioning.key
+-    echo 'KERNEL_CMDLINE[default]+=" cryptkey=rootfs:/etc/omarchy/provisioning.key"' \
+-      >/etc/limine-entry-tool.d/99-omarchy-provisioning-unlock.conf
++    if [[ $(boot_backend) == systemd-boot ]]; then
++      mkdir -p /etc/cmdline.d
++      echo 'cryptkey=rootfs:/etc/omarchy/provisioning.key' >/etc/cmdline.d/99-omarchy-provisioning-unlock.conf
++    else
++      echo 'KERNEL_CMDLINE[default]+=" cryptkey=rootfs:/etc/omarchy/provisioning.key"' \
++        >/etc/limine-entry-tool.d/99-omarchy-provisioning-unlock.conf
++    fi
+     echo 'FILES+=(/etc/omarchy/provisioning.key)' >/etc/mkinitcpio.conf.d/99-omarchy-provisioning-key.conf
+   else
+-    log_step "limine-update failed during re-key; the staged key is gone, so no auto-unlock is restored"
+-  fi
+-  limine-update >>"$LOG_FILE" 2>&1 || true
++    log_step "the boot image rebuild failed during re-key; the staged key is gone, so no auto-unlock is restored"
++  fi
++  rebuild_boot_images || true
+   return 1
+ }
+ 
+@@ -1037,9 +1208,11 @@
+ # or the bare header reset_limine_config leaves when the rebuild after it
+ # failed. Other machine-ids are not stale: a shared ESP holds other systems'
+ # entries, and the factory reset already re-keyed this system's entry to the
+-# identity it boots with.
++# identity it boots with. A machine on systemd-boot has no Limine entry: a
++# limine.conf on its ESP is another installation's.
+ limine_entries_stale() {
+   local esp machine_id
++  [[ $(boot_backend) != systemd-boot ]] || return 1
+   esp=$(esp_path)
+   machine_id=$(cat /etc/machine-id 2>/dev/null || true)
+   [[ -f $esp/limine.conf && -n $machine_id ]] || return 1
+@@ -1075,16 +1248,22 @@
+   if [[ -f $esp/limine.conf ]]; then
+     # Same rewrite as omarchy-system-factory-reset, keyed to this identity:
+     # this machine's entry keeps only its header, and any copy after the first
+-    # is dropped. An entry-less config passes through as is.
++    # is dropped. A fresh image's Omarchy entry has no machine-id yet; it is
++    # keyed to this one in place, so limine-update rebuilds it where default_entry points.
+     entries=$(awk -v id="$machine_id" '
+       function flush() {
+-        if (is_ours && !kept) { printf "%s\n", header; kept = 1 }
+-        else if (!is_ours) printf "%s", block
+-        block = header = ""; is_ours = nested = 0
++        image = id != "" && !has_id && image_entry && image_uki
++        if (image && !kept) { printf "%scomment: machine-id=%s order-priority=50\n\n", header, id; kept = 1 }
++        else if (is_ours && !kept) { printf "%s\n", header; kept = 1 }
++        else if (!is_ours && !image) printf "%s", block
++        block = header = ""; is_ours = nested = has_id = image_entry = image_uki = 0
+       }
+       /^\/[^\/]/ { flush(); in_entry = 1 }
+       !in_entry { next }
+       {
++        if ($0 == "/+Omarchy") image_entry = 1
++        if (/^comment: machine-id=/) has_id = 1
++        if (/^[[:space:]]*path: boot\(\):\/EFI\/Linux\/omarchy_/) image_uki = 1
+         if (id != "" && /^comment: machine-id=/ && $0 ~ ("machine-id=" id "([[:space:]]|$)")) is_ours = 1
+         if (/^[[:space:]]*\/\//) nested = 1
+         block = block $0 "\n"
+@@ -1110,8 +1289,12 @@
+ run_provisioning() {
+   log_step "creating user $username"
+   create_user
++  record_eula
+   install_authorized_keys
+   configure_login
++
++  log_step "setting language to ${language:-en}"
++  configure_language
+ 
+   log_step "setting hostname to ${hostname:-omarchy}"
+   configure_hostname
+@@ -1177,22 +1360,50 @@
+ 
+   platform_ready || return 1
+ 
++  # Each attempt is its own process, so it learns for itself what the font draws.
++  fit_console_font
++  if [[ -r $KMSCON_RESUME ]]; then
++    # shellcheck disable=SC1090
++    source "$KMSCON_RESUME"
++    rm -f "$KMSCON_RESUME"
++    omarchy_form_use_language "$language"
++  else
++    initial_language
++    language_form
++    keyboard_form || return 1
++  fi
++
+   while true; do
+-    keyboard_form || return 1
+     user_form && status=0 || status=$?
+-    if ((status != 0)); then
+-      # Esc unwinds to the keyboard step. Ctrl+C is the only other way out of a
+-      # prompt, and it offers the reboot instead of returning a value.
+-      ((status == OMARCHY_FORM_SIGNAL)) && confirm_reboot && exec systemctl reboot
++    if ((status == OMARCHY_FORM_SIGNAL)); then
++      # Ctrl+C offers the reboot; declined, the account step starts over.
++      confirm_reboot && exec systemctl reboot
++      continue
++    elif ((status != 0)); then
++      # Esc unwinds to the keyboard step.
++      keyboard_form || return 1
+       continue
+     fi
+-    confirm_form || continue
++
++    # "No, change it" starts over from the language, as in the installer.
++    if ! confirm_form; then
++      language_form
++      keyboard_form || return 1
++      continue
++    fi
+     if ! rekey_accepts_password; then
+-      notice "Setup already set the disk password. Enter that same password." 4
++      notice "$(omarchy_form_text ownerSetup.samePassword)" 4
++      continue
++    fi
++    # Esc on the agreement unwinds to the keyboard, as it does from the account.
++    if ! eula_form; then
++      keyboard_form || return 1
+       continue
+     fi
+     break
+   done
++
++  load_tips
+ 
+   touch "$LOG_FILE"
+   chmod 600 "$LOG_FILE"
+@@ -1236,7 +1447,7 @@
+     rm -f "$FINALIZE_WARNING_FLAG"
+     clear_logo
+     echo
+-    say --foreground 1 "User finalization reported errors (see $LOG_FILE)."
++    say --foreground 1 "$(omarchy_form_text ownerSetup.finalizeWarning "$LOG_FILE")"
+     sleep 3
+   fi
+ 
+@@ -1258,23 +1469,50 @@
+ fi
+ 
+ main() {
++  local status keymap
++
++  # The whole of setup runs in kmscon on this VT, started again for as long as
++  # setup is not done: an attempt asks for that with KMSCON_RESUME, and SDDM
++  # must not start on a machine that still has no owner. Leaving for the root
++  # shell or a reboot ends it.
++  if [[ ${OMARCHY_KMSCON:-} != 1 ]]; then
++    # A dark, empty console behind kmscon, for the moments it is not drawing.
++    set_tokyo_night_colors
++    mkdir -p "$KMSCON_STATE"
++    while [[ -f $PROVISIONING_DIR/pending && ! -e $KMSCON_STATE/shell ]] &&
++      [[ $(systemctl is-system-running 2>/dev/null) != stopping ]]; do
++      initial_language
++      # The keymap the console is in: the image's, or the one setup just set.
++      keymap=$(. /etc/vconsole.conf 2>/dev/null; printf '%s' "${KEYMAP:-us}")
++      omarchy_kmscon "$KMSCON_STATE/kmscon.log" "$keymap" "$language" "$OMARCHY_OEM_COLOR" "$0"
++    done
++    exit 0
++  fi
++
+   # Font sizing waits for the console to settle, so it lives inside
+   # greeter_screen (which owns that settle) rather than running here on a VT
+   # that may still be in a transitional mode this early in first boot.
+   set_tokyo_night_colors
+-  greeter_screen
+-
+-  while ! "$0" --attempt; do
++  # A relaunch of kmscon is the same setup carrying on, not a new start.
++  [[ -e $KMSCON_RESUME ]] || greeter_screen
++
++  while true; do
++    "$0" --attempt && break || status=$?
++    ((status == KMSCON_RELAUNCH)) && [[ -e $KMSCON_RESUME ]] && exit 0
++    # In the language the failed attempt was in.
++    initial_language
+     clear_logo
+     echo
+-    say --foreground 1 "Setup hit an error (details in $LOG_FILE)."
++    say --foreground 1 "$(omarchy_form_text ownerSetup.failed "$LOG_FILE")"
+     echo
+-    if ! gum confirm --affirmative "Try again" --negative "Drop to console" "Retry first-boot setup?"; then
++    if ! gum confirm --affirmative "$(omarchy_form_text ownerSetup.retryYes)" --negative "$(omarchy_form_text ownerSetup.retryNo)" \
++      "$(omarchy_form_text ownerSetup.retryPrompt)"; then
+       # Give an actual usable console: this service owns tty1 (and Conflicts the
+       # getty), and on a failed deferred setup there's no user account and root
+       # is locked — so exiting would strand the machine with no way in. Exec a
+       # root shell on tty1; SDDM starts once it exits.
+       say "Dropping to a root shell. Run 'omarchy-provision-owner' to retry setup."
++      touch "$KMSCON_STATE/shell"
+       exec /bin/bash
+     fi
+   done
+--- reviewed/bin/omarchy-provision-user
++++ release/bin/omarchy-provision-user
+@@ -83,25 +83,14 @@
+ 
+ # Dev-aware skill symlinks. Cannot live in /etc/skel because OMARCHY_PATH may
+ # point at a dev checkout (omarchy dev link) where the target differs.
+-# Loops every skill directory, so shipping a new one needs no edit here.
+-mkdir -p ~/.agents/skills ~/.claude/skills ~/.codex/skills ~/.pi/agent/skills ~/.gemini/config/skills ~/.hermes/skills
+-for skill in "$OMARCHY_PATH"/default/agents/skills/*/; do
+-  skill=${skill%/}
+-  name=${skill##*/}
+-  ln -sfn "$skill" ~/.agents/skills/"$name"
+-  ln -sfn "$skill" ~/.claude/skills/"$name"
+-  ln -sfn "$skill" ~/.codex/skills/"$name"
+-  ln -sfn "$skill" ~/.pi/agent/skills/"$name"
+-  ln -sfn "$skill" ~/.gemini/config/skills/"$name"
+-  ln -sfn "$skill" ~/.hermes/skills/"$name"
+-  if [[ -d ~/.hermes/profiles ]]; then
+-    for profile in ~/.hermes/profiles/*/; do
+-      [[ -d $profile ]] || continue
+-      mkdir -p "$profile/skills"
+-      ln -sfn "$skill" "$profile/skills/$name"
+-    done
+-  fi
+-done
++"$OMARCHY_PATH/bin/omarchy-agent-skills-link"
++
++# Pi's extensions link the same way, dev-aware, beside Pi's own defaults.
++"$OMARCHY_PATH/bin/omarchy-agent-pi-defaults"
++
++# Personal agent rules live in ~/.agents/AGENTS.md beside the skills, linked
++# into each harness that reads its own global instructions file.
++"$OMARCHY_PATH/bin/omarchy-agent-instructions" >/dev/null || true
+ 
+ mkdir -p ~/Downloads ~/Pictures ~/Videos ~/.config/gtk-3.0
+ xdg-user-dirs-update --set TEMPLATES "$HOME"
+@@ -124,15 +113,26 @@
+ 
+ source "$OMARCHY_INSTALL/user/all.sh"
+ 
++# /etc/skel seeds every shipped launcher before the region is known, so a new
++# home starts over from the region's list.
++if (( first_install )); then
++  for launcher in "$OMARCHY_PATH"/applications/*.desktop; do
++    rm -f ~/.local/share/applications/"${launcher##*/}"
++  done
++fi
+ omarchy-refresh-applications
+-env -u BROWSER XDG_CURRENT_DESKTOP= xdg-settings set default-web-browser chromium.desktop
+-xdg-mime default HEY.desktop x-scheme-handler/mailto
++XDG_CURRENT_DESKTOP= xdg-mime default google-chrome.desktop \
++  text/html x-scheme-handler/http x-scheme-handler/https x-scheme-handler/about x-scheme-handler/unknown
+ 
+ if (( first_install )); then
+   mkdir -p "$state_dir/migrations"
+-  for migration in "$OMARCHY_PATH"/migrations/*.sh; do
+-    [[ -f $migration ]] && touch "$state_dir/migrations/$(basename "$migration")"
+-  done
++  # One touch for all of them: a basename and a touch per migration were over
++  # 500 processes, 1.4s on an N1x.
++  migrations=("$OMARCHY_PATH"/migrations/*.sh)
++  if [[ -f ${migrations[0]} ]]; then
++    migrations=("${migrations[@]##*/}")
++    touch "${migrations[@]/#/$state_dir/migrations/}"
++  fi
+ fi
+ 
+ omarchy-done mark finalize-user
+--- reviewed/install/config/enable-services.sh
++++ release/install/config/enable-services.sh
+@@ -1,18 +1,24 @@
+ # Enable services only. Installs are followed by reboot, so don't start/reload
+ # daemons mid-install. UFW and hardware-gated services stay in their own scripts.
+-systemctl enable cups.service
+-systemctl enable avahi-daemon.service
+-systemctl enable linux-modules-cleanup.service
+-systemctl enable docker.socket
+-systemctl enable systemd-resolved.service
+-systemctl enable NetworkManager.service
++# CUPS and Docker are socket-activated so neither daemon stays resident until
++# needed. Kill one runaway app scope (systemd-oomd.service) instead of letting
++# reclaim thrashing take the whole session down; [Install] pulls in
++# systemd-oomd.socket via Also=. omarchy-shutdown-ramfs.timer builds
++# /run/initramfs in the background after boot so shutdown skips mkinitcpio.
++systemctl enable \
++  cups.socket \
++  cups.path \
++  avahi-daemon.service \
++  linux-modules-cleanup.service \
++  docker.socket \
++  systemd-resolved.service \
++  NetworkManager.service \
++  power-profiles-daemon.service \
++  sddm.service \
++  systemd-oomd.service \
++  omarchy-shutdown-ramfs.timer
++
+ # Don't let network-online.target hold up graphical.target waiting for
+ # DHCP/Wi-Fi association. Nothing in the session needs to block on the network.
+ # Mirrors the systemd-networkd-wait-online mask in install/hardware/network.sh.
+ systemctl mask NetworkManager-wait-online.service
+-systemctl enable power-profiles-daemon.service
+-systemctl enable sddm.service
+-# Kill one runaway app scope instead of letting reclaim thrashing take the
+-# whole session down. [Install] pulls in systemd-oomd.socket via Also=, which
+-# is what the user manager reports app.slice candidacy over.
+-systemctl enable systemd-oomd.service
+--- reviewed/install/config/firewall.sh
++++ release/install/config/firewall.sh
+@@ -1,14 +1,5 @@
+-# Allow nothing in, everything out.
+-ufw default deny incoming
+-ufw default allow outgoing
+-
+-# Allow ports for LocalSend.
+-ufw allow 53317/udp
+-ufw allow 53317/tcp
+-
+-# Allow Docker containers to use DNS on host.
+-ufw allow in proto udp from 172.16.0.0/12 to 172.17.0.1 port 53 comment 'allow-docker-dns'
+-ufw allow in proto udp from 192.168.0.0/16 to 172.17.0.1 port 53 comment 'allow-docker-dns'
++FIREWALL_RULES_VERSION="1"
++FIREWALL_STAMP="${OMARCHY_FIREWALL_STAMP:-/var/lib/omarchy/firewall-rules-version}"
+ 
+ # Turn on Docker protections. ufw-docker refuses to install its after.rules
+ # block unless UFW is already active, but during ISO finalization the target
+@@ -46,9 +37,31 @@
+   return "$status"
+ }
+ 
+-install_ufw_docker_rules
++if [[ ! -f $FIREWALL_STAMP || $(<"$FIREWALL_STAMP") != "$FIREWALL_RULES_VERSION" ]]; then
++  # Allow nothing in, everything out.
++  ufw default deny incoming
++  ufw default allow outgoing
+ 
+-# Installs are followed by reboot, so configure UFW to start on the installed
+-# system instead of mutating the live install session's firewall.
+-sed -i 's/^ENABLED=.*/ENABLED=yes/' /etc/ufw/ufw.conf
+-systemctl enable ufw
++  # Allow ports for LocalSend.
++  ufw allow 53317/udp
++  ufw allow 53317/tcp
++
++  # Allow Docker containers to use DNS on host.
++  ufw allow in proto udp from 172.16.0.0/12 to 172.17.0.1 port 53 comment 'allow-docker-dns'
++  ufw allow in proto udp from 192.168.0.0/16 to 172.17.0.1 port 53 comment 'allow-docker-dns'
++
++  install_ufw_docker_rules
++
++  mkdir -p "$(dirname "$FIREWALL_STAMP")"
++  printf '%s\n' "$FIREWALL_RULES_VERSION" >"$FIREWALL_STAMP"
++fi
++
++# Image builds pre-bake the rules above with OMARCHY_FIREWALL_RULES_ONLY=1 while
++# leaving ENABLED=no in ufw.conf, so any later chroot ufw call during install
++# cannot reload the live ISO's kernel firewall.
++if [[ ${OMARCHY_FIREWALL_RULES_ONLY:-0} != "1" ]]; then
++  # Installs are followed by reboot, so configure UFW to start on the installed
++  # system instead of mutating the live install session's firewall.
++  sed -i 's/^ENABLED=.*/ENABLED=yes/' /etc/ufw/ufw.conf
++  systemctl enable ufw
++fi
+--- reviewed/install/provisioning/progress-icon.sh
++++ release/install/provisioning/progress-icon.sh
+@@ -237,24 +237,50 @@
+   ICON_DRAWN=$drawn
+ }
+ 
++# Set the variable <name> to the columns <text> takes: CJK and fullwidth
++# characters take two, so counting characters would center Chinese half its
++# width too far right (the installer draws it in kmscon).
++# The ranges are written as escapes because editors may normalize a literal
++# U+F900 into U+8C48. Outside a UTF-8 locale bash counts bytes, so nothing is
++# doubled there.
++progress_icon_width() {
++  local probe=é narrow wide=
++  if (( ${#probe} == 1 )); then
++    printf -v narrow '[^\u1100-\u115F\u2E80-\u3029\u3030-\u303E\u3040-\u3098\u309B-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\U0001F300-\U0001F64F\U0001F900-\U0001F9FF\U00020000-\U0003FFFD]'
++    wide=${2//$narrow/}
++  fi
++  printf -v "$1" '%s' $((${#2} + ${#wide}))
++}
++
+ # Center one line of text, escapes included, across the console the layout
+ # measured. The text is measured in bash, so drawing a line starts no process.
+ progress_icon_line() {
+-  local text="$1" plain pad
++  local text="$1" plain pad width
+   printf -v plain '%b' "$text"
+   while [[ $plain =~ $PROGRESS_ICON_ESCAPE ]]; do
+     plain=${plain/"${BASH_REMATCH[0]}"/}
+   done
+-  pad=$(( (ICON_COLS - ${#plain}) / 2 ))
++  progress_icon_width width "$plain"
++  pad=$(( (ICON_COLS - width) / 2 ))
+   (( pad < 0 )) && pad=0
+   printf '\r%s2K%*s%b%s\n' "$PROGRESS_ICON_CSI" "$pad" '' "$text" "$PROGRESS_ICON_RESET"
+ }
+ 
+ # Set the variable <name> to <text>, cut to the text width.
+ progress_icon_truncate() {
+-  local text="$2" width="$ICON_TEXT_WIDTH"
+-  if (( ${#text} > width )); then
+-    printf -v "$1" '%s…' "${text:0:$((width - 1))}"
++  local text="$2" width="$ICON_TEXT_WIDTH" columns
++  (( width < 1 )) && width=1
++  progress_icon_width columns "$text"
++  if (( columns > width )); then
++    # Each character takes at most two columns, so dropping half the excess
++    # never cuts too much and a couple of passes reach the width.
++    text=${text:0:$((width - 1))}
++    progress_icon_width columns "$text"
++    while (( columns > width - 1 )); do
++      text=${text:0:$((${#text} - (columns - width + 2) / 2))}
++      progress_icon_width columns "$text"
++    done
++    printf -v "$1" '%s…' "$text"
+   else
+     printf -v "$1" '%s' "$text"
+   fi
+@@ -293,9 +319,30 @@
+ }
+ 
+ progress_icon_static() {
+-  progress_icon_layout "$ICON_TTY"
++  local rebuild="${1:-0}"
++  if (( rebuild || ICON_STEPS == 0 )) || [[ -z $ICON_SIZE ]]; then
++    progress_icon_layout "$ICON_TTY"
++  fi
+   printf '%s2J%sH' "$PROGRESS_ICON_CSI" "$PROGRESS_ICON_CSI"
+   progress_icon_render "$ICON_DISPLAY_PM" 1
++}
++
++progress_icon_draw() {
++  local status="${1:-}" tip="${2:-}" shown_status="" shown_tip
++  progress_icon_render "$ICON_DISPLAY_PM"
++
++  printf '%s%d;1H' "$PROGRESS_ICON_CSI" "$((ICON_TOP + ICON_HEIGHT + 1))"
++  progress_icon_line "${PROGRESS_ICON_CSI}32m$((ICON_DISPLAY_PM / 10))%"
++  progress_icon_line ""
++  if [[ -n $status ]]; then
++    progress_icon_truncate shown_status "$status"
++    progress_icon_line "${PROGRESS_ICON_CSI}2m$shown_status"
++  else
++    progress_icon_line ""
++  fi
++  progress_icon_truncate shown_tip "$tip"
++  progress_icon_line "${PROGRESS_ICON_CSI}2m$shown_tip"
++  printf '%sJ' "$PROGRESS_ICON_CSI"
+ }
+ 
+ # Draw one frame toward <pm>, which must never go back. Phase jumps ease over
+@@ -304,7 +351,7 @@
+ # height. Callers draw ten frames a second while setup works the disk, so a
+ # frame starts no process except the console size check on every fifth.
+ progress_icon_frame() {
+-  local pm="${1:-0}" status="${2:-}" tip="${3:-}" step shown_status="" shown_tip
++  local pm="${1:-0}" status="${2:-}" tip="${3:-}" step
+   [[ $pm =~ ^[0-9]+$ ]] || pm=$ICON_TARGET_PM
+   (( pm > 1000 )) && pm=1000
+   (( pm < ICON_TARGET_PM )) && pm=$ICON_TARGET_PM
+@@ -312,33 +359,29 @@
+   # The framebuffer can settle late in VMs. Rebuild at the new size, preserving
+   # progress, instead of leaving the drawing at the old screen coordinates.
+   if (( ICON_FRAMES++ % 5 == 0 )); then
+-    [[ "$(progress_icon_term_size)" == "$ICON_SIZE" ]] || progress_icon_static
++    [[ "$(progress_icon_term_size)" == "$ICON_SIZE" ]] || progress_icon_static 1
+   fi
+   step=$(( (ICON_TARGET_PM - ICON_DISPLAY_PM + 3) / 4 ))
+   ICON_DISPLAY_PM=$((ICON_DISPLAY_PM + step))
+-  progress_icon_render "$ICON_DISPLAY_PM"
+-
+-  printf '%s%d;1H' "$PROGRESS_ICON_CSI" "$((ICON_TOP + ICON_HEIGHT + 1))"
+-  progress_icon_line "${PROGRESS_ICON_CSI}32m$((ICON_DISPLAY_PM / 10))%"
+-  progress_icon_line ""
+-  if [[ -n $status ]]; then
+-    progress_icon_truncate shown_status "$status"
+-    progress_icon_line "${PROGRESS_ICON_CSI}2m$shown_status"
+-  else
+-    progress_icon_line ""
+-  fi
+-  progress_icon_truncate shown_tip "$tip"
+-  progress_icon_line "${PROGRESS_ICON_CSI}2m$shown_tip"
+-  printf '%sJ' "$PROGRESS_ICON_CSI"
+-}
+-
+-# Finish the trace, then draw the icon solid. Only a successful run calls this.
++  progress_icon_draw "$status" "$tip"
++}
++
++# Finish the trace in at most five frames, then draw the icon solid. Only a
++# successful run calls this. Fixed steps keep completion crisp (~0.15s) instead
++# of crawling asymptotically through the last few percent.
+ progress_icon_finish() {
+-  local status="${1:-}" tip="${2:-}"
+-  while (( ICON_DISPLAY_PM < 999 )); do
+-    progress_icon_frame 1000 "$status" "$tip"
+-    sleep 0.05
+-  done
++  local status="${1:-}" tip="${2:-}" remaining step
++  ICON_TARGET_PM=1000
++  remaining=$((1000 - ICON_DISPLAY_PM))
++  if (( remaining > 0 )); then
++    step=$(( (remaining + 4) / 5 ))
++    (( step < 50 )) && step=50
++    while (( ICON_DISPLAY_PM + step < 1000 )); do
++      ICON_DISPLAY_PM=$((ICON_DISPLAY_PM + step))
++      progress_icon_draw "$status" "$tip"
++      sleep 0.03
++    done
++  fi
+   ICON_DISPLAY_PM=1000
+-  progress_icon_frame 1000 "$status" "$tip"
+-}
++  progress_icon_draw "$status" "$tip"
++}
+--- reviewed/install/provisioning/setup-form.sh
++++ release/install/provisioning/setup-form.sh
+@@ -1,9 +1,13 @@
+ # The setup form: every question Omarchy asks a human to describe their machine
+-# — keyboard, account, hostname, timezone — plus the rules those answers are
+-# checked against. Shared by the two places that ask them: the ISO
++# — language, keyboard, account, hostname, timezone — the table they are reviewed
++# in, plus the rules those answers are checked against. Shared by the two places that ask them: the ISO
+ # configurator's user step and this package's first-boot owner setup
+ # (omarchy-provision-owner). Sourced by both, so the copies cannot drift the way
+ # the keyboard list already did.
++#
++# The form also holds the XKB layout of each keymap in that list that systemd's
++# kbd-model-map lacks. The ISO, first-boot setup and Setup > Keyboard all read
++# it from here, so the desktop types what the console does.
+ #
+ # Every prompt reports one of three statuses, and both callers read them the
+ # same way:
+@@ -18,7 +22,7 @@
+ # so it never reaches the shell as SIGINT. Act on the status, never on a trap.
+ #
+ # Callers supply `notice <message> <seconds>` for validation feedback, and set
+-# the variables these prompts write: keyboard, keyboard_label,
++# the variables these prompts write: language, keyboard, keyboard_label,
+ # keyboard_input_method, keyboard_xkb_layout, username,
+ # password, password_confirmation, full_name, email_address, hostname, timezone.
+ #
+@@ -26,9 +30,31 @@
+ # form's text), OMARCHY_FORM_KEYBOARD_DEFAULT (a layout label to preselect),
+ # OMARCHY_FORM_TIMEZONE_DEFAULT (a timezone that beats the network's guess) and
+ # OMARCHY_FORM_TIMEZONE_FALLBACK (one used only when that guess fails).
++# omarchy_prompt_language sets the first and, from the language picked, the
++# second and fourth.
++
++# The form is drawn on the Linux console, whose font (console-font.sh) covers
++# Latin, Cyrillic and Greek. These are the languages it can be read in there;
++# any other is listed under its English name and leaves the form in English.
++OMARCHY_FORM_CONSOLE_LANGUAGES='bg ca cs da de el en es-MX et fi fil fr ga hr hu id is it lt lv ms nl no pl pt pt-BR ro ru sk sl sr sv sw tr uk uz'
+ 
+ OMARCHY_FORM_BACK=1
+ OMARCHY_FORM_SIGNAL=130
++
++# How every screen of the form looks. gum's key hints ("enter submit") are
++# hardcoded English and add nothing to prompts that already say what to do.
++export GUM_CHOOSE_SHOW_HELP=false GUM_CONFIRM_SHOW_HELP=false GUM_FILTER_SHOW_HELP=false GUM_INPUT_SHOW_HELP=false
++export GUM_CONFIRM_PROMPT_FOREGROUND="6"
++export GUM_CONFIRM_SELECTED_FOREGROUND="0"
++export GUM_CONFIRM_SELECTED_BACKGROUND="2"
++export GUM_CONFIRM_UNSELECTED_FOREGROUND="7"
++export GUM_CONFIRM_UNSELECTED_BACKGROUND="0"
++# gum asks COLORTERM how many colours the console has. The installer's login
++# shell says truecolor, so gum sends its colours as they are and the kernel
++# settles each on the nearest of the console's sixteen: the palette's purple
++# for prompts and selections. First-boot setup is a systemd unit with no
++# COLORTERM, where gum picks from sixteen itself and lands on blue and red.
++export COLORTERM=${COLORTERM:-yes}
+ 
+ # The English layouts lead, then everything else alphabetically. gum choose
+ # paginates in --height-sized pages and jumps to the page holding --selected,
+@@ -88,6 +114,42 @@
+ Turkish|trq
+ Ukrainian|ua'
+ 
++# The XKB layout for each keymap in the list above that systemd's kbd-model-map
++# lacks. The values come from the kbd-model-map rows of the nearest keymaps.
++# kbd's cz is QWERTY, and bg-cp1251 is phonetic. A non-Latin layout keeps US as
++# its second layout, so the shared password stays typeable. Prints "layout
++# variant options" with "-" for an empty field, or returns 1 for other keymaps.
++omarchy_keymap_xkb_extra() {
++  local layout variant=- options=- switch=grp:shifts_toggle,grp_led:scroll
++  case $1 in
++    colemak) layout=us variant=colemak ;;
++    bg-cp1251) layout=bg,us variant=phonetic, options=$switch ;;
++    cz) layout=cz,us variant=qwerty, options=$switch ;;
++    de_CH-latin1) layout=ch ;;
++    kyrgyz) layout=kg,us options=$switch ;;
++    no-latin1) layout=no ;;
++    pl) layout=pl ;;
++    ua) layout=ua,us options=$switch ;;
++    *) return 1 ;;
++  esac
++  printf '%s %s %s\n' "$layout" "$variant" "$options"
++}
++
++# Prints the /etc/vconsole.conf XKB lines for a keymap that
++# omarchy_keymap_xkb_extra knows, or returns 1. systemd-firstboot and localectl
++# write XKB lines only for keymaps in kbd-model-map. Hyprland, the SDDM greeter
++# and the initramfs read the layout from these lines. The ISO and first-boot
++# setup add them when they write the keymap of the installed system.
++omarchy_keymap_xkb_settings() {
++  local layout variant options
++  read -r layout variant options < <(omarchy_keymap_xkb_extra "$1") || return 1
++
++  printf 'XKBLAYOUT=%s\nXKBMODEL=pc105\n' "$layout"
++  [[ $variant == "-" ]] || printf 'XKBVARIANT=%s\n' "$variant"
++  [[ $options != "-" ]] || options=""
++  printf 'XKBOPTIONS=terminate:ctrl_alt_bksp%s\n' "${options:+,$options}"
++}
++
+ OMARCHY_USERNAME_PATTERN='^[a-z_][a-z0-9_-]*[$]?$'
+ OMARCHY_RESERVED_USERNAMES='^(root|bin|daemon|mail|ftp|http|nobody|dbus|systemd-coredump|systemd-network|systemd-oom|systemd-journal-remote|systemd-resolve|systemd-timesync|tss|uuidd|alpm|git|avahi|cups|cups-browsed|lp|_talkd|polkitd|rtkit|qemu|brltty|gluster|rpc|libvirt-qemu|pcscd|nvidia-persistenced|sddm)$'
+ OMARCHY_HOSTNAME_PATTERN='^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$'
+@@ -114,29 +176,97 @@
+   done <"$omarchy_form_defaults"
+   unset omarchy_form_key omarchy_form_value
+ fi
++# A layout the caller or the install media named: the one a language's own
++# layout does not replace.
++omarchy_form_keyboard_preset=${OMARCHY_FORM_KEYBOARD_DEFAULT:-}
+ 
+ # The form's strings live in Omarchy's CLI catalogs, which the live ISO carries
+ # too. The caller names the language in OMARCHY_FORM_LANGUAGE; English fills in.
+ omarchy_form_i18n=${OMARCHY_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/default/i18n
+ 
++# omarchy_form_text <key> [args...]: the string, %1.. filled from the arguments.
+ omarchy_form_text() {
+-  local language=${OMARCHY_FORM_LANGUAGE:-en} text
++  local language=${OMARCHY_FORM_LANGUAGE:-en} text key=$1 arg i=1
+   local -a catalogs=("$omarchy_form_i18n/en/cli.json")
+   [[ $language =~ ^[a-z]{2,3}(-[A-Z]{2})?$ && -r $omarchy_form_i18n/$language/cli.json ]] &&
+     catalogs=("$omarchy_form_i18n/$language/cli.json" "${catalogs[@]}")
+   text=$(jq -rn --arg key "$1" 'first(inputs | .[$key] // empty) // empty' "${catalogs[@]}" 2>/dev/null) || text=""
+-  printf '%s' "${text:-$1}"
++  text=${text:-$key}
++  shift
++  for arg in "$@"; do
++    text=${text//"%$i"/"$arg"}
++    i=$((i + 1))
++  done
++  printf '%s' "$text"
++}
++
++# Beside this file in the runtime, and beside the copy the ISO vendors.
++omarchy_form_language_defaults=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/language-defaults.json
++
++omarchy_form_language_drawn() {
++  [[ " $OMARCHY_FORM_CONSOLE_LANGUAGES " == *" $1 "* ]]
++}
++
++omarchy_form_language_label() {
++  local field=englishName
++  omarchy_form_language_drawn "$1" && field=name
++  jq -r --arg code "$1" --arg field "$field" '.[$code][$field] // $code' "$omarchy_form_i18n/locales.json" 2>/dev/null || printf '%s' "$1"
++}
++
++# What follows from the language: the form's own text, the layout preselected
++# in the keyboard step and, for when the network cannot guess one, its
++# country's timezone. A layout the install media preset wins. A language with
++# no single country (English, Arabic, Swahili, Tamil) falls back to UTC: with
++# no fallback the timezone step opens on a search, where Enter takes the first
++# zone, Africa/Abidjan.
++omarchy_form_use_language() {
++  local defaults=$omarchy_form_language_defaults keyboard_default="" timezone_default=""
++  language=$1
++  OMARCHY_FORM_LANGUAGE=en
++  omarchy_form_language_drawn "$language" && OMARCHY_FORM_LANGUAGE=$language
++
++  if [[ -r $defaults ]]; then
++    keyboard_default=$(jq -r --arg code "$language" '.[$code].keyboard // empty' "$defaults" 2>/dev/null) || keyboard_default=""
++    timezone_default=$(jq -r --arg code "$language" '.[$code].timezone // empty' "$defaults" 2>/dev/null) || timezone_default=""
++  fi
++  OMARCHY_FORM_KEYBOARD_DEFAULT=${omarchy_form_keyboard_preset:-${keyboard_default:-English (US)}}
++  OMARCHY_FORM_TIMEZONE_FALLBACK=${timezone_default:-UTC}
++}
++
++# Every Omarchy language, English first and the rest alphabetical by what is
++# shown, with the current one selected.
++omarchy_prompt_language() {
++  local choice status drawn languages
++  drawn=$(jq -Rn --arg s "$OMARCHY_FORM_CONSOLE_LANGUAGES" '$s | split(" ")')
++  languages=$(jq -r --argjson drawn "$drawn" '
++      to_entries
++      | map({code: .key, label: (if (.key | IN($drawn[])) then .value.name else .value.englishName end)})
++      | sort_by(.code != "en", (.label | sub("^Í"; "I") | sub("^Č"; "C") | ascii_downcase))
++      | .[] | "\(.label)\t\(.code)"
++    ' "$omarchy_form_i18n/locales.json")
++  choice=$(gum choose --height 10 --label-delimiter $'\t' --selected "$(omarchy_form_language_label "${language:-en}")" \
++    --header "$(omarchy_form_text setupForm.languageHeader)" <<<"$languages") && status=0 || status=$?
++  ((status == 0)) || return $status
++  [[ -n $choice ]] || return 1
++
++  omarchy_form_use_language "$choice"
+ }
+ 
+ omarchy_prompt_keyboard() {
+-  local choice status default=${OMARCHY_FORM_KEYBOARD_DEFAULT:-English (US)}
++  local choice status layouts default=${OMARCHY_FORM_KEYBOARD_DEFAULT:-English (US)}
++  layouts=$(cut -d'|' -f1 <<<"$OMARCHY_KEYBOARD_LAYOUTS")
+   # gum splits --selected on commas, so "Chinese (Simplified, Pinyin)" needs them escaped.
+-  choice=$(printf '%s\n' "$OMARCHY_KEYBOARD_LAYOUTS" | cut -d'|' -f1 |
+-    gum choose --height 10 --selected "${default//,/\\,}" --header "$(omarchy_form_text setupForm.keyboardHeader)") && status=0 || status=$?
++  choice=$(gum choose --height 10 --selected "${default//,/\\,}" \
++    --header "$(omarchy_form_text setupForm.keyboardHeader)" <<<"$layouts") && status=0 || status=$?
+   ((status == 0)) || return $status
+ 
+-  local selection
+-  selection=$(printf '%s\n' "$OMARCHY_KEYBOARD_LAYOUTS" | awk -F'|' -v c="$choice" '$1==c{print; exit}')
++  local line selection=""
++  while IFS= read -r line; do
++    if [[ ${line%%|*} == "$choice" ]]; then
++      selection=$line
++      break
++    fi
++  done <<<"$OMARCHY_KEYBOARD_LAYOUTS"
+   [[ -n $selection ]] || return 1
+   IFS='|' read -r keyboard_label keyboard keyboard_input_method keyboard_xkb_layout <<< "$selection"
+   keyboard_input_method=${keyboard_input_method:-none}
+@@ -202,21 +332,71 @@
+   return $status
+ }
+ 
+-omarchy_prompt_hostname() {
+-  local status
+-  while true; do
+-    hostname=$(gum input --placeholder "$(omarchy_form_text setupForm.hostnamePlaceholder)" --prompt.foreground="#845DF9" --prompt "$(omarchy_form_text setupForm.hostnamePrompt)") && status=0 || status=$?
+-    ((status == 0)) || return $status
+-
+-    if [[ -z $hostname ]]; then
+-      hostname="$OMARCHY_HOSTNAME_DEFAULT"
+-      return 0
+-    elif [[ "$hostname" =~ $OMARCHY_HOSTNAME_PATTERN ]]; then
+-      return 0
++# Lowercase letters and digits, every other run of characters one dash, none at
++# either end: "Dell Inc." is "dell-inc".
++omarchy_hostname_slug() {
++  sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' <<<"${1,,}"
++}
++
++# The machine's maker and model, "dell xps14", from the firmware's DMI tables,
++# or from the device tree on ARM machines that have none ("Apple MacBook Pro
++# (14-inch, M2 Pro, 2023)"). The model is its first two words run together,
++# which is the name people know: XPS 14 9440, EliteBook 840 G10 Notebook PC,
++# Laptop 13 (AMD Ryzen 7040Series). Virtual machines are "vm", and placeholders
++# from boards nobody filled in are nothing.
++omarchy_hardware_name() {
++  local dmi=${OMARCHY_DMI_DIR:-/sys/class/dmi/id} tree=${OMARCHY_DEVICE_TREE_MODEL:-/proc/device-tree/model}
++  local vendor="" model="" maker first words
++
++  if [[ -r $dmi/sys_vendor ]]; then
++    vendor=$(<"$dmi/sys_vendor")
++    # Lenovo's product_name is a part number (21KC003FUS); the name on the lid
++    # is its product_version.
++    if [[ ${vendor,,} == "lenovo" ]]; then
++      model=$(cat "$dmi/product_version" 2>/dev/null) || model=""
+     else
+-      notice "$(omarchy_form_text setupForm.hostnameInvalid)" 1
++      model=$(cat "$dmi/product_name" 2>/dev/null) || model=""
+     fi
+-  done
++  elif [[ -r $tree ]]; then
++    model=$(tr -d '\0' <"$tree")
++    vendor=${model%% *}
++    model=${model#"$vendor"}
++  fi
++
++  case "${vendor,,} ${model,,}" in
++    *qemu* | *virtualbox* | *vmware* | *"virtual machine"* | *kvm* | *parallels* | *bochs* | "xen "*)
++      echo vm
++      return
++      ;;
++  esac
++  case ${vendor,,} in *"to be filled"* | *"system manufacturer"* | *"default string"* | *"not applicable"*) vendor="" ;; esac
++  case ${model,,} in *"to be filled"* | *"system product name"* | *"default string"* | *"not applicable"*) model="" ;; esac
++
++  first=$(omarchy_hostname_slug "${vendor%% *}")
++  case $first in
++    asustek) maker=asus ;;
++    micro-star) maker=msi ;;
++    hewlett-packard) maker=hp ;;
++    *) maker=$first ;;
++  esac
++
++  # Drop what's in parentheses, and the maker's name where the model repeats
++  # it (HP EliteBook, ASUS Zenbook).
++  read -ra words <<<"$(omarchy_hostname_slug "$(sed -E 's/\([^)]*\)//g' <<<"$model")" | tr - ' ')"
++  [[ -n ${words[0]:-} && (${words[0]} == "$maker" || ${words[0]} == "$first") ]] && words=("${words[@]:1}")
++  model="${words[0]:-}${words[1]:-}"
++
++  echo "${maker:0:12} ${model:0:16}"
++}
++
++# The hostname, made from the owner and the machine (dhh-dell-xps14) rather
++# than asked for; Setup > Network > Hostname changes it after install.
++omarchy_generate_hostname() {
++  local hardware
++  hardware=$(omarchy_hardware_name)
++  [[ -n ${hardware// /} ]] || hardware=$OMARCHY_HOSTNAME_DEFAULT
++  hostname=$(omarchy_hostname_slug "${username:0:30} $hardware")
++  [[ $hostname =~ $OMARCHY_HOSTNAME_PATTERN ]] || hostname=$OMARCHY_HOSTNAME_DEFAULT
+ }
+ 
+ # A fresh machine often hasn't joined a network yet, so the geo guess fails
+@@ -241,8 +421,29 @@
+     zones=$(printf '%s\n' "$guess"; grep -vxF -- "$guess" <<<"$zones")
+   fi
+ 
+-  timezone=$(gum filter --height 10 --header "$(omarchy_form_text setupForm.timezoneHeader)" <<<"$zones") && status=0 || status=$?
++  timezone=$(gum filter --height 10 --header "$(omarchy_form_text setupForm.timezoneHeader)" \
++    --placeholder "$(omarchy_form_text setupForm.timezonePlaceholder)" <<<"$zones") && status=0 || status=$?
+   ((status == 0)) || return $status
+ 
+   [[ -n $timezone ]] || timezone="UTC"
+ }
++
++# The answers in one table, and the question that ends the form: 0 they are
++# right, 1 they are to be changed (or Esc), 130 Ctrl+C. gum table ignores gum's
++# padding, so the caller passes the indent its other widgets get.
++omarchy_form_review() {
++  local indent=${1:-}
++  printf '%s\t%s\n' \
++    "$(omarchy_form_text setupForm.reviewField)" "$(omarchy_form_text setupForm.reviewValue)" \
++    "$(omarchy_form_text setupForm.reviewLanguage)" "$(omarchy_form_language_label "${language:-en}")" \
++    "$(omarchy_form_text setupForm.reviewKeyboard)" "${keyboard_label:-$keyboard}" \
++    "$(omarchy_form_text setupForm.reviewTimezone)" "$timezone" \
++    "$(omarchy_form_text setupForm.reviewUsername)" "$username" \
++    "$(omarchy_form_text setupForm.reviewPassword)" "$(printf "%${#password}s" | tr ' ' '*')" \
++    "$(omarchy_form_text setupForm.reviewHostname)" "$hostname" |
++    gum table -s $'\t' -p | sed "s/^/$indent/"
++
++  echo
++  gum confirm --affirmative "$(omarchy_form_text setupForm.reviewYes)" --negative "$(omarchy_form_text setupForm.reviewChange)" \
++    "$(omarchy_form_text setupForm.reviewPrompt)"
++}
+--- reviewed/install/user/chromium.sh
++++ release/install/user/chromium.sh
+@@ -1,6 +1,6 @@
+-# Chromium ships in the base packages, so it never goes through
++# Chrome ships in the base packages, so it never goes through
+ # omarchy-install-browser, and fresh installs mark every migration as already
+-# applied. Without this, the bundled extensions load but have no native
+-# messaging host to talk to.
++# applied. /etc/skel gives it its flags, but the native messaging hosts the
++# bundled extensions talk to have to be registered here.
+ omarchy-install-chromium-copy-url
+ omarchy-install-chromium-ytdlp
